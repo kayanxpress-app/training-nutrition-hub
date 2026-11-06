@@ -1,0 +1,12 @@
+{
+  "name": "training-hub",
+  "private": true,
+  "dependencies": {
+    "@supabase/supabase-js": "2.45.4",
+    "pdf-lib": "1.17.1"
+  },
+  "scripts": {
+    "dev": "node dev.js",
+    "start": "node dev.js"
+  }
+}
