@@ -10,7 +10,10 @@ const CID=()=>VIEW?VIEW.id:ME.id;
 const EDIT=()=>ADMIN&&VIEW;
 const NAME=()=>VIEW?VIEW.name:(PROF.full_name||"");
 
-function toast(m){const t=document.createElement("div");t.className="toast";t.textContent=m;document.body.appendChild(t);setTimeout(()=>t.remove(),2800)}
+function toast(m){
+  const sh=document.querySelector(".md .sh");
+  if(sh){let e=sh.querySelector(".merr");if(!e){e=document.createElement("div");e.className="merr";sh.insertBefore(e,sh.querySelector("#mk"))}e.textContent=m;return}
+  const t=document.createElement("div");t.className="toast";t.textContent=m;document.body.appendChild(t);setTimeout(()=>t.remove(),2800)}
 const L=()=>LOGS[TODAY]=LOGS[TODAY]||{d:{},w:{},m:{},s:{}};
 let tm;
 function save(){if(ADMIN)return;clearTimeout(tm);tm=setTimeout(async()=>{
