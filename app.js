@@ -85,7 +85,7 @@ async function clients(){
     sb.from("logs").select("client_id,log_date,data").gte("log_date",iso(since)),
     sb.from("programs").select("client_id,title,month_start,data").order("month_start",{ascending:false})]);
   const cl=a.data||[],lg=b.data||[],pr=c.data||[];
-  let h=`<div class="card" style="text-align:center"><b>${ar(cl.length)} عميل</b><p style="margin:2px 0 0;color:var(--mut);font-size:13px">اضغط على العميل لعرض حسابه وتعديل برنامجه</p></div>`;
+  let h=`<div class="card" style="text-align:center"><b>${ar(cl.length)} عميل</b><p style="margin:2px 0 0;color:var(--mut);font-size:13px">اضغط على العميل لعرض حسابه وتعديل برنامجه</p></div><button class="btn" style="margin-bottom:12px" onclick="addClient()">+ إضافة عميل جديد</button>`;
   cl.forEach(x=>{
     const mine=lg.filter(l=>l.client_id===x.id).sort((p,q)=>q.log_date.localeCompare(p.log_date));
     const last=mine[0],t=mine.find(l=>l.log_date===TODAY);
@@ -95,9 +95,9 @@ async function clients(){
     const bad=days===null||days>=3;
     const p=pr.find(z=>z.client_id===x.id);
     const left=p?Math.round((new Date(p.month_start)-new Date(TODAY))/864e5)+((p.data&&p.data.info&&p.data.info.days)||30)-1:null;
-    h+=`<div class="card cl"><div style="flex:1;cursor:pointer" onclick="openClient('${x.id}','${esc(x.full_name||"عميل").replace(/'/g,"")}')"><h3>${esc(x.full_name||"بدون اسم")}</h3><p class="${bad?"no2":"ok"}">${act}</p><p>اليوم: ${ar(cnt)} تمارين · ${ar(mel)} وجبات · ${ar(sup)} مكملات</p>${left!==null?`<p>${left>=0?`باقي ${ar(left)} يوم على نهاية البرنامج`:"البرنامج انتهى"}</p>`:'<p>لا يوجد برنامج</p>'}</div><button class="ed" style="display:inline-block" onclick="sendNote('${x.id}')">✉ إشعار</button></div>`;
+    h+=`<div class="card cl"><div style="flex:1;cursor:pointer" onclick="openClient('${x.id}','${esc(x.full_name||"عميل").replace(/'/g,"")}')"><h3>${esc(x.full_name||"بدون اسم")}</h3><p class="${bad?"no2":"ok"}">${act}</p><p>اليوم: ${ar(cnt)} تمارين · ${ar(mel)} وجبات · ${ar(sup)} مكملات</p>${left!==null?`<p>${left>=0?`باقي ${ar(left)} يوم على نهاية البرنامج`:"البرنامج انتهى"}</p>`:'<p>لا يوجد برنامج</p>'}</div><div style="display:grid;gap:6px"><button class="ed" style="display:inline-block;margin:0" onclick="sendNote('${x.id}')">✉ إشعار</button><button class="ed" style="display:inline-block;margin:0" onclick="setPass('${x.id}')">كلمة المرور</button></div></div>`;
   });
-  h+=`<div class="card"><b>إضافة عميل جديد</b><p style="color:var(--mut);font-size:14px;margin:4px 0 0">من Supabase ← Authentication ← Users ← Add user (فعّل Auto Confirm)، وهيظهر هنا تلقائي. ثم افتحه وأضف برنامجه.</p></div><button class="btn o" onclick="out()">تسجيل الخروج</button>`;
+  h+=`<button class="btn o" onclick="out()">تسجيل الخروج</button>`;
   $("#app").innerHTML=h;
 }
 async function openClient(id,name){
@@ -201,6 +201,23 @@ function editMeal(key){
     if(key)e.t=v.t.trim();else{const k="m"+Date.now().toString(36);M[k]={t:v.t.trim(),note:"",opts:[]};ft=k}
     return savePD();
   },key&&Object.keys(M).length>1?async()=>{delete M[key];ft=Object.keys(M)[0];await savePD()}:null);
+}
+async function callClients(body){
+  const {data:{session}}=await sb.auth.getSession();
+  const r=await fetch("/api/clients",{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+session.access_token},body:JSON.stringify(body)});
+  const j=await r.json().catch(()=>({}));
+  if(!r.ok)throw new Error(j.error||("خطأ "+r.status));
+  return j;
+}
+function addClient(){
+  modal("إضافة عميل جديد",[{k:"name",l:"الاسم",v:""},{k:"email",l:"الإيميل",v:"",type:"email",dir:"ltr"},{k:"password",l:"كلمة المرور (٦ أحرف على الأقل)",v:"",dir:"ltr"},{k:"phone",l:"رقم الموبايل (اختياري)",v:"",dir:"ltr"}],async v=>{
+    try{await callClients({action:"create",name:v.name,email:v.email,password:v.password,phone:v.phone});toast("تم إنشاء الحساب. ابعت الإيميل وكلمة المرور للعميل");clients();return true}catch(e){toast(e.message);return false}
+  });
+}
+function setPass(id){
+  modal("تغيير كلمة مرور العميل",[{k:"password",l:"كلمة المرور الجديدة (٦ أحرف على الأقل)",v:"",dir:"ltr"}],async v=>{
+    try{await callClients({action:"password",id,password:v.password});toast("تم تغيير كلمة المرور");return true}catch(e){toast(e.message);return false}
+  });
 }
 function modal(title,fields,onSave,onDel){
   const m=document.createElement("div");m.className="md";
