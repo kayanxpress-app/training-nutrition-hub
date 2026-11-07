@@ -34,10 +34,18 @@ function repsCard(){
 }
 const doneCount=i=>Object.keys(L().d).filter(k=>k.startsWith("s"+i+"e")).length;
 
+/* ===== بطاقة الدكتور (صفحة الدخول) ===== */
+function docCard(){
+  const FORM="https://docs.google.com/forms/d/e/1FAIpQLScabXfmxUsT3gaL7NJZjdyBedf0UIx-x2YAtlo8A_rJnBEIuA/viewform";
+  const quals=["أخصائي الإعداد البدني قبل وبعد جراحة الإصابات وعلاج الانحرافات القوامية","أخصائي تغذية عام","دبلومة الطب الرياضي","دبلومة وماجستير ودكتوراه التغذية العلاجية"];
+  const chips=["مرضى السمنة والنحافة","مرضى الجهاز الهضمي","التهابات وحساسية المرارة","مرضى الكلى","الضغط","السكر","الأورام","الأطفال","فترة الحمل والرضاعة","مرضى الإسهال","تقرحات والتهابات القولون المناعية المزمنة","مرضى الغدة الدرقية","الرياضيين"];
+  return `<div class="card dc"><h2>الدكتور محمود جمال قطب</h2><div class="en">DR. MAHMOUD GAMAL</div>${quals.map(x=>`<div class="q">${x}</div>`).join("")}<div class="lbl" style="margin-top:12px">في تغذية</div><div class="cp">${chips.map(x=>`<i>${x}</i>`).join("")}</div><div class="qr"><a href="${FORM}" target="_blank" rel="noopener"><img src="img/qr-form.png" alt="QR"></a><div><div class="lbl">SCAN</div><b>امسح الكود</b></div></div></div>`;
+}
+
 /* ===== الدخول ===== */
 function login(msg){
   $("#hd").innerHTML="";$("nav").style.display="none";document.body.classList.remove("av");
-  $("#app").innerHTML=`<div class="login"><img src="img/logo.png" alt=""><h1>Training <b>Nutrition</b> Hub</h1><p>تسجيل الدخول لمتابعة برنامجك</p><input id="em" type="email" autocomplete="username" placeholder="الإيميل" dir="ltr"><input id="pw" type="password" autocomplete="current-password" placeholder="كلمة المرور" dir="ltr"><button id="go">دخول</button><div id="er">${msg||""}</div></div>`;
+  $("#app").innerHTML=`<div class="login"><img src="img/logo.png" alt=""><h1>Training <b>Nutrition</b> Hub</h1><p>تسجيل الدخول لمتابعة برنامجك</p><input id="em" type="email" autocomplete="username" placeholder="الإيميل" dir="ltr"><input id="pw" type="password" autocomplete="current-password" placeholder="كلمة المرور" dir="ltr"><button id="go">دخول</button><div id="er">${msg||""}</div>${docCard()}</div>`;
   const go=async()=>{
     $("#er").textContent="";$("#go").disabled=true;
     const {error}=await sb.auth.signInWithPassword({email:$("#em").value.trim(),password:$("#pw").value});
