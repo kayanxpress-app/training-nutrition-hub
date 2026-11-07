@@ -278,3 +278,9 @@ body.av .mo .ed{pointer-events:auto}
 .ckl{max-height:34vh;overflow:auto;border:1px solid var(--line);border-radius:12px;padding:0 8px;margin:8px 0}
 .sh .sn{font-size:12.5px;color:var(--mut);margin:8px 0 0;line-height:1.7}
 .sh textarea.big{min-height:300px;line-height:1.8}
+
+/* الوزن المستهدف (محسوب من أوزان الأسبوع الأول) */
+.tw{display:flex;align-items:baseline;justify-content:center;gap:3px;margin:0 0 6px;padding:5px 0;border-radius:10px;background:rgba(108,196,23,.2);color:var(--ink);font-weight:800;font-size:17px}
+.tw small{font-size:10px;opacity:.7;font-weight:700}
+.tw em{font-style:normal;color:#3d7a0c;font-size:11px}
+body.av .rt4>div{cursor:pointer}
