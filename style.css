@@ -212,3 +212,5 @@ body.av textarea.nb{pointer-events:none}
 .login .dc .cp i{color:#cfd8c8;border-color:rgba(255,255,255,.2)}
 .login .dc .qr img{background:#fff;padding:4px}
 .login .dc .lbl{color:var(--pk)}
+body:has(.login){padding-bottom:calc(24px + env(safe-area-inset-bottom,0px))}
+.login .dc .qr{flex-direction:row-reverse;justify-content:space-between}
