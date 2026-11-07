@@ -217,3 +217,4 @@ body:has(.login){padding-bottom:calc(24px + env(safe-area-inset-bottom,0px))}
 
 /* رسالة التنبيه لازم تظهر فوق النوافذ */
 .toast{z-index:200;bottom:auto;top:calc(16px + env(safe-area-inset-bottom,0px));max-width:90vw;text-align:center;border-radius:14px}
+.merr{background:#fdecea;color:#b3261e;border:1px solid #f3b8b3;border-radius:12px;padding:10px 12px;margin:10px 0;font-size:14px;line-height:1.6;direction:rtl;text-align:center;word-break:break-word}
