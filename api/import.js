@@ -105,7 +105,7 @@ module.exports = async (req, res) => {
     if (req.method !== "POST") return res.status(405).json({ error: "POST only" });
     const token = (req.headers.authorization || "").replace(/^Bearer\s+/i, "");
     if (!token) return res.status(401).json({ error: "غير مصرح" });
-    const sb = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY, { global: { headers: { Authorization: "Bearer " + token } } });
+    const sb = createClient(process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY, { global: { headers: { Authorization: "Bearer " + token } } });
     const { data: u, error: ue } = await sb.auth.getUser(token);
     if (ue || !u || !u.user) return res.status(401).json({ error: "غير مصرح" });
     const { data: prof } = await sb.from("profiles").select("role").eq("id", u.user.id).maybeSingle();
