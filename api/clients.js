@@ -8,7 +8,7 @@ module.exports = async (req, res) => {
     const url = process.env.SUPABASE_URL, anon = process.env.SUPABASE_ANON_KEY, svc = process.env.SUPABASE_SERVICE_ROLE_KEY;
     const token = (req.headers.authorization || "").replace(/^Bearer\s+/i, "");
     const missing = [!url && "SUPABASE_URL", !anon && "SUPABASE_ANON_KEY", !svc && "SUPABASE_SERVICE_ROLE_KEY"].filter(Boolean);
-    if (missing.length) return res.status(500).json({ error: "ناقص في Vercel: " + missing.join(" ، ") + " (بعد إضافتها اعمل Redeploy)" });
+    if (missing.length) return res.status(500).json({ error: "ناقص في Vercel: " + missing.join(" ، ") + " | الأسماء الموجودة عند السيرفر: " + (Object.keys(process.env).filter(k => /supa|anon|role/i.test(k)).join(" ، ") || "لا شيء") });
     if (!token) return res.status(401).json({ error: "غير مصرح" });
 
     const asUser = createClient(url, anon, { global: { headers: { Authorization: "Bearer " + token } } });
