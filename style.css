@@ -214,3 +214,6 @@ body.av textarea.nb{pointer-events:none}
 .login .dc .lbl{color:var(--pk)}
 body:has(.login){padding-bottom:calc(24px + env(safe-area-inset-bottom,0px))}
 .login .dc .qr{flex-direction:row-reverse;justify-content:space-between}
+
+/* رسالة التنبيه لازم تظهر فوق النوافذ */
+.toast{z-index:200;bottom:auto;top:calc(16px + env(safe-area-inset-bottom,0px));max-width:90vw;text-align:center;border-radius:14px}
