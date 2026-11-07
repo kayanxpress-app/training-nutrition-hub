@@ -203,3 +203,12 @@ nav a{font-size:12px;padding:6px 0}
 textarea.nb{width:100%;min-height:90px;margin-top:8px;border:1.5px dashed var(--mut);border-radius:12px;background:transparent;color:var(--ink);font:inherit;padding:10px}
 body.av textarea.nb{pointer-events:none}
 .bk .bt{margin-top:6px;font-size:14.5px;line-height:1.8}
+
+/* بطاقة الدكتور في صفحة الدخول */
+.login .dc{background:linear-gradient(180deg,#10261a,#0b0f0b);color:#fff;border:0;margin:26px 0 0;text-align:start}
+.login .dc h2{margin:0;font-size:22px;text-align:center}
+.login .dc .en{text-align:center;color:#9aa89a;font-size:11px;letter-spacing:3px;margin:2px 0 6px;direction:ltr}
+.login .dc .q{background:rgba(255,255,255,.07)}
+.login .dc .cp i{color:#cfd8c8;border-color:rgba(255,255,255,.2)}
+.login .dc .qr img{background:#fff;padding:4px}
+.login .dc .lbl{color:var(--pk)}
