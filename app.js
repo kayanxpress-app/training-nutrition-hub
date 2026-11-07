@@ -129,7 +129,7 @@ function sendNote(cid){
 /* ===== النوافذ والتعديل ===== */
 function fld(f,i){
   const v=esc(f.v??"");
-  if(f.type==="area")return `<label>${f.l}<textarea data-i="${i}">${v}</textarea></label>`;
+  if(f.type==="area")return `<label>${f.l}<textarea data-i="${i}" class="${f.big?"big":""}">${v}</textarea></label>`;
   if(f.type==="sel")return `<label>${f.l}<select data-i="${i}">${f.o.map(o=>`<option ${o==f.v?"selected":""}>${o}</option>`).join("")}</select></label>`;
   if(f.type==="img")return `<label>${f.l}</label><div class="im"><img id="pv${i}" src="${v}" alt=""><input type="file" accept="image/*" data-up="${i}"></div><input type="hidden" data-i="${i}" value="${v}">`;
   if(f.type==="file")return `<label>${f.l}</label><div class="im"><input type="file" accept="application/pdf" data-upf="${i}"><span id="fn${i}" style="font-size:13px;color:var(--mut)">${v?"تم رفع ملف سابقًا":""}</span></div><input type="hidden" data-i="${i}" value="${v}">`;
@@ -291,7 +291,7 @@ function editAbv(i,x){
 function editOpt(m,k){
   const M=P.data.meals[m],cur=k<0?"":M.opts[k];
   modal(k<0?"إضافة خيار":"تعديل الخيار",[{k:"o",l:"مكونات الخيار (افصل بين المكونات بعلامة +)",type:"area",v:cur}],
-    async v=>{if(!v.o.trim()){toast("اكتب الخيار");return false}if(k<0)M.opts.push(v.o.trim());else M.opts[k]=v.o.trim();return savePD()},
+    async v=>{const o=normOpt(v.o);if(!o){toast("اكتب الخيار");return false}if(k<0)M.opts.push(o);else M.opts[k]=o;return savePD()},
     k<0?null:async()=>{M.opts.splice(k,1);await savePD()});
 }
 function editNote(m){const M=P.data.meals[m];modal("ملاحظة الوجبة",[{k:"n",l:"الملاحظة (اتركها فاضية لإخفائها)",type:"area",v:M.note}],async v=>{M.note=v.n.trim();return savePD()})}
@@ -331,7 +331,7 @@ function newMonth(){
   });
 }
 function newProgram(){
-  const base={info:{age:"",weight:"",height:"",start:"",end:"",days:30,minutes:""},reps:[12,10,10],energy:{bmr:"",act:"",tdee:"",plan:"",water:"",exch:[]},sessions:[],meals:{b:{t:"الفطار",note:"",opts:[]},l:{t:"الغداء",note:"",opts:[]},d:{t:"العشاء",note:"",opts:[]}},supp:[]};
+  const base=BASE();
   modal("إنشاء أول برنامج للعميل",[{k:"d",l:"تاريخ البداية",type:"date",v:TODAY},{k:"t",l:"عنوان البرنامج",v:""}],async v=>{
     const {data,error}=await sb.from("programs").insert({client_id:CID(),title:v.t.trim()||("برنامج "+v.d),month_start:v.d,data:base}).select().single();
     if(error){toast("تعذر الإنشاء");return false}
@@ -339,10 +339,116 @@ function newProgram(){
   });
 }
 
+
+/* ===== نسخ وتصدير الأقسام بين العملاء ===== */
+const clone=x=>JSON.parse(JSON.stringify(x));
+const BASE=()=>({info:{age:"",weight:"",height:"",start:"",end:"",days:30,minutes:""},reps:[12,10,10],energy:{bmr:"",act:"",tdee:"",plan:"",water:"",exch:[]},sessions:[],meals:{b:{t:"الفطار",note:"",opts:[]},l:{t:"الغداء",note:"",opts:[]},d:{t:"العشاء",note:"",opts:[]}},supp:[]});
+const putBlocks=(s,d,sec)=>{d.blocks=d.blocks||{};const b=(s.blocks||{})[sec];if(b&&b.length)d.blocks[sec]=clone(b);else delete d.blocks[sec]};
+const SEC={
+  train:{l:"التدريب: الجلسات والتمارين وتدرّج التكرارات",cp(s,d){d.sessions=clone(s.sessions||[]);["reps","weeks","rest"].forEach(k=>{if(s[k]!==undefined&&s[k]!==null)d[k]=clone(s[k]);else delete d[k]});if(!d.weeks&&!d.reps)d.reps=[12,10,10];putBlocks(s,d,"train")}},
+  food:{l:"التغذية: الوجبات والخيارات",cp(s,d){d.meals=clone(s.meals||{});putBlocks(s,d,"food")}},
+  energy:{l:"السعرات والتبادلات الغذائية (بدون بيانات العميل الشخصية)",cp(s,d){d.energy=d.energy||{};const e=s.energy||{};["plan","ptn","cho"].forEach(k=>d.energy[k]=e[k]??"");d.energy.exch=clone(e.exch||[])}},
+  supp:{l:"المكملات والتوصيات",cp(s,d){d.supp=clone(s.supp||[]);putBlocks(s,d,"supp")}}
+};
+const ITEM={
+  sess:(it,d)=>{d.sessions=d.sessions||[];d.sessions.push(clone(it))},
+  meal:(it,d)=>{d.meals=d.meals||{};let k=Object.keys(d.meals).find(x=>d.meals[x].t===it.t);if(!k)k="m"+Date.now().toString(36)+Math.random().toString(36).slice(2,5);d.meals[k]=clone(it)},
+  supp:(it,d)=>{d.supp=d.supp||[];d.supp.push(clone(it))}
+};
+async function targetProg(cid){
+  const {data,error}=await sb.from("programs").select("*").eq("client_id",cid).order("month_start",{ascending:false});
+  if(error)throw error;const a=data||[];return a.find(p=>p.month_start<=TODAY)||a[0]||null;
+}
+async function pushTo(ids,fn,title,onProg){
+  let ok=0,created=0,fail=0;
+  for(let i=0;i<ids.length;i++){
+    onProg(i+1,ids.length);
+    try{
+      const t=await targetProg(ids[i]);
+      if(t){const d=clone(t.data);fn(d);const {error}=await sb.from("programs").update({data:d}).eq("id",t.id);if(error)throw error}
+      else{const d=BASE();fn(d);const {error}=await sb.from("programs").insert({client_id:ids[i],title:title||("برنامج "+TODAY),month_start:TODAY,data:d});if(error)throw error;created++}
+      ok++;
+    }catch(e){fail++}
+  }
+  return {ok,created,fail};
+}
+async function clientDlg(o){
+  let list=[];
+  try{const {data,error}=await sb.from("profiles").select("id,full_name").eq("role","client").order("full_name");if(error)throw error;list=(data||[]).filter(x=>x.id!==CID())}catch(e){return toast("تعذر تحميل العملاء")}
+  if(!list.length)return toast("لا يوجد عملاء آخرين");
+  const pull=o.mode==="pull",src=pull||!P?null:clone(P.data),ttl=P?P.title:"";
+  const m=document.createElement("div");m.className="md";
+  const secH=o.item?"":`<div class="lbl">${pull?"ماذا تسحب؟ (يحل محل نفس القسم عندك)":"ماذا تنسخ؟ (يحل محل نفس القسم عند العميل)"}</div>`+Object.keys(SEC).map(k=>`<label class="ck"><input type="checkbox" data-s="${k}" ${(o.on||[]).includes(k)?"checked":""}><span>${SEC[k].l}</span></label>`).join("");
+  const note=pull?"البيانات الشخصية للعميل (العمر والوزن والسعرات) ما بتتغيرش.":o.item?"هيتضاف للعميل داخل برنامجه الحالي.":"القسم بيحل محل نفس القسم في برنامج العميل الحالي، وبيانات العميل الشخصية ما بتتغيرش. لو العميل ملوش برنامج هيتعمله برنامج مسودة.";
+  m.innerHTML=`<div class="sh"><h3>${o.title}</h3>${secH}<div class="lbl" style="margin-top:14px">${pull?"من أي عميل؟":"إلى أي عملاء؟"}</div><input id="cq" placeholder="بحث بالاسم"><div class="ckl">${list.map(c=>`<label class="ck" data-n="${esc(c.full_name||"")}"><input type="${pull?"radio":"checkbox"}" name="cs" data-c="${c.id}"><span>${esc(c.full_name||"بدون اسم")}</span></label>`).join("")}</div>${pull?"":'<button class="btn o" id="ca">تحديد الكل / إلغاء التحديد</button>'}<p class="sn">${note}</p><button class="btn" id="mk">${pull?"سحب":"نسخ"}</button><button class="btn o" id="mc">إلغاء</button></div>`;
+  document.body.appendChild(m);
+  const q=s=>[...m.querySelectorAll(s)];
+  m.querySelector("#cq").oninput=e=>{const v=e.target.value.trim();q(".ckl .ck").forEach(l=>l.style.display=l.dataset.n.includes(v)?"":"none")};
+  const ca=m.querySelector("#ca");if(ca)ca.onclick=()=>{const vis=q(".ckl .ck").filter(l=>l.style.display!=="none").map(l=>l.querySelector("input"));const all=vis.every(i=>i.checked);vis.forEach(i=>i.checked=!all)};
+  m.querySelector("#mc").onclick=()=>m.remove();
+  m.onclick=e=>{if(e.target===m)m.remove()};
+  m.querySelector("#mk").onclick=async()=>{
+    const ids=q("[data-c]:checked").map(i=>i.dataset.c),ks=q("[data-s]:checked").map(i=>i.dataset.s),b=m.querySelector("#mk"),lab=b.textContent;
+    if(!ids.length)return toast(pull?"اختر العميل":"اختر عميل واحد على الأقل");
+    if(!o.item&&!ks.length)return toast("اختر قسم واحد على الأقل");
+    b.disabled=true;
+    try{
+      if(pull){
+        const t=await targetProg(ids[0]);
+        if(!t){toast("العميل ده ملوش برنامج");b.disabled=false;return}
+        if(!P){const {data,error}=await sb.from("programs").insert({client_id:CID(),title:t.title||("برنامج "+TODAY),month_start:TODAY,data:BASE()}).select().single();if(error)throw error;PROGS=[data];PI=0;P=data}
+        ks.forEach(k=>SEC[k].cp(t.data,P.data));m.remove();await savePD();return;
+      }
+      const fn=o.item?(d=>ITEM[o.item.type](clone(o.item.obj),d)):(d=>ks.forEach(k=>SEC[k].cp(src,d)));
+      const r=await pushTo(ids,fn,ttl,(i,n)=>b.textContent=`جاري النسخ ${ar(i)} / ${ar(n)}...`);
+      m.remove();
+      toast(`تم النسخ لـ ${ar(r.ok)} عميل${r.created?` (منهم ${ar(r.created)} برنامج جديد كمسودة)`:""}${r.fail?` · فشل ${ar(r.fail)}`:""}`);
+    }catch(e){b.disabled=false;b.textContent=lab;toast("تعذر التنفيذ: "+(e.message||""))}
+  };
+}
+const shareSec=(...on)=>clientDlg({title:"نسخ لعملاء آخرين",on,mode:"push"});
+const pullProg=()=>clientDlg({title:"سحب برنامج من عميل آخر",on:["train","food","supp"],mode:"pull"});
+const shareSess=i=>clientDlg({title:"نسخ هذه الجلسة لعملاء آخرين",item:{type:"sess",obj:P.data.sessions[i]},mode:"push"});
+const shareMeal=k=>clientDlg({title:"نسخ هذه الوجبة لعملاء آخرين",item:{type:"meal",obj:P.data.meals[k]},mode:"push"});
+const shareSupp=i=>clientDlg({title:"نسخ هذا المكمل لعملاء آخرين",item:{type:"supp",obj:P.data.supp[i]},mode:"push"});
+
+/* ===== إدخال الوجبات بسرعة (لصق كل الخيارات مرة واحدة) ===== */
+const normOpt=t=>String(t).split(/\s*[+＋]\s*/).map(x=>x.trim()).filter(Boolean).join(" + ");
+function parseOpts(t){
+  const out=[];let cur="";
+  String(t).replace(/\r/g,"").split("\n").map(x=>x.trim()).forEach(l=>{
+    if(!l){if(cur)out.push(cur);cur="";return}
+    if(cur&&(/[+＋]$/.test(cur)||/^[+＋]/.test(l)))cur+=" "+l;else{if(cur)out.push(cur);cur=l}
+  });
+  if(cur)out.push(cur);
+  return out.map(normOpt).filter(Boolean);
+}
+function editOpts(m){
+  const M=P.data.meals[m];
+  modal("كل خيارات "+M.t+" مرة واحدة",[{k:"o",l:"اكتب كل خيار في سطر، وافصل بين مكونات الخيار بعلامة +  (تقدر تلصق كل الخيارات مرة واحدة، وتعدّل أو تمسح أي سطر)",type:"area",big:true,v:M.opts.join("\n")}],
+    async v=>{M.opts=parseOpts(v.o);return savePD()});
+}
+function editAllMeals(){
+  const M=P.data.meals,txt=Object.keys(M).map(k=>"# "+M[k].t+"\n"+(M[k].note?"ملاحظة: "+M[k].note+"\n":"")+M[k].opts.join("\n")).join("\n\n");
+  modal("كل الوجبات في نص واحد",[{k:"t",l:"السطر اللي يبدأ بـ # هو اسم الوجبة. السطر اللي يبدأ بـ «ملاحظة:» هو ملاحظة الوجبة. وتحته كل خيار في سطر ومكوناته بينها +",type:"area",big:true,v:txt}],async v=>{
+    const out={},old=Object.keys(M),used=new Set();let cur=null,buf=[],n=0;
+    const flush=()=>{if(cur)cur.opts=parseOpts(buf.join("\n"));buf=[]};
+    v.t.replace(/\r/g,"").split("\n").forEach(raw=>{
+      const l=raw.trim();
+      if(/^#/.test(l)){flush();const t=l.replace(/^#+/,"").trim()||"وجبة";let k=old.find(x=>!used.has(x)&&M[x].t===t);if(!k)k="m"+Date.now().toString(36)+(n++);used.add(k);cur={t,note:"",opts:[]};out[k]=cur}
+      else if(cur&&/^(ملاحظة|note)\s*[:：]/i.test(l))cur.note=l.replace(/^[^:：]*[:：]/,"").trim();
+      else if(cur)buf.push(raw);
+    });
+    flush();
+    if(!Object.keys(out).length){toast("ابدأ كل وجبة بسطر فيه # واسم الوجبة");return false}
+    P.data.meals=out;ft=Object.keys(out)[0];return savePD();
+  });
+}
+
 /* ===== صفحات العميل ===== */
 function empty(){
   hd("برنامجك","Training Nutrition Hub");
-  $("#app").innerHTML=EDIT()?`<div class="card" style="text-align:center"><b>لا يوجد برنامج لهذا العميل</b></div>${addb("importProg()","استيراد برنامج من ملف PDF")}${addb("newProgram()","إنشاء برنامج فارغ")}`:`<div class="card" style="text-align:center"><b>لسه مفيش برنامج متاح لحسابك</b><p style="color:var(--mut)">هيظهر هنا فور ما الدكتور يضيفه.</p></div><button class="btn o" onclick="out()">تسجيل الخروج</button>`;
+  $("#app").innerHTML=EDIT()?`<div class="card" style="text-align:center"><b>لا يوجد برنامج لهذا العميل</b></div>${addb("importProg()","استيراد برنامج من ملف PDF")}${addb("pullProg()","سحب برنامج من عميل آخر")}${addb("newProgram()","إنشاء برنامج فارغ")}`:`<div class="card" style="text-align:center"><b>لسه مفيش برنامج متاح لحسابك</b><p style="color:var(--mut)">هيظهر هنا فور ما الدكتور يضيفه.</p></div><button class="btn o" onclick="out()">تسجيل الخروج</button>`;
 }
 function home(){
   const dt=P.data,inf=dt.info,n=dt.sessions.reduce((a,s)=>a+s.ex.length,0);
@@ -358,7 +464,7 @@ function home(){
   h+=`<div class="card pg"><div class="sub">${esc(dt.sub||"")}</div><div class="big">${esc(dt.brand||P.title||"")}</div><div class="mem">${[["الاسم",NAME()||"—"],["العمر",inf.age],["الوزن",inf.weight],["الطول",inf.height],["البداية",inf.start],["النهاية",inf.end],["المدة",inf.days?ar(inf.days)+" يومًا":""],["التمرين",inf.minutes]].map(x=>`<div><span>${x[0]}</span><b>${esc(x[1])||"—"}</b></div>`).join("")}</div>${ed("editInfo()","تعديل بيانات العميل والبرنامج")}</div>`;
   if(EDIT()){
     const days=Object.keys(LOGS).sort().reverse().slice(0,7);
-    h+=`<div class="card"><b>نشاط العميل (آخر ٧ أيام)</b>${days.length?days.map(d=>{const g=LOGS[d];return `<div class="act"><span>${ar(d.slice(5).replace("-","/"))}</span><span>${ar(Object.keys(g.d||{}).length)} تمارين · ${ar(Object.keys(g.m||{}).length)} وجبات · ${ar(Object.keys(g.s||{}).length)} مكملات</span></div>`}).join(""):'<p style="color:var(--mut);margin:6px 0 0">لا يوجد نشاط مسجل بعد</p>'}</div>${addb("newMonth()","برنامج شهر جديد (نسخ من الحالي)")}${addb("importProg()","استيراد برنامج من ملف PDF")}<button class="btn o" onclick="sendNote('${VIEW.id}')">✉ إرسال إشعار للعميل</button>`;
+    h+=`<div class="card"><b>نشاط العميل (آخر ٧ أيام)</b>${days.length?days.map(d=>{const g=LOGS[d];return `<div class="act"><span>${ar(d.slice(5).replace("-","/"))}</span><span>${ar(Object.keys(g.d||{}).length)} تمارين · ${ar(Object.keys(g.m||{}).length)} وجبات · ${ar(Object.keys(g.s||{}).length)} مكملات</span></div>`}).join(""):'<p style="color:var(--mut);margin:6px 0 0">لا يوجد نشاط مسجل بعد</p>'}</div>${addb("newMonth()","برنامج شهر جديد (نسخ من الحالي)")}${addb("shareSec('train','food','supp')","نسخ هذا البرنامج لعملاء آخرين")}${addb("pullProg()","سحب برنامج من عميل آخر")}${addb("importProg()","استيراد برنامج من ملف PDF")}<button class="btn o" onclick="sendNote('${VIEW.id}')">✉ إرسال إشعار للعميل</button>`;
   }
   h+=`<div class="card" style="background:linear-gradient(180deg,#10261a,#0b0f0b);color:#fff;border:0;margin-top:12px"><div class="lbl">المؤهلات</div>${["أخصائي الإعداد البدني قبل وبعد جراحة الإصابات وعلاج الانحرافات القوامية","أخصائي تغذية عام","دبلومة الطب الرياضي","دبلومة وماجستير ودكتوراه التغذية العلاجية"].map(x=>`<div class="q" style="background:rgba(255,255,255,.07)">${x}</div>`).join("")}<div class="lbl" style="margin-top:12px">في تغذية</div><div class="cp">${["مرضى السمنة والنحافة","مرضى الجهاز الهضمي","التهابات وحساسية المرارة","مرضى الكلى","الضغط","السكر","الأورام","الأطفال","فترة الحمل والرضاعة","مرضى الإسهال","تقرحات والتهابات القولون المناعية المزمنة","مرضى الغدة الدرقية","الرياضيين"].map(x=>`<i style="color:#cfd8c8;border-color:rgba(255,255,255,.2)">${x}</i>`).join("")}</div><div class="qr"><a href="https://wa.me/201006130790" target="_blank" rel="noopener"><img src="img/qr-wa.png" alt=""></a><div><div class="lbl" style="color:var(--or)">التواصل</div><b>تواصل معي على واتساب</b><br><a class="ih" style="border:1px solid rgba(255,255,255,.3);margin:6px 0 0" href="https://wa.me/201006130790" target="_blank" rel="noopener">فتح واتساب ↗</a></div></div><div class="qr"><a href="https://docs.google.com/forms/d/e/1FAIpQLScabXfmxUsT3gaL7NJZjdyBedf0UIx-x2YAtlo8A_rJnBEIuA/viewform" target="_blank" rel="noopener"><img src="img/qr-form.png" alt=""></a><div><div class="lbl" style="color:var(--or)">المتابعة</div><b>استمارة المتابعة</b><br><a class="ih" style="border:1px solid rgba(255,255,255,.3);margin:6px 0 0" href="https://docs.google.com/forms/d/e/1FAIpQLScabXfmxUsT3gaL7NJZjdyBedf0UIx-x2YAtlo8A_rJnBEIuA/viewform" target="_blank" rel="noopener">فتح الاستمارة ↗</a></div></div></div>`;
   h+=`<button class="btn o" onclick="out()">تسجيل الخروج</button>`;
@@ -372,6 +478,7 @@ function train(){
   h+=blocksBlock("train");
   h+=filesBlock("train");
   h+=repsCard();
+  h+=addb("shareSec('train')","نسخ التدريب كله لعملاء آخرين");
   h+=`<div class="card"><div class="lbl" style="color:var(--or)">طريقة الاستخدام</div><ul class="how"><li>الضغط على صورة أي <b>فيديو</b> يفتح شرح التمرين.</li><li>كتابة الوزن المرفوع (كجم) في كل مجموعة، ويتم حفظه تلقائيًا.</li><li>زرار «تم» بعد كل تمرين لمتابعة التقدم.</li><li>الكارديو: ١٥ دقيقة بالمستوى المذكور.</li></ul></div>`;
   $("#app").innerHTML=h;
 }
@@ -389,37 +496,41 @@ function session(i){
   h+=addb(`editEx(${i},-1)`,"إضافة تمرين");
   if(s.ab){h+=`<div class="card dk"><div class="lbl" style="color:var(--or)">البطن · كور</div><b style="font-size:17px">${esc(s.ab.t)}</b>${ed(`editAb(${i})`)}</div><div style="display:grid;gap:10px;margin-bottom:12px">${s.ab.vids.map((v,x)=>`<div>${vid(v.url,"تمرين بطن "+(x+1),"",v.img)}${ed(`editAbv(${i},${x})`)}</div>`).join("")}</div>`}
   h+=`<div class="card"><div class="lbl" style="color:var(--or)">ملاحظات وتقدم</div><textarea class="nb" onchange="setNote(${i},this.value)" placeholder="اكتب ملاحظاتك هنا">${esc((lg.n||{})[i]||"")}</textarea></div>`;
-  h+=EDIT()?(s.ab?"":addb(`editAb(${i})`,"إضافة قسم البطن"))+addb(`editAbv(${i},-1)`,"إضافة فيديو بطن"):"";
+  h+=EDIT()?(s.ab?"":addb(`editAb(${i})`,"إضافة قسم البطن"))+addb(`editAbv(${i},-1)`,"إضافة فيديو بطن")+addb(`shareSess(${i})`,"نسخ هذه الجلسة لعملاء آخرين"):"";
   $("#app").innerHTML=h;
 }
 function setW(k,x,v){const l=L();l.w[k]=l.w[k]||["","",""];l.w[k][x]=v.trim();save()}
 function setNote(i,v){const l=L();l.n=l.n||{};l.n[i]=v.trim();save()}
 function tgl(k){const l=L(),c=$("#c-"+k);if(l.d[k]){delete l.d[k];c.classList.remove("done");c.querySelector(".chk").textContent="تم التمرين"}else{l.d[k]=1;c.classList.add("done");c.querySelector(".chk").textContent="✓ تم"}save()}
 function food(){
-  const dt=P.data,E=dt.energy;hd("التغذية","القسم الثاني");
-  let h=`<div class="en"><div><span>معدل الحرق الأساسي</span><b>${esc(E.bmr)||"—"}</b><span>سعرة</span></div><div><span>مستوى النشاط</span><b>${esc(E.act)||"—"}</b><span>معامل</span></div><div><span>إجمالي الطاقة</span><b>${esc(E.tdee)||"—"}</b><span>سعرة</span></div><div class="p"><span>سعرات الخطة</span><b>${esc(E.plan)||"—"}</b><span>سعرة / يوم</span></div></div>`;
-  const fi=dt.info,vit=[["النوع",fi.sex],["الأكسجين",fi.so2],["التنفس",fi.rs],["النبض",fi.pulse],["الضغط",fi.bp]].filter(x=>x[1]);
-  if(vit.length)h+=`<div class="card"><div class="mini" style="grid-template-columns:repeat(${Math.min(vit.length,5)},1fr)">${vit.map(x=>`<div><span>${x[0]}</span><b>${esc(x[1])}</b></div>`).join("")}</div></div>`;
-  h+=`<div class="card" style="display:flex;justify-content:space-around;text-align:center;flex-wrap:wrap;gap:8px"><div><div class="lbl">الماء</div><b>${esc(E.water)||"—"}</b></div><div><div class="lbl">التمرين</div><b>${esc(dt.info.minutes)||"—"}</b></div>${E.ptn?`<div><div class="lbl">البروتين</div><b>${esc(E.ptn)}</b></div>`:""}${E.cho?`<div><div class="lbl">الكربوهيدرات</div><b>${esc(E.cho)}</b></div>`:""}</div>${ed("editInfo()","تعديل الطاقة والماء")}`;
-  if(E.exch&&E.exch.length)h+=`<h2>التبادلات الغذائية اليومية</h2><div class="ex6">${E.exch.map(x=>`<div><b>${ar(x[0])}</b><span>${x[1]}</span></div>`).join("")}</div>`;
+  const dt=P.data,E=dt.energy||{},fi=dt.info||{};hd("التغذية","القسم الثاني");
+  const IC=(l,v)=>`<div class="ic"><span>${l}</span><b class="${v?"":"em"}">${esc(v)||"—"}</b></div>`;
+  const sx=(n,t)=>`<div class="sx"><b>${n}</b><span>${t}</span><i></i></div>`;
+  const vit=[["الاسم",NAME()],["التاريخ",fi.start],["النوع",fi.sex],["العمر",fi.age],["الطول",fi.height],["الوزن",fi.weight],["الأكسجين",fi.so2],["التنفس",fi.rs],["النبض",fi.pulse],["الضغط",fi.bp]];
+  let h=`<div class="icg">${(EDIT()?vit:vit.filter(x=>x[1])).map(x=>IC(x[0],x[1])).join("")}</div>`;
+  h+=sx("٠١","الطاقة اليومية");
+  h+=`<div class="egy"><div><span>معدل الحرق</span><b>${esc(E.bmr)||"—"}</b><em>سعرة</em></div><u>×</u><div><span>النشاط</span><b>${esc(E.act)||"—"}</b><em>معامل</em></div><u>=</u><div><span>الإجمالي</span><b>${esc(E.tdee)||"—"}</b><em>سعرة</em></div><u>←</u><div class="p"><span>سعرات الخطة</span><b>${esc(E.plan)||"—"}</b><em>سعرة / يوم</em></div></div>`;
+  h+=`<div class="icg c2">${IC("الماء",E.water)}${IC("التمرين",fi.minutes)}${E.ptn||EDIT()?IC("البروتين",E.ptn):""}${E.cho||EDIT()?IC("الكربوهيدرات",E.cho):""}</div>${ed("editInfo()","تعديل الطاقة والماء")}`;
+  if(E.exch&&E.exch.length)h+=sx("٠٢","التبادلات الغذائية اليومية")+`<div class="ex6">${E.exch.map(x=>`<div><b>${ar(x[0])}</b><span>${x[1]}</span></div>`).join("")}</div>`;
   const keys=Object.keys(dt.meals);if(!dt.meals[ft])ft=keys[0];
-  h+=`<h2>الوجبات · اختر خيارًا واحدًا${E.plan?" · "+E.plan+" سعرة / يوم":""}</h2><div class="pills">${keys.map(m=>`<button class="${m==ft?"on":""}" onclick="ft='${m}';food()">${esc(dt.meals[m].t)}</button>`).join("")}</div>`;
-  h+=ed(`editMeal('${ft}')`,"تعديل اسم الوجبة / حذفها")+addb("editMeal('')","إضافة وجبة");
+  h+=sx("٠٣","الوجبات")+`<div class="pills">${keys.map(m=>`<button class="${m==ft?"on":""}" onclick="ft='${m}';food()">${esc(dt.meals[m].t)}</button>`).join("")}</div>`;
   const M=dt.meals[ft],sel=L().m[ft];
-  if(M.note)h+=`<div class="note">${esc(M.note)}</div>`;
-  h+=ed(`editNote('${ft}')`,"تعديل الملاحظة");
-  h+=`<p style="color:var(--mut);font-size:13px;margin:6px 2px 8px">اضغط على الخيار الذي تناولته اليوم لتعليمه.</p>`;
-  M.opts.forEach((o,i)=>{h+=`<div class="card opt ${sel===i?"sel":""}" onclick="pick(${i})"><div class="n">${sel===i?"✓":ar(i+1)}</div><div style="flex:1"><div class="chips">${o.split(" + ").map(x=>`<i>${esc(x)}</i>`).join("<b>+</b>")}</div>${ed(`editOpt('${ft}',${i})`)}</div></div>`});
-  h+=addb(`editOpt('${ft}',-1)`,"إضافة خيار");
+  h+=`<div class="mh"><b>يمكنك اختيار ما يناسبك أدناه</b>${E.plan?`<small>${esc(E.plan)} سعرة / يوم</small>`:""}</div>`;
+  if(M.note)h+=`<div class="note"><span class="lbl">ملاحظة</span> ${esc(M.note)}</div>`;
+  M.opts.forEach((o,i)=>{h+=`<div class="mo ${sel===i?"sel":""}" onclick="pick(${i})"><div class="mn">${sel===i?"✓":ar(i+1)}</div><div class="mx"><div class="mc">${o.split(/\s*\+\s*/).filter(Boolean).map(x=>`<i>${esc(x)}</i>`).join("<b>+</b>")}</div>${ed(`editOpt('${ft}',${i})`)}</div></div>`});
+  if(!M.opts.length&&!EDIT())h+=`<div class="card" style="text-align:center;color:var(--mut)">لسه مفيش خيارات لهذه الوجبة</div>`;
+  h+=addb(`editOpt('${ft}',-1)`,"إضافة خيار")+addb(`editOpts('${ft}')`,"كل خيارات هذه الوجبة مرة واحدة (لصق / تعديل)")+addb("editAllMeals()","كل الوجبات في نص واحد (لصق / تعديل)");
+  h+=ed(`editMeal('${ft}')`,"تعديل اسم الوجبة / حذفها")+ed(`editNote('${ft}')`,"تعديل الملاحظة")+ed(`shareMeal('${ft}')`,"نسخ هذه الوجبة لعملاء")+addb("editMeal('')","إضافة وجبة");
+  h+=addb("shareSec('food','energy')","نسخ التغذية كلها لعملاء آخرين");
   h+=blocksBlock("food");
-  h+=REF;
+  h+=sx("٠٤","المرجع")+REF;
   h+=filesBlock("food");
   $("#app").innerHTML=h;
 }
 function pick(i){const l=L();if(l.m[ft]===i)delete l.m[ft];else l.m[ft]=i;save();food()}
 function supp(){
   hd("التوصيات والمكملات","القسم الثالث");const l=L();
-  $("#app").innerHTML=P.data.supp.map((s,i)=>`<div class="card sup ${l.s[i]?"done":""}" id="p${i}"><div class="si">${s.img?`<img src="${s.img}" alt="">`:'<div class="ph">صورة</div>'}</div><div style="flex:1"><div class="lbl" style="color:var(--or)">توصية</div><h3>${esc(s.n)}</h3><div class="e" dir="ltr" style="text-align:start">${esc(s.en)}</div><div class="how">${esc(s.how)}</div>${s.badge?`<span class="pill t1" style="margin-bottom:8px">${esc(s.badge)}</span>`:""}${s.warn?`<div class="warn">${esc(s.warn)}</div>`:""}${s.link?`<a class="ih" href="${esc(s.link)}" target="_blank" rel="noopener">${esc(s.ll)||"فتح اللينك"} ↗</a>`:""}<button class="chk" onclick="tsp(${i})">${l.s[i]?"✓ تم اليوم":"تم اليوم"}</button>${ed(`editSup(${i})`)}</div></div>`).join("")+addb("editSup(-1)","إضافة مكمل / توصية")+blocksBlock("supp")+filesBlock("supp");
+  $("#app").innerHTML=P.data.supp.map((s,i)=>`<div class="card sp ${l.s[i]?"done":""}" id="p${i}"><div class="spi">${s.img?`<img src="${esc(s.img)}" alt="">`:'<div class="ph">صورة</div>'}</div><div class="spb"><div class="lbl or">SUPPLEMENT · توصية</div><h3>${esc(s.n)}</h3>${s.en?`<div class="e" dir="ltr">${esc(s.en)}</div>`:""}${s.how?`<div class="how">${esc(s.how).replace(/\n/g,"<br>")}</div>`:""}${s.badge?`<span class="bdg">${esc(s.badge)}</span>`:""}${s.warn?`<div class="warn">${esc(s.warn)}</div>`:""}${s.link?`<a class="ih" href="${esc(s.link)}" target="_blank" rel="noopener">${esc(s.ll)||"فتح اللينك"} ↗</a>`:""}<button class="chk" onclick="tsp(${i})">${l.s[i]?"✓ تم اليوم":"تم اليوم"}</button>${ed(`editSup(${i})`)} ${ed(`shareSupp(${i})`,"نسخ لعملاء")}</div></div>`).join("")+addb("editSup(-1)","إضافة مكمل / توصية")+addb("shareSec('supp')","نسخ المكملات كلها لعملاء آخرين")+blocksBlock("supp")+filesBlock("supp");
 }
 function tsp(i){const l=L(),c=$("#p"+i);if(l.s[i]){delete l.s[i];c.classList.remove("done");c.querySelector(".chk").textContent="تم اليوم"}else{l.s[i]=1;c.classList.add("done");c.querySelector(".chk").textContent="✓ تم اليوم"}save()}
 function notes(){
