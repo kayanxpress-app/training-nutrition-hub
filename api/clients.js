@@ -7,7 +7,8 @@ module.exports = async (req, res) => {
     if (req.method !== "POST") return res.status(405).json({ error: "POST only" });
     const url = process.env.SUPABASE_URL, anon = process.env.SUPABASE_ANON_KEY, svc = process.env.SUPABASE_SERVICE_ROLE_KEY;
     const token = (req.headers.authorization || "").replace(/^Bearer\s+/i, "");
-    if (!url || !anon || !svc) return res.status(500).json({ error: "إعدادات السيرفر ناقصة في Vercel" });
+    const missing = [!url && "SUPABASE_URL", !anon && "SUPABASE_ANON_KEY", !svc && "SUPABASE_SERVICE_ROLE_KEY"].filter(Boolean);
+    if (missing.length) return res.status(500).json({ error: "ناقص في Vercel: " + missing.join(" ، ") + " (بعد إضافتها اعمل Redeploy)" });
     if (!token) return res.status(401).json({ error: "غير مصرح" });
 
     const asUser = createClient(url, anon, { global: { headers: { Authorization: "Bearer " + token } } });
