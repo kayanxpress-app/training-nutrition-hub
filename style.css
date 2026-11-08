@@ -284,3 +284,4 @@ body.av .mo .ed{pointer-events:auto}
 .tw small{font-size:10px;opacity:.7;font-weight:700}
 .tw em{font-style:normal;color:#3d7a0c;font-size:11px}
 body.av .rt4>div{cursor:pointer}
+.tw.em{background:transparent;border:1px dashed var(--line);opacity:.5;font-weight:400}
