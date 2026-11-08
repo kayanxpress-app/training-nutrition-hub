@@ -34,18 +34,33 @@ const WK=()=>{const w=P.data.weeks;if(!w||!w.length)return null;if(EDIT()&&VW)re
 const numsD=t=>String(t||"").replace(/[٠-٩]/g,c=>"٠١٢٣٤٥٦٧٨٩".indexOf(c)).replace(/٫/g,".").split(/[^0-9.]+/).filter(x=>x&&x!==".").map(Number);
 const fmtW=n=>ar(String(n).replace(".","٫"));
 function planW(e,wk){
-  const w1=(e.w1||[]).map(Number),ov=wk>1&&e.wo&&e.wo[wk]?e.wo[wk].map(Number):null;
+  /* الوزن مربوط بعدد التكرارات (منحنى عدات ↔ وزن) من أوزان الأسبوع الأول:
+     • نفس العدات = نفس الوزن في كل الأسابيع
+     • أقل من أقل عدات في الأسبوع الأول ← أثقل وزن عندها +5٪
+     • أكتر من أكتر عدات في الأسبوع الأول ← أخف وزن عندها −5٪
+     • عدات بين رقمين ← استيفاء بينهم، والكل بيتقرّب لأقرب 0.5 كجم */
+  const D=P.data,w1=(e.w1||[]).map(Number),ov=wk>1&&e.wo&&e.wo[wk]?e.wo[wk].map(Number):null;
+  const W=D.weeks&&D.weeks.length?D.weeks:null;
+  const R1=(W?W[0]:D.reps)||[],Rw=(W?W[Math.min(wk,W.length)-1]:D.reps)||[];
   if(!w1.some(x=>x>0)&&!(ov&&ov.some(x=>x>0)))return null;
-  const D=P.data,W=D.weeks||[],pct=(D.wpct??5)/100,st=D.wsnap??0.5;
+  if(wk<=1)return w1.map(x=>x>0?x:0);
+  const pct=(D.wpct??5)/100,st=D.wsnap??0.5;
   const snap=v=>Number((st>0?Math.round(v/st)*st:v).toFixed(2));
-  const n=Math.max(w1.length,ov?ov.length:0),out=[];
-  for(let x=0;x<n;x++){
-    if(ov&&ov[x]>0){out.push(ov[x]);continue}
-    const b=w1[x];if(!(b>0)){out.push(0);continue}
-    let k=0;
-    for(let w=1;w<wk;w++){const p=(W[w-1]||[])[x],c=(W[w]||[])[x];if(p!=null&&c!=null&&c<p)k++}
-    out.push(k?snap(b*(1+pct*k)):b);
-  }
+  const move=(base,dir)=>{const v=snap(base*(1+dir*pct));return st>0&&v===base?Math.max(st,Number((base+dir*st).toFixed(2))):v};
+  const by={};R1.forEach((r,x)=>{if(w1[x]>0)(by[r]=by[r]||[]).push(w1[x])});
+  const keys=Object.keys(by).map(Number).sort((a,b)=>a-b);
+  const seen={},out=[];
+  Rw.forEach((r,x)=>{
+    const occ=seen[r]||0;seen[r]=occ+1;
+    if(ov&&ov[x]>0){out.push(ov[x]);return}
+    if(!keys.length){out.push(0);return}
+    let v;
+    if(by[r])v=by[r][Math.min(occ,by[r].length-1)];
+    else if(r<keys[0])v=move(Math.max(...by[keys[0]]),1);
+    else if(r>keys[keys.length-1])v=move(Math.min(...by[keys[keys.length-1]]),-1);
+    else{const lo=keys.filter(k=>k<r).pop(),hi=keys.find(k=>k>r);v=snap(by[hi][0]+(by[lo][by[lo].length-1]-by[hi][0])*(hi-r)/(hi-lo))}
+    out.push(v);
+  });
   return out;
 }
 const REPS=()=>{const w=WK();return w?P.data.weeks[w-1]:P.data.reps};
