@@ -26,7 +26,7 @@ const vid=(u,n,c,img)=>{const im=img||yt(u);return `<a class="v ${c||""}" href="
 const ed=(fn,t)=>`<button class="ed" onclick="${fn}">✎ ${t||"تعديل"}</button>`;
 const addb=(fn,t)=>`<button class="addb" onclick="${fn}">+ ${t}</button>`;
 const hd=(t,sub,back)=>{
-  $("#hd").innerHTML=`<div class="hd">${back?'<button class="back" onclick="location.hash=\'train\'">›</button>':''}<div><small>${sub}</small><h1>${t}</h1></div><img class="lgo" src="img/logo.png" alt=""></div>`+(VIEW?`<div class="vb"><span>حساب: ${esc(VIEW.name)} · وضع التعديل</span><button onclick="closeClient()">العملاء ›</button></div>`:"");
+  $("#hd").innerHTML=`<div class="hd">${back?'<button class="back" onclick="location.hash=\''+(back===true?'train':back)+'\'">›</button>':''}<div><small>${sub}</small><h1>${t}</h1></div><img class="lgo" src="img/logo.png" alt=""></div>`+(VIEW?`<div class="vb"><span>حساب: ${esc(VIEW.name)} · وضع التعديل</span><button onclick="closeClient()">العملاء ›</button></div>`:"");
 };
 const dayNo=()=>{const s=new Date(P.month_start+"T00:00:00"),t=new Date(D.getFullYear(),D.getMonth(),D.getDate());const T=P.data.info.days||30;return Math.min(T,Math.max(0,Math.floor((t-s)/864e5)+1))};
 let VW=0;const setVW=n=>{VW=VW===n?0:n;route()};
@@ -99,7 +99,7 @@ async function loadData(cid){
   const [b,c,d]=await Promise.all([
     sb.from("programs").select("*").eq("client_id",cid).order("month_start",{ascending:false}),
     sb.from("logs").select("log_date,data").eq("client_id",cid),
-    sb.from("notifications").select("*").eq("client_id",cid).order("created_at",{ascending:false}).limit(30)]);
+    sb.from("notifications").select("*").eq("client_id",cid).order("created_at",{ascending:false}).limit(30),loadMeas(cid)]);
   if(b.error)throw b.error;
   PROGS=b.data||[];LOGS={};(c.data||[]).forEach(r=>LOGS[r.log_date]=r.data);NOTIFS=d.data||[];
   const i=PROGS.findIndex(p=>p.month_start<=TODAY);PI=i<0?PROGS.length-1:i;P=PROGS[PI];
@@ -126,10 +126,12 @@ async function clients(){
   $("#hd").innerHTML=`<div class="hd"><div><small>لوحة المدرب</small><h1>عملائي</h1></div><img class="lgo" src="img/logo.png" alt=""></div>`;
   $("#app").innerHTML='<p class="ld">جاري التحميل...</p>';
   const since=new Date(D.getTime()-14*864e5);
-  const [a,b,c]=await Promise.all([
+  const [a,b,c,mq,ml]=await Promise.all([
     sb.from("profiles").select("id,full_name,phone").eq("role","client").order("full_name"),
     sb.from("logs").select("client_id,log_date,data").gte("log_date",iso(since)),
-    sb.from("programs").select("client_id,title,month_start,data").order("month_start",{ascending:false})]);
+    sb.from("programs").select("client_id,title,month_start,data").order("month_start",{ascending:false}),
+    sb.from("measure_requests").select("client_id,kind").eq("status","pending"),
+    sb.from("measurements").select("client_id,taken_on,weight,created_at").order("created_at",{ascending:false}).limit(300)]);
   const cl=a.data||[],lg=b.data||[],pr=c.data||[];
   let h=`<div class="card" style="text-align:center"><b>${ar(cl.length)} عميل</b><p style="margin:2px 0 0;color:var(--mut);font-size:13px">اضغط على العميل لعرض حسابه وتعديل برنامجه</p></div><button class="btn" style="margin-bottom:12px" onclick="addClient()">+ إضافة عميل جديد</button>`;
   cl.forEach(x=>{
@@ -141,7 +143,8 @@ async function clients(){
     const bad=days===null||days>=3;
     const p=pr.find(z=>z.client_id===x.id);
     const left=p?Math.round((new Date(p.month_start)-new Date(TODAY))/864e5)+((p.data&&p.data.info&&p.data.info.days)||30)-1:null;
-    h+=`<div class="card cl"><div style="flex:1;cursor:pointer" onclick="openClient('${x.id}','${esc(x.full_name||"عميل").replace(/'/g,"")}')"><h3>${esc(x.full_name||"بدون اسم")}</h3><p class="${bad?"no2":"ok"}">${act}</p><p>اليوم: ${ar(cnt)} تمارين · ${ar(mel)} وجبات · ${ar(sup)} مكملات</p>${left!==null?`<p>${left>=0?`باقي ${ar(left)} يوم على نهاية البرنامج`:"البرنامج انتهى"}</p>`:'<p>لا يوجد برنامج</p>'}</div><div style="display:grid;gap:6px"><button class="ed" style="display:inline-block;margin:0" onclick="sendNote('${x.id}')">✉ إشعار</button><button class="ed" style="display:inline-block;margin:0" onclick="setPass('${x.id}')">كلمة المرور</button></div></div>`;
+    const pq=(mq.data||[]).filter(z=>z.client_id===x.id),lm=(ml.data||[]).find(z=>z.client_id===x.id);
+    h+=`<div class="card cl"><div style="flex:1;cursor:pointer" onclick="openClient('${x.id}','${esc(x.full_name||"عميل").replace(/'/g,"")}')"><h3>${esc(x.full_name||"بدون اسم")}</h3><p class="${bad?"no2":"ok"}">${act}</p><p>اليوم: ${ar(cnt)} تمارين · ${ar(mel)} وجبات · ${ar(sup)} مكملات</p>${left!==null?`<p>${left>=0?`باقي ${ar(left)} يوم على نهاية البرنامج`:"البرنامج انتهى"}</p>`:'<p>لا يوجد برنامج</p>'}${pq.length?`<p style="color:#d23b5f;font-weight:700">⏳ مطلوب منه: ${pq.map(z=>MK(z.kind)).join(" + ")}</p>`:""}${lm?`<p>آخر قياس: ${dmy(lm.taken_on)}${lm.weight!=null?" · "+fmtW(lm.weight)+" كجم":""}</p>`:""}</div><div style="display:grid;gap:6px"><button class="ed" style="display:inline-block;margin:0" onclick="sendNote('${x.id}')">✉ إشعار</button><button class="ed" style="display:inline-block;margin:0" onclick="setPass('${x.id}')">كلمة المرور</button></div></div>`;
   });
   h+=`<button class="btn o" onclick="out()">تسجيل الخروج</button>`;
   $("#app").innerHTML=h;
@@ -167,6 +170,7 @@ function fld(f,i){
   if(f.type==="area")return `<label>${f.l}<textarea data-i="${i}" class="${f.big?"big":""}">${v}</textarea></label>`;
   if(f.type==="sel")return `<label>${f.l}<select data-i="${i}">${f.o.map(o=>`<option ${o==f.v?"selected":""}>${o}</option>`).join("")}</select></label>`;
   if(f.type==="img")return `<label>${f.l}</label><div class="im"><img id="pv${i}" src="${v}" alt=""><input type="file" accept="image/*" data-up="${i}"></div><input type="hidden" data-i="${i}" value="${v}">`;
+  if(f.type==="mf")return `<label>${f.l}</label><div class="im"><input type="file" accept="image/*,application/pdf" data-upm="${i}"><span id="fm${i}" style="font-size:13px;color:var(--mut)">${v?"تم رفع ملف سابقًا":""}</span></div><input type="hidden" data-i="${i}" value="${v}">`;
   if(f.type==="file")return `<label>${f.l}</label><div class="im"><input type="file" accept="application/pdf" data-upf="${i}"><span id="fn${i}" style="font-size:13px;color:var(--mut)">${v?"تم رفع ملف سابقًا":""}</span></div><input type="hidden" data-i="${i}" value="${v}">`;
   return `<label>${f.l}<input data-i="${i}" type="${f.type||"text"}" value="${v}" ${f.dir?`dir="${f.dir}"`:""}></label>`;
 }
@@ -289,6 +293,11 @@ function modal(title,fields,onSave,onDel,setup){
     const i=inp.dataset.upf,f=inp.files[0];if(!f)return;
     toast("جاري رفع الملف...");
     try{const p=await uplDoc(f);m.querySelector(`[data-i="${i}"]`).value=p;m.querySelector("#fn"+i).textContent=f.name;toast("تم رفع الملف")}catch(e){toast("تعذر رفع الملف")}
+  });
+  m.querySelectorAll("[data-upm]").forEach(inp=>inp.onchange=async()=>{
+    const i=inp.dataset.upm,f=inp.files[0];if(!f)return;
+    toast("جاري رفع الملف...");
+    try{const p=await uplMeas(f);m.querySelector(`[data-i="${i}"]`).value=p;m.querySelector("#fm"+i).textContent=f.name;toast("تم رفع الملف")}catch(e){toast("تعذر رفع الملف")}
   });
   m.querySelector("#mc").onclick=close;
   m.querySelector("#mk").onclick=async()=>{const b=m.querySelector("#mk");b.disabled=true;b.textContent="جاري المعالجة...";const ok=await onSave(get());b.disabled=false;b.textContent="حفظ";if(ok!==false)close()};
@@ -518,12 +527,14 @@ function home(){
   hd("الرئيسية","Training Nutrition Hub");
   let h=`<div class="card brand"><img src="img/logo.png" alt=""><small>مدربك وأخصائي التغذية</small><h1>الدكتور محمود جمال قطب</h1><div class="en">DR. MAHMOUD GAMAL</div><div class="tg">تخلّص من أمراضك</div></div>`;
   if(EDIT())h+=pubCard();
+  h+=pendBanner();
   const dn=dayNo(),T=inf.days||30;
   h+=`<div class="card"><div class="hi"><b>أهلاً ${esc(NAME())}</b><span style="color:var(--mut);font-size:13px">${esc(P.title||"")}</span></div><div style="margin-top:8px;font-weight:700">${dn?`اليوم ${ar(dn)} من ${ar(T)}`:"البرنامج لسه ما بدأش"}</div><div class="bar"><i style="width:${dn/T*100}%"></i></div></div>`;
   if(PROGS.length>1)h+=`<select onchange="setProg(this.value)">${PROGS.map((p,i)=>`<option value="${i}" ${i==PI?"selected":""}>${esc(p.title||p.month_start)}${EDIT()&&!p.published?" (مسودة)":""}</option>`).join("")}</select>`;
   h+=`<a class="card sec" href="#train"><div class="no">٠١</div><div><h3>التدريب</h3><p>${ar(dt.sessions.length)} جلسات · ${ar(n)} تمرين بفيديوهات الشرح</p></div><div class="go">‹</div></a>`;
   h+=`<a class="card sec" href="#food"><div class="no">٠٢</div><div><h3>التغذية</h3><p>خطة الوجبات والتبادلات الغذائية</p></div><div class="go">‹</div></a>`;
   h+=`<a class="card sec" href="#supp"><div class="no">٠٣</div><div><h3>التوصيات والمكملات الغذائية</h3><p>${ar(dt.supp.length)} توصيات</p></div><div class="go">‹</div></a>`;
+  h+=measCard();
   h+=`<div class="card pg"><div class="sub">${esc(dt.sub||"")}</div><div class="big">${esc(dt.brand||P.title||"")}</div><div class="mem">${[["الاسم",NAME()||"—"],["العمر",inf.age],["الوزن",inf.weight],["الطول",inf.height],["البداية",inf.start],["النهاية",inf.end],["المدة",inf.days?ar(inf.days)+" يومًا":""],["التمرين",inf.minutes]].map(x=>`<div><span>${x[0]}</span><b>${esc(x[1])||"—"}</b></div>`).join("")}</div>${ed("editInfo()","تعديل بيانات العميل والبرنامج")}</div>`;
   if(EDIT()){
     const days=Object.keys(LOGS).sort().reverse().slice(0,7);
@@ -603,9 +614,157 @@ function notes(){
     sb.from("notifications").update({read:true}).eq("client_id",ME.id).eq("read",false).then(()=>{NOTIFS.forEach(n=>n.read=true);badge()});
   }
 }
+/* ===== القياسات و InBody (وزن · نتيجة InBody · طلب قياس من المدرب) ===== */
+let MEAS=[],REQS=[],MOK=true,MURL={};
+async function loadMeas(cid){
+  try{
+    const [a,b]=await Promise.all([
+      sb.from("measurements").select("*").eq("client_id",cid).order("taken_on",{ascending:false}).order("created_at",{ascending:false}),
+      sb.from("measure_requests").select("*").eq("client_id",cid).order("created_at",{ascending:false}).limit(30)]);
+    MOK=!a.error&&!b.error;MEAS=MOK?(a.data||[]):[];REQS=MOK?(b.data||[]):[];
+  }catch(e){MOK=false;MEAS=[];REQS=[]}
+  MURL={};
+}
+const MK=k=>k==="inbody"?"InBody":"وزن";
+const dmy=d=>ar(String(d||"").split("-").reverse().join("/"));
+const dlt=(c,p,good)=>{if(c==null||p==null)return"";const d=Math.round((c-p)*10)/10;if(!d)return'<small class="nt">—</small>';const cls=good==null?"nt":((d>0)===(good==="up")?"up":"dn");return`<small class="${cls}">${d>0?"▲":"▼"} ${fmtW(Math.abs(d))}</small>`};
+function mchart(pts,unit,title){
+  pts=pts.slice(-12);if(pts.length<2)return"";
+  const W=300,H=120,p=16,mn=Math.min(...pts.map(x=>x.v)),mx=Math.max(...pts.map(x=>x.v)),r=(mx-mn)||1;
+  const X=i=>p+i*(W-2*p)/(pts.length-1),Y=v=>H-p-8-(v-mn)/r*(H-2*p-24);
+  const path=pts.map((x,i)=>(i?"L":"M")+X(i).toFixed(1)+" "+Y(x.v).toFixed(1)).join(" ");
+  const all=pts.length<=7;
+  const dots=pts.map((x,i)=>`<circle cx="${X(i).toFixed(1)}" cy="${Y(x.v).toFixed(1)}" r="3.5" style="fill:var(--pk)"/>${all||i===0||i===pts.length-1?`<text x="${X(i).toFixed(1)}" y="${(Y(x.v)-8).toFixed(1)}" text-anchor="middle" font-size="10" style="fill:var(--ink)">${fmtW(x.v)}</text>`:""}`).join("");
+  const dl2=`<text x="${p}" y="${H-2}" font-size="9" style="fill:var(--mut)">${dmy(pts[0].d)}</text><text x="${W-p}" y="${H-2}" text-anchor="end" font-size="9" style="fill:var(--mut)">${dmy(pts[pts.length-1].d)}</text>`;
+  return`<div class="card"><div class="lbl">${title} (${unit})</div><svg viewBox="0 0 ${W} ${H}" style="width:100%;display:block;direction:ltr"><path d="${path}" fill="none" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" style="stroke:var(--pk)"/>${dots}${dl2}</svg></div>`;
+}
+async function signMeas(){
+  const ps=[...new Set(MEAS.map(m=>m.file_path).filter(p=>p&&!/\.pdf$/i.test(p)&&!MURL[p]))];
+  if(!ps.length)return false;
+  try{const {data}=await sb.storage.from("inbody").createSignedUrls(ps,3600);let n=0;(data||[]).forEach(x=>{if(x&&x.signedUrl&&x.path){MURL[x.path]=x.signedUrl;n++}});return n>0}catch(e){return false}
+}
+async function openMeas(p){
+  const w=window.open("","_blank");
+  const {data,error}=await sb.storage.from("inbody").createSignedUrl(p,3600);
+  if(error||!data){if(w)w.close();return toast("تعذر فتح الملف")}
+  if(w)w.location.href=data.signedUrl;else location.href=data.signedUrl;
+}
+async function uplMeas(file){
+  let blob=file,ext="pdf",ct="application/pdf";
+  if(file.type!=="application/pdf"){
+    const bm=await createImageBitmap(file),sc=Math.min(1,1800/Math.max(bm.width,bm.height));
+    const cv=document.createElement("canvas");cv.width=Math.round(bm.width*sc);cv.height=Math.round(bm.height*sc);
+    cv.getContext("2d").drawImage(bm,0,0,cv.width,cv.height);
+    blob=await new Promise(r=>cv.toBlob(r,"image/jpeg",.86));ext="jpg";ct="image/jpeg";
+  }
+  const path=`${CID()}/${Date.now()}.${ext}`;
+  const {error}=await sb.storage.from("inbody").upload(path,blob,{contentType:ct});
+  if(error)throw error;return path;
+}
+function pendBanner(){
+  if(EDIT()||!MOK)return"";
+  return REQS.filter(r=>r.status==="pending").map(r=>`<div class="card rq"><b>📏 مطلوب منك: ${r.kind==="inbody"?"قياس InBody":"قياس الوزن"}</b>${r.note?`<p>${esc(r.note)}</p>`:'<p>الدكتور بانتظار القياس عشان يتابع تطورك.</p>'}<button class="btn" onclick="editMeas('${r.kind}',null,'${r.id}')">سجّل الآن</button></div>`).join("");
+}
+function measCard(){
+  if(!MOK&&!EDIT())return"";
+  const last=MEAS[0],pend=REQS.filter(r=>r.status==="pending").length;
+  const sub=!MOK?"محتاجة تفعيل (ملف inbody.sql)":last?`آخر قياس ${dmy(last.taken_on)}${last.weight!=null?" · "+fmtW(last.weight)+" كجم":""}${EDIT()&&pend?" · ⏳ طلب منتظر":""}`:"سجّل وزنك ونتيجة InBody وتابع تطورك";
+  return`<a class="card sec" href="#body"><div class="no">⚖</div><div><h3>القياسات و InBody</h3><p>${sub}</p></div><div class="go">‹</div></a>`;
+}
+function measPage(){
+  hd("القياسات و InBody",EDIT()?"متابعة تطور العميل":"تابع تطورك","home");
+  measRender();
+  signMeas().then(ok=>{if(ok&&location.hash==="#body")measRender()});
+}
+function measRender(){
+  const A=$("#app");
+  if(!MOK){A.innerHTML=`<div class="card" style="text-align:center"><b>الميزة محتاجة تفعيل</b><p style="color:var(--mut)">${EDIT()?"شغّل ملف supabase/inbody.sql مرة واحدة في Supabase ← SQL Editor، ثم أعد تحميل الصفحة.":"هتتفعل قريبًا."}</p></div>`;return}
+  const pend=REQS.filter(r=>r.status==="pending");
+  let h=pendBanner();
+  if(EDIT()){
+    h+=`<div class="card"><b>طلب قياس من العميل</b><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px"><button class="btn" onclick="askMeas('weight')">⚖ اطلب وزن</button><button class="btn" onclick="askMeas('inbody')">📊 اطلب InBody</button></div>${pend.map(r=>`<div class="act"><span>⏳ ${MK(r.kind)} · ${dmy(String(r.created_at).slice(0,10))}</span><button class="mb" onclick="cancelReq('${r.id}')">إلغاء الطلب</button></div>`).join("")}</div>`;
+  }
+  const wl=MEAS.filter(m=>m.weight!=null);
+  if(MEAS.length){
+    const m0=MEAS[0],o=MEAS.slice(1);
+    const pw=o.find(x=>x.weight!=null),pf=o.find(x=>x.fat!=null),pm=o.find(x=>x.muscle!=null);
+    const days=Math.round((new Date(TODAY)-new Date(m0.taken_on))/864e5);
+    const cell=(l,v,u,d)=>v==null?"":`<div><span>${l}</span><b>${fmtW(v)}<small style="font-size:11px;color:var(--mut)"> ${u}</small></b>${d}</div>`;
+    let tot="";
+    if(wl.length>1){const f=wl[wl.length-1],l=wl[0],wk=Math.max(1,Math.round((new Date(l.taken_on)-new Date(f.taken_on))/6048e5)),d=Math.round((l.weight-f.weight)*10)/10;tot=`<p style="margin:10px 0 0;font-size:13.5px;color:var(--mut)">منذ أول قياس (${ar(wk)} أسبوع): <b style="color:var(--ink)">${d>0?"▲":d<0?"▼":""} ${fmtW(Math.abs(d))} كجم</b></p>`}
+    h+=`<div class="card"><div class="lbl">آخر قياس · ${dmy(m0.taken_on)}</div><div class="g3">${cell("الوزن",m0.weight,"كجم",dlt(m0.weight,pw&&pw.weight,null))}${cell("نسبة الدهون",m0.fat,"٪",dlt(m0.fat,pf&&pf.fat,"down"))}${cell("الكتلة العضلية",m0.muscle,"كجم",dlt(m0.muscle,pm&&pm.muscle,"up"))}</div>${tot}<p style="margin:6px 0 0;font-size:12.5px;color:${days>=8?"#d23b5f":"var(--mut)"}">${days<=0?"قياس اليوم":`مرّ ${ar(days)} يوم على آخر قياس`}</p></div>`;
+    h+=mchart(wl.slice().reverse().map(x=>({d:x.taken_on,v:x.weight})),"كجم","تطور الوزن");
+    h+=mchart(MEAS.filter(x=>x.fat!=null).reverse().map(x=>({d:x.taken_on,v:x.fat})),"٪","تطور نسبة الدهون");
+    h+=mchart(MEAS.filter(x=>x.muscle!=null).reverse().map(x=>({d:x.taken_on,v:x.muscle})),"كجم","تطور الكتلة العضلية");
+  }else h+=`<div class="card" style="text-align:center;color:var(--mut)">لسه مفيش قياسات مسجلة</div>`;
+  h+=`<button class="btn" onclick="editMeas('inbody')">+ ${EDIT()?"تسجيل InBody للعميل":"رفع نتيجة InBody"}</button><button class="btn o" onclick="editMeas('weight')">+ ${EDIT()?"تسجيل وزن للعميل":"تسجيل وزني"}</button>`;
+  if(MEAS.length){
+    h+=`<h2>السجل</h2><div class="card" style="padding:4px 14px">`+MEAS.map((m,i)=>{
+      const o=MEAS.slice(i+1),pw=o.find(x=>x.weight!=null),pf=o.find(x=>x.fat!=null),pm=o.find(x=>x.muscle!=null);
+      const pdf=m.file_path&&/\.pdf$/i.test(m.file_path),u=m.file_path&&MURL[m.file_path];
+      const th=m.file_path?`<a class="mth" href="#" onclick="openMeas('${m.file_path}');return false">${pdf?"<span>PDF</span>":(u?`<img src="${esc(u)}" alt="">`:"<span>صورة</span>")}</a>`:"";
+      const vals=[m.weight!=null?`الوزن <b>${fmtW(m.weight)}</b> كجم ${dlt(m.weight,pw&&pw.weight,null)}`:"",m.fat!=null?`دهون <b>${fmtW(m.fat)}</b>٪ ${dlt(m.fat,pf&&pf.fat,"down")}`:"",m.muscle!=null?`عضل <b>${fmtW(m.muscle)}</b> كجم ${dlt(m.muscle,pm&&pm.muscle,"up")}`:""].filter(Boolean);
+      return`<div class="mrow">${th}<div style="flex:1;min-width:0"><div><b>${dmy(m.taken_on)}</b> <span class="mk">${MK(m.kind)}</span></div>${vals.length?`<div class="mv">${vals.join(" · ")}</div>`:""}${m.note?`<div class="mn2">${esc(m.note)}</div>`:""}</div><button class="mb" onclick="editMeas('${m.kind}','${m.id}')">تعديل</button></div>`;
+    }).join("")+`</div>`;
+  }
+  A.innerHTML=h;
+}
+function editMeas(kind,id,reqId){
+  const e=id?MEAS.find(x=>x.id===id):null;if(id&&!e)return;
+  if(e)kind=e.kind;
+  const isIn=kind==="inbody",T=(k,l,v,o)=>Object.assign({k,l,v:v??""},o||{});
+  const f=[T("d","التاريخ",e?e.taken_on:TODAY,{type:"date"}),T("w","الوزن (كجم)"+(isIn?" — اختياري لو الصورة واضحة":""),e&&e.weight!=null?e.weight:"",{dir:"ltr"})];
+  if(isIn)f.push(T("f","نسبة الدهون ٪ (اختياري)",e&&e.fat!=null?e.fat:"",{dir:"ltr"}),T("m","الكتلة العضلية كجم (اختياري)",e&&e.muscle!=null?e.muscle:"",{dir:"ltr"}));
+  f.push(T("n","ملاحظة (اختياري)",e?e.note||"":""),T("file",isIn?"صورة أو PDF نتيجة InBody":"صورة الميزان (اختياري)",e?e.file_path||"":"",{type:"mf"}));
+  modal(e?"تعديل القياس":(isIn?"رفع نتيجة InBody":"تسجيل الوزن"),f,
+    async v=>{
+      const w=numsD(v.w)[0],fa=numsD(v.f)[0],mu=numsD(v.m)[0];
+      if(!/^\d{4}-\d{2}-\d{2}$/.test(v.d||"")){toast("اختر التاريخ");return false}
+      if(isIn){if(w==null&&!v.file){toast("ارفع صورة النتيجة أو اكتب الوزن");return false}}else if(w==null){toast("اكتب الوزن");return false}
+      if(w!=null&&(w<20||w>400)){toast("الوزن غير منطقي، راجع الرقم");return false}
+      if(fa!=null&&(fa<1||fa>80)){toast("نسبة الدهون غير منطقية");return false}
+      if(mu!=null&&(mu<5||mu>150)){toast("الكتلة العضلية غير منطقية");return false}
+      const row={taken_on:v.d,weight:w??null,fat:fa??null,muscle:mu??null,note:(v.n||"").trim()||null,file_path:v.file||null};
+      if(e){
+        const {error}=await sb.from("measurements").update(row).eq("id",e.id);
+        if(error){toast("تعذر الحفظ");return false}
+        if(e.file_path&&e.file_path!==row.file_path)sb.storage.from("inbody").remove([e.file_path]);
+      }else{
+        const {data,error}=await sb.from("measurements").insert({client_id:CID(),kind,...row}).select("id").single();
+        if(error||!data){toast("تعذر الحفظ");return false}
+        const ids=REQS.filter(r=>r.status==="pending"&&(r.id===reqId||r.kind===kind||(isIn&&w!=null&&r.kind==="weight"))).map(r=>r.id);
+        if(ids.length)await sb.from("measure_requests").update({status:"done",done_at:new Date().toISOString(),measurement_id:data.id}).in("id",ids);
+      }
+      await loadMeas(CID());route();setTimeout(()=>toast("تم حفظ القياس"),60);return true;
+    },
+    e?async()=>{
+      const {error}=await sb.from("measurements").delete().eq("id",e.id);
+      if(error){toast("تعذر الحذف");return}
+      if(e.file_path)sb.storage.from("inbody").remove([e.file_path]);
+      await loadMeas(CID());route();
+    }:null);
+}
+function askMeas(kind){
+  if(!EDIT())return;
+  if(REQS.some(r=>r.status==="pending"&&r.kind===kind)){toast("فيه طلب "+MK(kind)+" لسه منتظر من العميل");return}
+  modal("طلب "+(kind==="inbody"?"قياس InBody":"قياس الوزن")+" من العميل",[{k:"n",l:"رسالة للعميل (اختياري)",type:"area",v:""}],async v=>{
+    const note=(v.n||"").trim();
+    const {error}=await sb.from("measure_requests").insert({client_id:VIEW.id,kind,note:note||null});
+    if(error){toast("تعذر إرسال الطلب");return false}
+    await sb.from("notifications").insert({client_id:VIEW.id,title:kind==="inbody"?"مطلوب منك: قياس InBody":"مطلوب منك: قياس الوزن",body:note||(kind==="inbody"?"ارفع نتيجة الـ InBody من صفحة «القياسات و InBody» في التطبيق.":"سجّل وزنك الحالي من صفحة «القياسات و InBody» في التطبيق.")});
+    await loadMeas(VIEW.id);route();setTimeout(()=>toast("تم إرسال الطلب للعميل"),60);return true;
+  });
+}
+async function cancelReq(id){
+  if(!confirm("إلغاء هذا الطلب؟"))return;
+  const {error}=await sb.from("measure_requests").update({status:"cancelled"}).eq("id",id);
+  if(error)return toast("تعذر الإلغاء");
+  await loadMeas(CID());route();
+}
 function route(){
   if(!ME||(ADMIN&&!VIEW))return;
   const r=location.hash.slice(1)||"home",m=/^s([1-9]\d?)$/.exec(r);
+  if(r=="body"){measPage();["home","train","food","supp","notes"].forEach(x=>$("#n-"+x).classList.toggle("on",x=="home"));window.scrollTo(0,0);return}
   if(!P){empty();return}
   if(m)session(+m[1]-1);else if(r=="train")train();else if(r=="food")food();else if(r=="supp")supp();else if(r=="notes")notes();else home();
   const cur=m?"train":(["train","food","supp","notes"].includes(r)?r:"home");
