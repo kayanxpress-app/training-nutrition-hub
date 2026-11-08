@@ -284,8 +284,3 @@ body.av .mo .ed{pointer-events:auto}
 .tw small{font-size:10px;opacity:.7;font-weight:700}
 .tw em{font-style:normal;color:#3d7a0c;font-size:11px}
 body.av .rt4>div{cursor:pointer}
-
-/* ترتيب المجموعات من اليسار لليمين زي ما بتتكتب وزي الـ PDF: مجموعة ١ ثم ٢ ثم ٣ */
-.sets,.rt{direction:ltr}
-.rt4 b{direction:ltr;unicode-bidi:isolate}
-.rule{background:rgba(255,255,255,.0);border:1px dashed var(--or);color:var(--or);border-radius:10px;padding:6px 10px;margin:0 0 8px;font-size:12px;line-height:1.6}
