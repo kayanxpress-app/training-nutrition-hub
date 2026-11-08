@@ -35,7 +35,7 @@ const numsD=t=>String(t||"").replace(/[٠-٩]/g,c=>"٠١٢٣٤٥٦٧٨٩".indexO
 const fmtW=n=>ar(String(n).replace(".","٫"));
 function planW(e,wk){
   const w1=(e.w1||[]).map(Number);if(!w1.some(x=>x>0))return null;
-  const D=P.data,W=D.weeks||[],pct=(D.wpct??5)/100,st=D.wstep??0.5;
+  const D=P.data,W=D.weeks||[],pct=(D.wpct??5)/100,st=D.wround??0;
   const rnd=v=>st>0?Math.round(v/st)*st:Math.round(v*100)/100;
   return w1.map((b,x)=>{
     if(!(b>0))return 0;let k=0;
@@ -321,7 +321,7 @@ function editInfo(){
   const d=P.data,f=d.info,e=d.energy;
   const wk=(d.weeks||[]).map(r=>r.join("-")).join("\n"),ex=(e.exch||[]).map(x=>x[0]+" "+x[1]).join(" | ");
   const T=(k,l,v,o)=>Object.assign({k,l,v:v??""},o||{});
-  modal("بيانات العميل والبرنامج",[T("brand","اسم البرنامج (يظهر كبيرًا)",d.brand),T("sub","وصف البرنامج",d.sub),T("sex","النوع",f.sex),T("age","العمر",f.age),T("weight","الوزن",f.weight),T("height","الطول",f.height),T("start","تاريخ البداية",f.start),T("end","تاريخ النهاية",f.end),T("days","مدة البرنامج (أيام)",f.days,{type:"number"}),T("minutes","التمرين أسبوعيًا",f.minutes),T("so2","الأكسجين",f.so2),T("rs","التنفس",f.rs),T("pulse","النبض",f.pulse),T("bp","الضغط",f.bp),T("bmr","معدل الحرق الأساسي",e.bmr),T("act","معامل النشاط",e.act),T("tdee","إجمالي الطاقة",e.tdee),T("plan","سعرات الخطة",e.plan),T("water","الماء",e.water),T("ptn","البروتين",e.ptn),T("cho","الكربوهيدرات",e.cho),T("exch","التبادلات الغذائية (افصل بـ | مثال: 9 بروتين | 4 نشويات)",ex,{type:"area"}),T("rest","الراحة بين المجموعات (ثانية)",d.rest,{type:"number"}),T("wk","تدرّج التكرارات: سطر لكل أسبوع مثل 10-10-10 (فاضي = تكرارات ثابتة)",wk,{type:"area"}),T("reps","التكرارات الثابتة مثل 12-10-10",(d.reps||[]).join("-")),T("wpct","زيادة الوزن (٪) كل ما تقل التكرارات عن الأسبوع السابق",d.wpct??5,{type:"number"}),T("wstep","تقريب الأوزان لأقرب (كجم) — 0 = بدون تقريب",d.wstep??0.5,{type:"number"})],
+  modal("بيانات العميل والبرنامج",[T("brand","اسم البرنامج (يظهر كبيرًا)",d.brand),T("sub","وصف البرنامج",d.sub),T("sex","النوع",f.sex),T("age","العمر",f.age),T("weight","الوزن",f.weight),T("height","الطول",f.height),T("start","تاريخ البداية",f.start),T("end","تاريخ النهاية",f.end),T("days","مدة البرنامج (أيام)",f.days,{type:"number"}),T("minutes","التمرين أسبوعيًا",f.minutes),T("so2","الأكسجين",f.so2),T("rs","التنفس",f.rs),T("pulse","النبض",f.pulse),T("bp","الضغط",f.bp),T("bmr","معدل الحرق الأساسي",e.bmr),T("act","معامل النشاط",e.act),T("tdee","إجمالي الطاقة",e.tdee),T("plan","سعرات الخطة",e.plan),T("water","الماء",e.water),T("ptn","البروتين",e.ptn),T("cho","الكربوهيدرات",e.cho),T("exch","التبادلات الغذائية (افصل بـ | مثال: 9 بروتين | 4 نشويات)",ex,{type:"area"}),T("rest","الراحة بين المجموعات (ثانية)",d.rest,{type:"number"}),T("wk","تدرّج التكرارات: سطر لكل أسبوع مثل 10-10-10 (فاضي = تكرارات ثابتة)",wk,{type:"area"}),T("reps","التكرارات الثابتة مثل 12-10-10",(d.reps||[]).join("-")),T("wpct","زيادة الوزن (٪) كل ما تقل التكرارات عن الأسبوع السابق",d.wpct??5,{type:"number"}),T("wround","تقريب الأوزان لأقرب (كجم) — اتركه 0 للحساب الدقيق",d.wround??0,{type:"number"})],
     async v=>{
       const lat=t=>String(t).replace(/[٠-٩]/g,c=>"٠١٢٣٤٥٦٧٨٩".indexOf(c)),nums=t=>lat(t).split(/[^0-9]+/).filter(Boolean).map(Number);
       d.brand=v.brand.trim();d.sub=v.sub.trim();
@@ -332,7 +332,7 @@ function editInfo(){
       d.rest=+v.rest||null;
       const w=v.wk.split("\n").map(nums).filter(a=>a.length);if(w.length)d.weeks=w;else delete d.weeks;
       const r=nums(v.reps);if(r.length)d.reps=r;
-      d.wpct=v.wpct===""||isNaN(+v.wpct)?5:+v.wpct;d.wstep=v.wstep===""||isNaN(+v.wstep)?0.5:Math.max(0,+v.wstep);
+      d.wpct=v.wpct===""||isNaN(+v.wpct)?5:+v.wpct;delete d.wstep;d.wround=v.wround===""||isNaN(+v.wround)?0:Math.max(0,+v.wround);
       return savePD();
     });
 }
@@ -506,7 +506,7 @@ function session(i){
   const lg=L();
   s.ex.forEach((e,j)=>{
     const k=`s${i}e${j}`,w=lg.w[k]||[],PW=planW(e,WK()||1),PV=PW&&(WK()||1)>1?planW(e,(WK()||1)-1):null;
-    h+=`<div class="card ex ${lg.d[k]?"done":""}" id="c-${k}">${vid(e.url,e.n,"",e.img)}<div class="top"><div class="n">${ar(j+1)}</div><h3>${esc(e.n)}</h3><span class="pill ${e.cls||"t1"}">${esc(e.tag)}</span></div>${ed(`editEx(${i},${j})`)}${P.data.rest?`<div class="rest">راحة <b>${ar(P.data.rest)}</b> ثانية</div>`:""}<div class="cap">${WK()?`التكرارات · الأسبوع ${ar(WK())} · `:""}الوزن (كجم)${PW?" · المستهدف بالأخضر وسجّل وزنك الفعلي تحته":""}</div>${EDIT()&&PW&&(WK()||1)>1?`<div class="rule">قاعدة الوزن: لو تكرارات المجموعة أقل من الأسبوع السابق ← الوزن +${ar(P.data.wpct??5)}٪ من وزن الأسبوع الأول. ولو ثبتت أو زادت ← الوزن ثابت.</div>`:""}<div class="sets">${R.map((r,x)=>`<div><div class="rp">${ar(r)}</div>${PW&&PW[x]?`<div class="tw">${fmtW(PW[x])}<small>كجم</small>${PV&&PW[x]>PV[x]?"<em>▲</em>":""}</div>`:""}<input type="text" inputmode="decimal" value="${esc(w[x]||"")}" placeholder="${PW&&PW[x]?"الفعلي":(lastW(k,x)?ar(lastW(k,x)):"")}" onchange="setW('${k}',${x},this.value)"></div>`).join("")}</div><button class="chk" onclick="tgl('${k}')">${lg.d[k]?"✓ تم":"تم التمرين"}</button></div>`;
+    h+=`<div class="card ex ${lg.d[k]?"done":""}" id="c-${k}">${vid(e.url,e.n,"",e.img)}<div class="top"><div class="n">${ar(j+1)}</div><h3>${esc(e.n)}</h3><span class="pill ${e.cls||"t1"}">${esc(e.tag)}</span></div>${ed(`editEx(${i},${j})`)}${P.data.rest?`<div class="rest">راحة <b>${ar(P.data.rest)}</b> ثانية</div>`:""}<div class="cap">${WK()?`التكرارات · الأسبوع ${ar(WK())} · `:""}الوزن (كجم)${PW?" · المستهدف بالأخضر وسجّل وزنك الفعلي تحته":""}</div><div class="sets">${R.map((r,x)=>`<div><div class="rp">${ar(r)}</div>${PW&&PW[x]?`<div class="tw">${fmtW(PW[x])}<small>كجم</small>${PV&&PW[x]>PV[x]?"<em>▲</em>":""}</div>`:""}<input type="text" inputmode="decimal" value="${esc(w[x]||"")}" placeholder="${PW&&PW[x]?"الفعلي":(lastW(k,x)?ar(lastW(k,x)):"")}" onchange="setW('${k}',${x},this.value)"></div>`).join("")}</div><button class="chk" onclick="tgl('${k}')">${lg.d[k]?"✓ تم":"تم التمرين"}</button></div>`;
   });
   h+=addb(`editEx(${i},-1)`,"إضافة تمرين");
   if(s.ab){h+=`<div class="card dk"><div class="lbl" style="color:var(--or)">البطن · كور</div><b style="font-size:17px">${esc(s.ab.t)}</b>${ed(`editAb(${i})`)}</div><div style="display:grid;gap:10px;margin-bottom:12px">${s.ab.vids.map((v,x)=>`<div>${vid(v.url,"تمرين بطن "+(x+1),"",v.img)}${ed(`editAbv(${i},${x})`)}</div>`).join("")}</div>`}
