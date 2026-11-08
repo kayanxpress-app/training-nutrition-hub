@@ -180,6 +180,15 @@ async function upl(file){
   if(error)throw error;
   return sb.storage.from("media").getPublicUrl(path).data.publicUrl;
 }
+async function fetchProductImg(link){
+  const y=yt(link);if(y)return y;                                   // يوتيوب: الصورة جاهزة بدون سيرفر
+  const {data:{session}}=await sb.auth.getSession();
+  const r=await fetch("/api/og",{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+(session?session.access_token:"")},body:JSON.stringify({url:link})});
+  const j=await r.json().catch(()=>({}));
+  if(!r.ok||!j.ok)throw new Error(j.error||"تعذر جلب الصورة");
+  if(j.data){const b=await (await fetch(j.data)).blob();return upl(new File([b],"p.jpg",{type:b.type||"image/jpeg"}))}   // نسخة دائمة في تخزينك
+  return j.image;
+}
 async function uplDoc(file){
   const path=`${CID()}/${Date.now()}.pdf`;
   const {error}=await sb.storage.from("docs").upload(path,file,{contentType:"application/pdf"});
@@ -265,16 +274,16 @@ function setPass(id){
     try{await callClients({action:"password",id,password:v.password});toast("تم تغيير كلمة المرور");return true}catch(e){toast(e.message);return false}
   });
 }
-function modal(title,fields,onSave,onDel){
+function modal(title,fields,onSave,onDel,setup){
   const m=document.createElement("div");m.className="md";
   m.innerHTML=`<div class="sh"><h3>${title}</h3>${fields.map(fld).join("")}<button class="btn" id="mk">حفظ</button>${onDel?'<button class="btn o dl" id="mx">حذف</button>':""}<button class="btn o" id="mc">إلغاء</button></div>`;
-  document.body.appendChild(m);
+  document.body.appendChild(m);if(setup)setup(m);
   const close=()=>m.remove(),get=()=>{const o={};fields.forEach((f,i)=>o[f.k]=m.querySelector(`[data-i="${i}"]`).value);return o};
   m.onclick=e=>{if(e.target===m)close()};
   m.querySelectorAll("[data-up]").forEach(inp=>inp.onchange=async()=>{
     const i=inp.dataset.up,f=inp.files[0];if(!f)return;
     toast("جاري رفع الصورة...");
-    try{const u=await upl(f);m.querySelector(`[data-i="${i}"]`).value=u;m.querySelector("#pv"+i).src=u;toast("تم رفع الصورة")}catch(e){toast("تعذر رفع الصورة")}
+    try{const u=await upl(f),hi=m.querySelector(`[data-i="${i}"]`);hi.value=u;hi.dataset.auto="";m.querySelector("#pv"+i).src=u;toast("تم رفع الصورة")}catch(e){toast("تعذر رفع الصورة")}
   });
   m.querySelectorAll("[data-upf]").forEach(inp=>inp.onchange=async()=>{
     const i=inp.dataset.upf,f=inp.files[0];if(!f)return;
@@ -334,9 +343,27 @@ function editSup(i){
   const e=i<0?{n:"",en:"",how:"",warn:"",link:"",img:""}:P.data.supp[i];
   modal(i<0?"إضافة مكمل / توصية":"تعديل المكمل",[{k:"n",l:"الاسم",v:e.n},{k:"en",l:"الاسم بالإنجليزي (اختياري)",v:e.en,dir:"ltr"},{k:"how",l:"طريقة الاستخدام",type:"area",v:e.how},{k:"warn",l:"تنبيه (اختياري)",v:e.warn},{k:"link",l:"لينك الشراء أو الفيديو (اختياري)",v:e.link,dir:"ltr"},{k:"ll",l:"نص زرار اللينك (مثال: عرض على iHerb)",v:e.ll||""},{k:"badge",l:"شارة (مثال: حتى النفاذ، اختياري)",v:e.badge||""},{k:"img",l:"صورة المنتج",type:"img",v:e.img}],
     async v=>{if(!v.n.trim()){toast("اكتب الاسم");return false}
+      const M=document.querySelector(".md");if(M&&M._pend){await M._pend;v.img=M.querySelector('[data-i="7"]').value}   // لو الجلب شغال دلوقتي نستناه بدل ما نكرره
+      if(!v.img&&v.link.trim()){try{v.img=await fetchProductImg(v.link.trim())}catch(e){toast("اتحفظ من غير صورة: "+(e.message||"تعذر جلبها"))}}
       const o={n:v.n.trim(),en:v.en.trim(),how:v.how.trim(),warn:v.warn.trim(),link:v.link.trim(),ll:v.ll.trim(),badge:v.badge.trim(),img:v.img};
       if(i<0)P.data.supp.push(o);else P.data.supp[i]=o;return savePD()},
-    i<0?null:async()=>{P.data.supp.splice(i,1);await savePD()});
+    i<0?null:async()=>{P.data.supp.splice(i,1);await savePD()},
+    m=>{
+      const L=m.querySelector('[data-i="4"]'),IM=m.querySelector('[data-i="7"]'),pv=m.querySelector("#pv7");
+      const st=document.createElement("div");st.className="sn";L.closest("label").after(st);
+      let last="";const clr=()=>{if(IM.dataset.auto==="1"){IM.value="";IM.dataset.auto="";pv.removeAttribute("src")}};
+      L.addEventListener("change",()=>{
+        const u=L.value.trim();
+        if(IM.value&&IM.dataset.auto!=="1")return;               // في صورة مرفوعة يدويًا: ما نكتبش فوقها
+        if(!u){last="";clr();st.textContent="";return}
+        if(u===last)return;                                       // نفس اللينك اتجلبت صورته خلاص
+        last=u;st.textContent="جاري جلب صورة المنتج من اللينك...";
+        m._pend=(async()=>{
+          try{const r=await fetchProductImg(u);if(L.value.trim()!==u)return;IM.value=r;IM.dataset.auto="1";pv.src=r;st.textContent="✓ تم جلب صورة المنتج تلقائيًا"}
+          catch(e){last="";clr();st.textContent="تعذر جلب الصورة تلقائيًا ("+(e.message||"")+"). ارفعها يدويًا من الأسفل."}
+        })();
+      });
+    });
 }
 function editInfo(){
   const d=P.data,f=d.info,e=d.energy;
@@ -566,7 +593,7 @@ function food(){
 function pick(i){const l=L();if(l.m[ft]===i)delete l.m[ft];else l.m[ft]=i;save();food()}
 function supp(){
   hd("التوصيات والمكملات","القسم الثالث");const l=L();
-  $("#app").innerHTML=P.data.supp.map((s,i)=>`<div class="card sp ${l.s[i]?"done":""}" id="p${i}"><div class="spi">${s.img?`<img src="${esc(s.img)}" alt="">`:'<div class="ph">صورة</div>'}</div><div class="spb"><div class="lbl or">SUPPLEMENT · توصية</div><h3>${esc(s.n)}</h3>${s.en?`<div class="e" dir="ltr">${esc(s.en)}</div>`:""}${s.how?`<div class="how">${esc(s.how).replace(/\n/g,"<br>")}</div>`:""}${s.badge?`<span class="bdg">${esc(s.badge)}</span>`:""}${s.warn?`<div class="warn">${esc(s.warn)}</div>`:""}${s.link?`<a class="ih" href="${esc(s.link)}" target="_blank" rel="noopener">${esc(s.ll)||"فتح اللينك"} ↗</a>`:""}<button class="chk" onclick="tsp(${i})">${l.s[i]?"✓ تم اليوم":"تم اليوم"}</button>${ed(`editSup(${i})`)} ${ed(`shareSupp(${i})`,"نسخ لعملاء")}</div></div>`).join("")+addb("editSup(-1)","إضافة مكمل / توصية")+addb("shareSec('supp')","نسخ المكملات كلها لعملاء آخرين")+blocksBlock("supp")+filesBlock("supp");
+  $("#app").innerHTML=P.data.supp.map((s,i)=>`<div class="card sp ${l.s[i]?"done":""}" id="p${i}"><div class="spi">${s.img||yt(s.link)?`<img src="${esc(s.img||yt(s.link))}" alt="" referrerpolicy="no-referrer">`:'<div class="ph">صورة</div>'}</div><div class="spb"><div class="lbl or">SUPPLEMENT · توصية</div><h3>${esc(s.n)}</h3>${s.en?`<div class="e" dir="ltr">${esc(s.en)}</div>`:""}${s.how?`<div class="how">${esc(s.how).replace(/\n/g,"<br>")}</div>`:""}${s.badge?`<span class="bdg">${esc(s.badge)}</span>`:""}${s.warn?`<div class="warn">${esc(s.warn)}</div>`:""}${s.link?`<a class="ih" href="${esc(s.link)}" target="_blank" rel="noopener">${esc(s.ll)||"فتح اللينك"} ↗</a>`:""}<button class="chk" onclick="tsp(${i})">${l.s[i]?"✓ تم اليوم":"تم اليوم"}</button>${ed(`editSup(${i})`)} ${ed(`shareSupp(${i})`,"نسخ لعملاء")}</div></div>`).join("")+addb("editSup(-1)","إضافة مكمل / توصية")+addb("shareSec('supp')","نسخ المكملات كلها لعملاء آخرين")+blocksBlock("supp")+filesBlock("supp");
 }
 function tsp(i){const l=L(),c=$("#p"+i);if(l.s[i]){delete l.s[i];c.classList.remove("done");c.querySelector(".chk").textContent="تم اليوم"}else{l.s[i]=1;c.classList.add("done");c.querySelector(".chk").textContent="✓ تم اليوم"}save()}
 function notes(){
