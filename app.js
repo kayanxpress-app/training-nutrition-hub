@@ -6,6 +6,7 @@ const iso=d=>d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());
 const D=new Date(),TODAY=iso(D);
 const sb=window.supabase.createClient(CONFIG.SUPABASE_URL,CONFIG.SUPABASE_ANON_KEY);
 let ME,PROF={},ADMIN=false,VIEW=null,PROGS=[],PI=0,P,LOGS={},NOTIFS=[],ft="b";
+const SV={get(){try{return JSON.parse(sessionStorage.getItem("tnh_view")||"null")}catch(e){return null}},set(v){try{sessionStorage.setItem("tnh_view",JSON.stringify(v))}catch(e){}},clr(){try{sessionStorage.removeItem("tnh_view")}catch(e){}}};
 const CID=()=>VIEW?VIEW.id:ME.id;
 const EDIT=()=>ADMIN&&VIEW;
 const NAME=()=>VIEW?VIEW.name:(PROF.full_name||"");
@@ -91,7 +92,7 @@ function login(msg){
   };
   $("#go").onclick=go;$("#pw").onkeydown=e=>{if(e.key==="Enter")go()};
 }
-async function out(){await sb.auth.signOut();LOGS={};PROGS=[];P=null;VIEW=null;location.hash="";login()}
+async function out(){SV.clr();await sb.auth.signOut();LOGS={};PROGS=[];P=null;VIEW=null;location.hash="";login()}
 
 /* ===== تحميل ===== */
 async function loadData(cid){
@@ -110,7 +111,7 @@ async function load(){
     ME=user;$("#app").innerHTML='<p class="ld">جاري التحميل...</p>';
     const a=await sb.from("profiles").select("*").eq("id",user.id).maybeSingle();
     PROF=a.data||{};ADMIN=PROF.role==="admin";VIEW=null;
-    if(ADMIN){document.body.classList.remove("av");$("nav").style.display="none";return clients()}
+    if(ADMIN){const sv=SV.get();if(sv&&sv.id)return openClient(sv.id,sv.name,true);document.body.classList.remove("av");$("nav").style.display="none";return clients()}
     await loadData(user.id);$("nav").style.display="flex";badge();route();
   }catch(e){
     $("#app").innerHTML=`<div class="card" style="text-align:center"><b>تعذر تحميل البيانات</b><p style="color:var(--mut)">تأكد من الإنترنت وحاول مرة أخرى.</p><button class="btn" onclick="load()">إعادة المحاولة</button></div>`;
@@ -121,7 +122,7 @@ function setProg(i){PI=+i;P=PROGS[PI];route()}
 
 /* ===== الأدمن: العملاء ===== */
 async function clients(){
-  VIEW=null;P=null;document.body.classList.remove("av");$("nav").style.display="none";
+  SV.clr();VIEW=null;P=null;document.body.classList.remove("av");$("nav").style.display="none";
   $("#hd").innerHTML=`<div class="hd"><div><small>لوحة المدرب</small><h1>عملائي</h1></div><img class="lgo" src="img/logo.png" alt=""></div>`;
   $("#app").innerHTML='<p class="ld">جاري التحميل...</p>';
   const since=new Date(D.getTime()-14*864e5);
@@ -145,11 +146,11 @@ async function clients(){
   h+=`<button class="btn o" onclick="out()">تسجيل الخروج</button>`;
   $("#app").innerHTML=h;
 }
-async function openClient(id,name){
-  VIEW={id,name};$("#app").innerHTML='<p class="ld">جاري التحميل...</p>';
+async function openClient(id,name,keep){
+  VIEW={id,name};SV.set({id,name});$("#app").innerHTML='<p class="ld">جاري التحميل...</p>';
   try{await loadData(id)}catch(e){toast("تعذر التحميل");return clients()}
   document.body.classList.add("av");$("nav").style.display="flex";badge();
-  if(location.hash==="#home"||location.hash==="")route();else location.hash="home";
+  if(keep||location.hash==="#home"||location.hash==="")route();else location.hash="home";
 }
 function closeClient(){location.hash="";clients()}
 function sendNote(cid){
