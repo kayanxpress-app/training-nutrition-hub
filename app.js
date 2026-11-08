@@ -92,7 +92,7 @@ function login(msg){
   };
   $("#go").onclick=go;$("#pw").onkeydown=e=>{if(e.key==="Enter")go()};
 }
-async function out(){SV.clr();await sb.auth.signOut();LOGS={};PROGS=[];P=null;VIEW=null;location.hash="";login()}
+async function out(){SV.clr();await Promise.race([pushOff(),new Promise(r=>setTimeout(r,2500))]);await sb.auth.signOut();LOGS={};PROGS=[];P=null;VIEW=null;location.hash="";login()}
 
 /* ===== تحميل ===== */
 async function loadData(cid){
@@ -110,8 +110,8 @@ async function load(){
     if(!user)return login();
     ME=user;$("#app").innerHTML='<p class="ld">جاري التحميل...</p>';
     const a=await sb.from("profiles").select("*").eq("id",user.id).maybeSingle();
-    PROF=a.data||{};ADMIN=PROF.role==="admin";VIEW=null;
-    if(ADMIN){const sv=SV.get();if(sv&&sv.id)return openClient(sv.id,sv.name,true);document.body.classList.remove("av");$("nav").style.display="none";return clients()}
+    PROF=a.data||{};ADMIN=PROF.role==="admin";VIEW=null;pushSync();
+    if(ADMIN){const dl=deepClient();if(dl)return openClient(dl.id,dl.name);const sv=SV.get();if(sv&&sv.id)return openClient(sv.id,sv.name,true);document.body.classList.remove("av");$("nav").style.display="none";return clients()}
     await loadData(user.id);$("nav").style.display="flex";badge();route();
   }catch(e){
     $("#app").innerHTML=`<div class="card" style="text-align:center"><b>تعذر تحميل البيانات</b><p style="color:var(--mut)">تأكد من الإنترنت وحاول مرة أخرى.</p><button class="btn" onclick="load()">إعادة المحاولة</button></div>`;
@@ -133,7 +133,7 @@ async function clients(){
     sb.from("measure_requests").select("client_id,kind").eq("status","pending"),
     sb.from("measurements").select("client_id,taken_on,weight,created_at").order("created_at",{ascending:false}).limit(300)]);
   const cl=a.data||[],lg=b.data||[],pr=c.data||[];
-  let h=`<div class="card" style="text-align:center"><b>${ar(cl.length)} عميل</b><p style="margin:2px 0 0;color:var(--mut);font-size:13px">اضغط على العميل لعرض حسابه وتعديل برنامجه</p></div><button class="btn" style="margin-bottom:12px" onclick="addClient()">+ إضافة عميل جديد</button>`;
+  let h=pushCard()+`<div class="card" style="text-align:center"><b>${ar(cl.length)} عميل</b><p style="margin:2px 0 0;color:var(--mut);font-size:13px">اضغط على العميل لعرض حسابه وتعديل برنامجه</p></div><button class="btn" style="margin-bottom:12px" onclick="addClient()">+ إضافة عميل جديد</button>`;
   cl.forEach(x=>{
     const mine=lg.filter(l=>l.client_id===x.id).sort((p,q)=>q.log_date.localeCompare(p.log_date));
     const last=mine[0],t=mine.find(l=>l.log_date===TODAY);
@@ -160,7 +160,7 @@ function sendNote(cid){
   modal("إرسال إشعار للعميل",[{k:"t",l:"العنوان",v:""},{k:"b",l:"الرسالة",v:"",type:"area"}],async v=>{
     if(!v.t.trim()){toast("اكتب العنوان");return false}
     const {error}=await sb.from("notifications").insert({client_id:cid,title:v.t.trim(),body:v.b.trim()});
-    toast(error?"تعذر الإرسال":"تم إرسال الإشعار");return !error;
+    if(!error)pushTo(cid,v.t.trim(),v.b.trim());toast(error?"تعذر الإرسال":"تم إرسال الإشعار");return !error;
   });
 }
 
@@ -528,6 +528,7 @@ function home(){
   let h=`<div class="card brand"><img src="img/logo.png" alt=""><small>مدربك وأخصائي التغذية</small><h1>الدكتور محمود جمال قطب</h1><div class="en">DR. MAHMOUD GAMAL</div><div class="tg">تخلّص من أمراضك</div></div>`;
   if(EDIT())h+=pubCard();
   h+=pendBanner();
+  h+=pushCard();
   const dn=dayNo(),T=inf.days||30;
   h+=`<div class="card"><div class="hi"><b>أهلاً ${esc(NAME())}</b><span style="color:var(--mut);font-size:13px">${esc(P.title||"")}</span></div><div style="margin-top:8px;font-weight:700">${dn?`اليوم ${ar(dn)} من ${ar(T)}`:"البرنامج لسه ما بدأش"}</div><div class="bar"><i style="width:${dn/T*100}%"></i></div></div>`;
   if(PROGS.length>1)h+=`<select onchange="setProg(this.value)">${PROGS.map((p,i)=>`<option value="${i}" ${i==PI?"selected":""}>${esc(p.title||p.month_start)}${EDIT()&&!p.published?" (مسودة)":""}</option>`).join("")}</select>`;
@@ -537,6 +538,7 @@ function home(){
   h+=measCard();
   h+=`<div class="card pg"><div class="sub">${esc(dt.sub||"")}</div><div class="big">${esc(dt.brand||P.title||"")}</div><div class="mem">${[["الاسم",NAME()||"—"],["العمر",inf.age],["الوزن",inf.weight],["الطول",inf.height],["البداية",inf.start],["النهاية",inf.end],["المدة",inf.days?ar(inf.days)+" يومًا":""],["التمرين",inf.minutes]].map(x=>`<div><span>${x[0]}</span><b>${esc(x[1])||"—"}</b></div>`).join("")}</div>${ed("editInfo()","تعديل بيانات العميل والبرنامج")}</div>`;
   if(EDIT()){
+    h+=cheerCard();
     const days=Object.keys(LOGS).sort().reverse().slice(0,7);
     h+=`<div class="card"><b>نشاط العميل (آخر ٧ أيام)</b>${days.length?days.map(d=>{const g=LOGS[d];return `<div class="act"><span>${ar(d.slice(5).replace("-","/"))}</span><span>${ar(Object.keys(g.d||{}).length)} تمارين · ${ar(Object.keys(g.m||{}).length)} وجبات · ${ar(Object.keys(g.s||{}).length)} مكملات</span></div>`}).join(""):'<p style="color:var(--mut);margin:6px 0 0">لا يوجد نشاط مسجل بعد</p>'}</div>${addb("newMonth()","برنامج شهر جديد (نسخ من الحالي)")}${addb("shareSec('train','food','supp')","نسخ هذا البرنامج لعملاء آخرين")}${addb("pullProg()","سحب برنامج من عميل آخر")}${addb("importProg()","استيراد برنامج من ملف PDF")}<button class="btn o" onclick="sendNote('${VIEW.id}')">✉ إرسال إشعار للعميل</button>`;
   }
@@ -575,7 +577,7 @@ function session(i){
 }
 function setW(k,x,v){const l=L();l.w[k]=l.w[k]||["","",""];l.w[k][x]=v.trim();save()}
 function setNote(i,v){const l=L();l.n=l.n||{};l.n[i]=v.trim();save()}
-function tgl(k){const l=L(),c=$("#c-"+k);if(l.d[k]){delete l.d[k];c.classList.remove("done");c.querySelector(".chk").textContent="تم التمرين"}else{l.d[k]=1;c.classList.add("done");c.querySelector(".chk").textContent="✓ تم"}save()}
+function tgl(k){const l=L(),c=$("#c-"+k);if(l.d[k]){delete l.d[k];c.classList.remove("done");c.querySelector(".chk").textContent="تم التمرين"}else{l.d[k]=1;c.classList.add("done");c.querySelector(".chk").textContent="✓ تم"}save();pushTick(k)}
 function food(){
   const dt=P.data,E=dt.energy||{},fi=dt.info||{};hd("التغذية","القسم الثاني");
   const IC=(l,v)=>`<div class="ic"><span>${l}</span><b class="${v?"":"em"}">${esc(v)||"—"}</b></div>`;
@@ -609,7 +611,7 @@ function supp(){
 function tsp(i){const l=L(),c=$("#p"+i);if(l.s[i]){delete l.s[i];c.classList.remove("done");c.querySelector(".chk").textContent="تم اليوم"}else{l.s[i]=1;c.classList.add("done");c.querySelector(".chk").textContent="✓ تم اليوم"}save()}
 function notes(){
   hd("الإشعارات","رسائل من الدكتور");
-  $("#app").innerHTML=(NOTIFS.length?NOTIFS.map(n=>`<div class="card nt ${n.read?"":"un"}"><h3>${esc(n.title)}</h3><p style="margin:4px 0">${esc(n.body)}</p><small>${ar(new Date(n.created_at).toLocaleDateString("en-GB"))}</small></div>`).join(""):`<div class="card" style="text-align:center;color:var(--mut)">لا توجد إشعارات حتى الآن</div>`)+(EDIT()?`<button class="btn o" onclick="sendNote('${VIEW.id}')">✉ إرسال إشعار</button>`:"");
+  $("#app").innerHTML=pushCard()+(NOTIFS.length?NOTIFS.map(n=>`<div class="card nt ${n.read?"":"un"}"><h3>${esc(n.title)}</h3><p style="margin:4px 0">${esc(n.body)}</p><small>${ar(new Date(n.created_at).toLocaleDateString("en-GB"))}</small></div>`).join(""):`<div class="card" style="text-align:center;color:var(--mut)">لا توجد إشعارات حتى الآن</div>`)+(EDIT()?`<button class="btn o" onclick="sendNote('${VIEW.id}')">✉ إرسال إشعار</button>`:"");
   if(!ADMIN&&NOTIFS.some(n=>!n.read)){
     sb.from("notifications").update({read:true}).eq("client_id",ME.id).eq("read",false).then(()=>{NOTIFS.forEach(n=>n.read=true);badge()});
   }
@@ -734,6 +736,7 @@ function editMeas(kind,id,reqId){
         if(error||!data){toast("تعذر الحفظ");return false}
         const ids=REQS.filter(r=>r.status==="pending"&&(r.id===reqId||r.kind===kind||(isIn&&w!=null&&r.kind==="weight"))).map(r=>r.id);
         if(ids.length)await sb.from("measure_requests").update({status:"done",done_at:new Date().toISOString(),measurement_id:data.id}).in("id",ids);
+        if(!ADMIN)pushAdmin("meas",kind);
       }
       await loadMeas(CID());route();setTimeout(()=>toast("تم حفظ القياس"),60);return true;
     },
@@ -751,7 +754,8 @@ function askMeas(kind){
     const note=(v.n||"").trim();
     const {error}=await sb.from("measure_requests").insert({client_id:VIEW.id,kind,note:note||null});
     if(error){toast("تعذر إرسال الطلب");return false}
-    await sb.from("notifications").insert({client_id:VIEW.id,title:kind==="inbody"?"مطلوب منك: قياس InBody":"مطلوب منك: قياس الوزن",body:note||(kind==="inbody"?"ارفع نتيجة الـ InBody من صفحة «القياسات و InBody» في التطبيق.":"سجّل وزنك الحالي من صفحة «القياسات و InBody» في التطبيق.")});
+    const nt={client_id:VIEW.id,title:kind==="inbody"?"مطلوب منك: قياس InBody":"مطلوب منك: قياس الوزن",body:note||(kind==="inbody"?"ارفع نتيجة الـ InBody من صفحة «القياسات و InBody» في التطبيق.":"سجّل وزنك الحالي من صفحة «القياسات و InBody» في التطبيق.")};
+    await sb.from("notifications").insert(nt);pushTo(VIEW.id,nt.title,nt.body,"./#body");
     await loadMeas(VIEW.id);route();setTimeout(()=>toast("تم إرسال الطلب للعميل"),60);return true;
   });
 }
@@ -760,6 +764,80 @@ async function cancelReq(id){
   const {error}=await sb.from("measure_requests").update({status:"cancelled"}).eq("id",id);
   if(error)return toast("تعذر الإلغاء");
   await loadMeas(CID());route();
+}
+/* ===== إشعارات الموبايل (Web Push) ===== */
+const PUSH_OK=()=>"serviceWorker" in navigator&&"PushManager" in window&&"Notification" in window;
+const STANDALONE=()=>window.navigator.standalone===true||(window.matchMedia&&matchMedia("(display-mode: standalone)").matches);
+const IOS=()=>/iphone|ipad|ipod/i.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1);
+const b64u=s=>{const p="=".repeat((4-s.length%4)%4),r=atob((s+p).replace(/-/g,"+").replace(/_/g,"/"));return Uint8Array.from(r,c=>c.charCodeAt(0))};
+const once=k=>{try{const key="tnh_p_"+TODAY+"_"+k;if(localStorage.getItem(key))return false;localStorage.setItem(key,"1");return true}catch(e){return false}};
+async function pApi(body){
+  const {data:{session}}=await sb.auth.getSession();
+  if(!session)throw new Error("no session");
+  const r=await fetch("/api/push",{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+session.access_token},body:JSON.stringify(body)});
+  return r.json().catch(()=>({}));
+}
+async function pushSub(ask){
+  if(!PUSH_OK()||!CONFIG.VAPID_PUBLIC||Notification.permission==="denied")return false;
+  if(Notification.permission!=="granted"){if(!ask)return false;if(await Notification.requestPermission()!=="granted")return false}
+  const reg=await navigator.serviceWorker.ready;
+  let s=await reg.pushManager.getSubscription();
+  if(!s)s=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:b64u(CONFIG.VAPID_PUBLIC)});
+  const j=s.toJSON(),r=await pApi({action:"subscribe",sub:{endpoint:j.endpoint,keys:j.keys}});
+  return !!r.ok;
+}
+function pushSync(){try{if(PUSH_OK()&&CONFIG.VAPID_PUBLIC&&Notification.permission==="granted")pushSub(false).catch(()=>{})}catch(e){}}
+async function pushOn(){
+  try{
+    const ok=await pushSub(true);
+    if(ok){const c=$("#pcard");if(c)c.remove();toast("تم تفعيل الإشعارات ✓")}
+    else toast(Notification.permission==="denied"?"الإشعارات محظورة، فعّلها من إعدادات الموبايل":"تعذر التفعيل، حاول مرة أخرى");
+  }catch(e){toast("تعذر تفعيل الإشعارات")}
+}
+async function pushOff(){
+  try{
+    if(!PUSH_OK())return;
+    const reg=await navigator.serviceWorker.getRegistration(),s=reg&&await reg.pushManager.getSubscription();
+    if(!s)return;
+    await pApi({action:"unsubscribe",endpoint:s.endpoint});await s.unsubscribe();
+  }catch(e){}
+}
+function pushCard(){
+  if(EDIT()||!CONFIG.VAPID_PUBLIC)return"";
+  if(!PUSH_OK()){
+    return IOS()&&!STANDALONE()?`<div class="card pc" id="pcard"><b>🔔 فعّل التنبيهات على الآيفون</b><p>افتح الموقع في Safari ← زر المشاركة ← «إضافة إلى الشاشة الرئيسية»، ثم افتح التطبيق من الأيقونة وفعّل التنبيهات من هنا.</p></div>`:"";
+  }
+  if(Notification.permission==="granted")return"";
+  if(Notification.permission==="denied")return`<div class="card pc" id="pcard"><b>🔔 التنبيهات متوقفة</b><p>فعّلها من إعدادات الموبايل ← الإشعارات ← هذا التطبيق.</p></div>`;
+  return`<div class="card pc" id="pcard"><b>🔔 فعّل تنبيهات المتابعة</b><p>${ADMIN?"عشان توصلك إشعارات لحظة ما العميل يبدأ تمرينه أو يخلّصه.":"عشان توصلك رسائل ومتابعة الدكتور على الموبايل حتى والتطبيق مقفول."}</p><button class="btn" onclick="pushOn()">تفعيل التنبيهات</button></div>`;
+}
+function pushTo(cid,title,body,url){pApi({action:"send",to:"client",client_id:cid,title,body,url:url||"./#notes",tag:"n"+Date.now()}).catch(()=>{})}
+function pushAdmin(kind,label){pApi({action:"send",to:"admin",kind,label:label||""}).catch(()=>{})}
+function pushTick(k){
+  try{
+    if(ADMIN||!L().d[k])return;
+    if(once("start"))pushAdmin("start");
+    const m=/^s(\d+)e/.exec(k);if(!m)return;
+    const i=+m[1],s=P.data.sessions[i];
+    if(s&&s.ex.length&&doneCount(i)>=s.ex.length&&once("done"+i))pushAdmin("done",s.t);
+  }catch(e){}
+}
+function deepClient(){
+  try{
+    const u=new URLSearchParams(location.search),c=u.get("c");
+    if(!c||!/^[0-9a-f-]{36}$/i.test(c))return null;
+    history.replaceState(null,"",location.pathname+location.hash);
+    return{id:c,name:(u.get("n")||"عميل").slice(0,60)};
+  }catch(e){return null}
+}
+const CHEERS=["برافو يا بطل 👏 كمّل كده","ركّز على الأداء الصح مش على الوزن 🎯","متنساش الميّه والوجبات حسب الخطة 💧","فينك؟ مستنيك النهارده في التمرين 💪"];
+function cheerCard(){return`<div class="card"><b>رسالة سريعة للعميل (بتوصله كإشعار)</b><div class="chips">${CHEERS.map((c,i)=>`<button class="chip2" onclick="cheer(${i})">${c}</button>`).join("")}</div></div>`}
+async function cheer(i){
+  if(!EDIT())return;
+  const t="رسالة من الدكتور",b=CHEERS[i];
+  const {error}=await sb.from("notifications").insert({client_id:VIEW.id,title:t,body:b});
+  if(error)return toast("تعذر الإرسال");
+  pushTo(VIEW.id,t,b,"./#notes");toast("تم إرسال الرسالة ✓");
 }
 function route(){
   if(!ME||(ADMIN&&!VIEW))return;
@@ -772,6 +850,7 @@ function route(){
   window.scrollTo(0,0);
 }
 addEventListener("hashchange",route);
+if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js").catch(()=>{});
 (async()=>{
   if(CONFIG.SUPABASE_URL.includes("YOUR-PROJECT")){$("#app").innerHTML='<div class="card"><b>لازم تضيف بيانات سوبابيز في ملف config.js</b></div>';return}
   const {data:{session}}=await sb.auth.getSession();
