@@ -146,7 +146,7 @@ async function clients(){
     const pq=(mq.data||[]).filter(z=>z.client_id===x.id),lm=(ml.data||[]).find(z=>z.client_id===x.id);
     h+=`<div class="card cl"><div style="flex:1;cursor:pointer" onclick="openClient('${x.id}','${esc(x.full_name||"عميل").replace(/'/g,"")}')"><h3>${esc(x.full_name||"بدون اسم")}</h3><p class="${bad?"no2":"ok"}">${act}</p><p>اليوم: ${ar(cnt)} تمارين · ${ar(mel)} وجبات · ${ar(sup)} مكملات</p>${left!==null?`<p>${left>=0?`باقي ${ar(left)} يوم على نهاية البرنامج`:"البرنامج انتهى"}</p>`:'<p>لا يوجد برنامج</p>'}${pq.length?`<p style="color:#d23b5f;font-weight:700">⏳ مطلوب منه: ${pq.map(z=>MK(z.kind)).join(" + ")}</p>`:""}${lm?`<p>آخر قياس: ${dmy(lm.taken_on)}${lm.weight!=null?" · "+fmtW(lm.weight)+" كجم":""}</p>`:""}</div><div style="display:grid;gap:6px"><button class="ed" style="display:inline-block;margin:0" onclick="sendNote('${x.id}')">✉ إشعار</button><button class="ed" style="display:inline-block;margin:0" onclick="setPass('${x.id}')">كلمة المرور</button></div></div>`;
   });
-  h+=`<button class="btn o" onclick="out()">تسجيل الخروج</button>`;
+  h+=`<button class="btn o" onclick="remindNow()">🔔 التذكيرات التلقائية (معاينة / إرسال)</button><button class="btn o" onclick="out()">تسجيل الخروج</button>`;
   $("#app").innerHTML=h;
 }
 async function openClient(id,name,keep){
@@ -771,10 +771,10 @@ const STANDALONE=()=>window.navigator.standalone===true||(window.matchMedia&&mat
 const IOS=()=>/iphone|ipad|ipod/i.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1);
 const b64u=s=>{const p="=".repeat((4-s.length%4)%4),r=atob((s+p).replace(/-/g,"+").replace(/_/g,"/"));return Uint8Array.from(r,c=>c.charCodeAt(0))};
 const once=k=>{try{const key="tnh_p_"+TODAY+"_"+k;if(localStorage.getItem(key))return false;localStorage.setItem(key,"1");return true}catch(e){return false}};
-async function pApi(body){
+async function pApi(body,path){
   const {data:{session}}=await sb.auth.getSession();
   if(!session)throw new Error("no session");
-  const r=await fetch("/api/push",{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+session.access_token},body:JSON.stringify(body)});
+  const r=await fetch(path||"/api/push",{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+session.access_token},body:JSON.stringify(body)});
   return r.json().catch(()=>({}));
 }
 async function pushSub(ask){
@@ -838,6 +838,17 @@ async function cheer(i){
   const {error}=await sb.from("notifications").insert({client_id:VIEW.id,title:t,body:b});
   if(error)return toast("تعذر الإرسال");
   pushTo(VIEW.id,t,b,"./#notes");toast("تم إرسال الرسالة ✓");
+}
+async function remindNow(){
+  if(!ADMIN)return;
+  toast("جاري فحص العملاء...");
+  let r;try{r=await pApi({preview:true},"/api/reminders")}catch(e){return toast("تعذر الاتصال")}
+  if(!r||!r.ok)return toast((r&&r.error)||"تعذر الفحص");
+  if(!r.items.length&&!r.digest)return toast("مفيش حد محتاج تذكير دلوقتي");
+  const KN={req:"طلب قياس منتظر",abs:"غياب عن التمرين",start:"لم يبدأ بعد",wt:"وزن أسبوعي"};
+  const txt=(r.items.length?"تذكيرات هتتبعت للعملاء:\n"+r.items.map(x=>"• "+x.name+" — "+(KN[x.kind]||x.kind)).join("\n"):"مفيش تذكيرات للعملاء النهارده")+(r.digest?"\n\nملخص ليك: "+r.digest.n+" عميل غايبين ٣ أيام أو أكتر":"")+"\n\nتبعتهم دلوقتي؟\n(بتتبعت تلقائيًا كل يوم الساعة ٥ مساءً)";
+  if(!confirm(txt))return;
+  try{const s=await pApi({send:true},"/api/reminders");toast(s&&s.ok?"تم الإرسال ✓":((s&&s.error)||"تعذر الإرسال"))}catch(e){toast("تعذر الإرسال")}
 }
 function route(){
   if(!ME||(ADMIN&&!VIEW))return;
