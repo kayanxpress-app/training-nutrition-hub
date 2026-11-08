@@ -176,7 +176,7 @@ body.av .opt .ed{pointer-events:auto}
 .sh{background:var(--card);width:100%;max-height:88vh;overflow:auto;border-radius:22px 22px 0 0;padding:16px 16px calc(16px + env(safe-area-inset-bottom,0px))}
 .sh h3{margin:0 0 10px}
 .sh label{display:block;font-size:13px;font-weight:700;color:var(--mut);margin:8px 0 3px}
-.sh input,.sh textarea,.sh select{width:100%;border:1.5px solid var(--line);border-radius:12px;background:var(--bg);color:var(--ink);font:inherit;font-size:15px;padding:10px}
+.sh input,.sh textarea,.sh select{width:100%;border:1.5px solid var(--line);border-radius:12px;background:var(--bg);color:var(--ink);font:inherit;font-size:16px;padding:10px}
 .sh textarea{min-height:90px}
 .sh .btn{margin-top:12px}.sh .dl{color:#d23b5f;border-color:#d23b5f}
 .im{display:flex;gap:10px;align-items:center}.im img{width:84px;height:60px;object-fit:cover;border-radius:10px;background:var(--chip)}
@@ -285,3 +285,17 @@ body.av .mo .ed{pointer-events:auto}
 .tw em{font-style:normal;color:#3d7a0c;font-size:11px}
 body.av .rt4>div{cursor:pointer}
 .tw.em{background:transparent;border:1px dashed var(--line);opacity:.5;font-weight:400}
+
+/* ثبات العرض: منع تكبير الصفحة عند الكتابة (iOS بيكبّر أي حقل خطه أقل من 16px) ومنع السكرول الأفقي */
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%;overflow-x:hidden}
+body{overflow-x:hidden;width:100%}
+input,textarea,select{font-size:16px;max-width:100%}
+.sets input{font-size:17px}
+img,video,iframe{max-width:100%}
+/* الكمبيوتر والتابلت: عمود في النص بعرض مناسب بدل ما يتمدد على الشاشة كلها */
+@media (min-width:768px){
+  body{max-width:560px;margin:0 auto;box-shadow:0 0 60px rgba(0,0,0,.35)}
+  nav{left:50%;right:auto;width:560px;transform:translateX(-50%)}
+  .sh{max-width:560px;margin:0 auto}
+  .toast{max-width:520px}
+}
