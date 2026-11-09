@@ -5,16 +5,20 @@ self.addEventListener("activate", e => e.waitUntil(self.clients.claim()));
 self.addEventListener("push", e => {
   let d = {};
   try { d = e.data ? e.data.json() : {}; } catch (x) { d = { body: e.data ? e.data.text() : "" }; }
-  e.waitUntil(self.registration.showNotification(d.title || "Training Nutrition Hub", {
-    body: d.body || "",
-    icon: "img/icon-192.png",
-    badge: "img/icon-192.png",
-    tag: d.tag || undefined,
-    renotify: !!d.tag,
-    dir: "rtl",
-    lang: "ar",
-    data: { url: d.url || "./" }
-  }));
+  e.waitUntil(Promise.all([
+    self.registration.showNotification(d.title || "Training Nutrition Hub", {
+      body: d.body || "",
+      icon: "img/icon-192.png",
+      badge: "img/icon-192.png",
+      tag: d.tag || undefined,
+      renotify: !!d.tag,
+      dir: "rtl",
+      lang: "ar",
+      data: { url: d.url || "./" }
+    }),
+    // نبلّغ التطبيق المفتوح عشان يحدّث نفسه فورًا
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then(list => list.forEach(c => { try { c.postMessage({ type: "push" }); } catch (x) {} }))
+  ]));
 });
 
 self.addEventListener("notificationclick", e => {

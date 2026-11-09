@@ -850,6 +850,36 @@ async function remindNow(){
   if(!confirm(txt))return;
   try{const s=await pApi({send:true},"/api/reminders");toast(s&&s.ok?"تم الإرسال ✓":((s&&s.error)||"تعذر الإرسال"))}catch(e){toast("تعذر الإرسال")}
 }
+/* ===== تحديث لحظي: الإشعارات والطلبات تظهر في التطبيق المفتوح من غير ما العميل يقفله ويفتحه ===== */
+let LIVE_T=0,LIVE_BUSY=false;
+function liveRender(){
+  const r=location.hash.slice(1)||"home";
+  if(r==="body"){measRender();signMeas().then(ok=>{if(ok&&location.hash==="#body")measRender()});return}
+  if(!P)return;
+  if(r==="notes")notes();else if(r==="home")home();
+}
+async function liveRefresh(force){
+  if(!ME||LIVE_BUSY||document.hidden||(ADMIN&&!VIEW))return;
+  const t=Date.now();if(!force&&t-LIVE_T<8000)return;
+  LIVE_T=t;LIVE_BUSY=true;
+  try{
+    const cid=CID(),sig=()=>JSON.stringify([NOTIFS.map(x=>x.id+(x.read?1:0)),REQS.map(x=>x.id+x.status),MEAS.map(x=>x.id)]);
+    const before=sig(),known=new Set(NOTIFS.map(x=>x.id));
+    const [n]=await Promise.all([sb.from("notifications").select("*").eq("client_id",cid).order("created_at",{ascending:false}).limit(30),loadMeas(cid)]);
+    if(n&&!n.error&&n.data)NOTIFS=n.data;
+    badge();
+    if(sig()!==before){
+      liveRender();
+      const nw=NOTIFS.find(x=>!x.read&&!known.has(x.id));
+      if(nw&&!EDIT())toast("📩 "+nw.title);
+    }
+  }catch(e){}finally{LIVE_BUSY=false}
+}
+addEventListener("visibilitychange",()=>{if(!document.hidden)liveRefresh()});
+addEventListener("focus",()=>liveRefresh());
+addEventListener("pageshow",()=>liveRefresh());
+setInterval(()=>liveRefresh(),60000);
+if("serviceWorker" in navigator)navigator.serviceWorker.addEventListener("message",e=>{if(e.data&&e.data.type==="push")setTimeout(()=>liveRefresh(true),700)});
 function route(){
   if(!ME||(ADMIN&&!VIEW))return;
   const r=location.hash.slice(1)||"home",m=/^s([1-9]\d?)$/.exec(r);
