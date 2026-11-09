@@ -248,6 +248,7 @@ function pubCard(){
   return `<div class="card" style="border:2px solid ${P.published?"#3fb37f":"var(--or)"}"><b>${P.published?"✓ منشور: العميل يرى هذا البرنامج":"مسودة: العميل لا يرى هذا البرنامج بعد"}</b><button class="btn ${P.published?"o":""}" style="margin-top:10px" onclick="togglePub()">${P.published?"إلغاء النشر":"نشر البرنامج للعميل"}</button></div>`;
 }
 async function togglePub(){
+  PW=Date.now();
   const v=!P.published;
   const {error}=await sb.from("programs").update({published:v}).eq("id",P.id);
   if(error)return toast("تعذر التحديث");
@@ -304,6 +305,7 @@ function modal(title,fields,onSave,onDel,setup){
   if(onDel)m.querySelector("#mx").onclick=async()=>{if(confirm("متأكد من الحذف؟")){await onDel();close()}};
 }
 async function savePD(){
+  PW=Date.now();
   const {error}=await sb.from("programs").update({data:P.data}).eq("id",P.id);
   if(error){toast("تعذر الحفظ");return false}
   toast("تم الحفظ");route();return true;
@@ -861,16 +863,20 @@ function liveRender(){
   if(m)session(+m[1]-1);else if(r==="train")train();else if(r==="food")food();else if(r==="supp")supp();else if(r==="notes")notes();else home();
   window.scrollTo(0,y);
 }
+let PW=0; // آخر وقت كتبنا فيه تعديل على البرنامج (حفظ/نشر): أي جلب أقدم منه يتجاهل
 async function liveRefresh(force){
   if(!ME||document.hidden)return;
   if(ADMIN&&!VIEW)return listRefresh();
   if(LIVE_BUSY){LIVE_AGAIN=true;return}
   const t=Date.now();if(!force&&t-LIVE_T<8000)return;
+  // لو في نافذة تعديل مفتوحة أو حد بيكتب: متلمسش أي بيانات (دوال التعديل ماسكة نسخة من P). نأجّل ونحاول بعد ما يخلّص.
+  if(busyUI()){LIVE_DIRTY=true;return}
   LIVE_T=t;LIVE_BUSY=true;
   try{
-    const cid=CID(),adm=EDIT();
+    const cid=CID(),adm=EDIT(),t0=Date.now();
     const sig=()=>JSON.stringify([NOTIFS.map(x=>x.id+(x.read?1:0)),REQS.map(x=>x.id+x.status),MEAS.map(x=>x.id),PROGS,adm?LOGS:0]);
     const before=sig(),known=new Set(NOTIFS.map(x=>x.id));
+    const m0=MEAS,r0=REQS,ok0=MOK;
     const q=[
       sb.from("notifications").select("*").eq("client_id",cid).order("created_at",{ascending:false}).limit(30),
       loadMeas(cid),
@@ -878,17 +884,22 @@ async function liveRefresh(force){
     // سجلات التمرين: الأدمن يحتاجها (يشوف وزن وملاحظات العميل). العميل هو اللي بيكتبها فمش بنعمل لها refetch عشان منكتبش فوق شغله.
     if(adm)q.push(sb.from("logs").select("log_date,data").eq("client_id",cid));
     const [n,,pg,lg]=await Promise.all(q);
+    // أثناء الجلب: ممكن النافذة تتفتح أو يتحفظ تعديل. لو حصل كده نرجّع القديم ونتجاهل النتيجة (البيانات الأحدث موجودة عندنا).
+    if(busyUI()||PW>=t0||cid!==CID()){MEAS=m0;REQS=r0;MOK=ok0;LIVE_DIRTY=true;return}
     if(n&&!n.error&&n.data)NOTIFS=n.data;
     if(pg&&!pg.error&&pg.data){
-      const cur=P&&P.id;PROGS=pg.data;
-      let i=PROGS.findIndex(x=>x.id===cur);
-      if(i<0){i=PROGS.findIndex(x=>x.month_start<=TODAY);if(i<0)i=PROGS.length-1}
-      PI=i;P=PROGS[PI];
+      // نستبدل بيانات البرنامج بس لو اتغيرت فعلًا على السيرفر (عشان منبدّلش الكائنات من غير داعي)
+      if(JSON.stringify(pg.data)!==JSON.stringify(PROGS)){
+        const cur=P&&P.id;PROGS=pg.data;
+        let i=PROGS.findIndex(x=>x.id===cur);
+        if(i<0){i=PROGS.findIndex(x=>x.month_start<=TODAY);if(i<0)i=PROGS.length-1}
+        PI=i;P=PROGS[PI];
+      }
     }
-    if(lg&&!lg.error&&lg.data){LOGS={};lg.data.forEach(r=>LOGS[r.log_date]=r.data)}
+    if(lg&&!lg.error&&lg.data){const nl={};lg.data.forEach(r=>nl[r.log_date]=r.data);if(JSON.stringify(nl)!==JSON.stringify(LOGS))LOGS=nl}
     badge();
     if(sig()!==before){
-      if(busyUI())LIVE_DIRTY=true;else liveRender();
+      liveRender();
       const nw=NOTIFS.find(x=>!x.read&&!known.has(x.id));
       if(nw&&!EDIT())toast("📩 "+nw.title);
     }
@@ -897,6 +908,7 @@ async function liveRefresh(force){
     if(LIVE_AGAIN){LIVE_AGAIN=false;setTimeout(()=>liveRefresh(true),300)}
   }
 }
+
 // قائمة العملاء عند الأدمن: نعيد تحميلها بهدوء لما عميل يعمل أي حاجة
 let LIST_T=0;
 function listRefresh(){
@@ -925,7 +937,7 @@ addEventListener("focus",()=>liveRefresh());
 addEventListener("pageshow",()=>{RT_KEY="";rtSync();liveRefresh(true)});
 addEventListener("online",()=>{RT_KEY="";rtSync();liveRefresh(true)});
 setInterval(()=>liveRefresh(),15000);
-setInterval(()=>{if(LIVE_DIRTY&&!busyUI()){LIVE_DIRTY=false;liveRender()}},2000);
+setInterval(()=>{if(LIVE_DIRTY&&!busyUI()){LIVE_DIRTY=false;liveRefresh(true)}},2000);
 if("serviceWorker" in navigator)navigator.serviceWorker.addEventListener("message",e=>{if(e.data&&e.data.type==="push")setTimeout(()=>liveRefresh(true),400)});
 function route(){
   rtSync();
