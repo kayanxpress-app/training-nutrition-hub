@@ -304,32 +304,9 @@ function modal(title,fields,onSave,onDel,setup){
   if(onDel)m.querySelector("#mx").onclick=async()=>{if(confirm("متأكد من الحذف؟")){await onDel();close()}};
 }
 async function savePD(){
-  // نحفظ بيانات البرنامج فقط؛ لا نلمس published حتى يظل البرنامج المنشور منشورًا.
-  if(!P||!P.id||!EDIT()){
-    toast("تعذر الحفظ: البرنامج أو صلاحية التعديل غير متاحة");
-    return false;
-  }
-  try{
-    const payload=JSON.parse(JSON.stringify(P.data));
-    const {data,error}=await sb.from("programs")
-      .update({data:payload})
-      .eq("id",P.id)
-      .select("id,published")
-      .maybeSingle();
-    if(error)throw error;
-    // Supabase قد لا يرجع خطأ عند عدم مطابقة أي سجل؛ لا نعرض نجاحًا في هذه الحالة.
-    if(!data)throw new Error("لم يتم تحديث سجل البرنامج. تحقق من الصلاحيات ومعرّف البرنامج.");
-    P.data=payload;
-    const i=PROGS.findIndex(x=>x.id===P.id);
-    if(i>=0)PROGS[i]=P;
-    toast("تم حفظ التمرين وتحديث البرنامج");
-    route();
-    return true;
-  }catch(e){
-    console.error("savePD failed:",e);
-    toast("تعذر حفظ التمرين: "+(e.message||"خطأ غير معروف"));
-    return false;
-  }
+  const {error}=await sb.from("programs").update({data:P.data}).eq("id",P.id);
+  if(error){toast("تعذر الحفظ");return false}
+  toast("تم الحفظ");route();return true;
 }
 const TAGS={"جهاز":"t1","دامبل":"t2","بار":"t3","وزن حر":"t4","كابل":"t5","بدون أدوات":"t4"};
 function editEx(i,j){
