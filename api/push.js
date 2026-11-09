@@ -59,7 +59,8 @@ module.exports = async (req, res) => {
         const kinds = {
           start: { title: name + " بدأ تمرين اليوم 💪", body: "افتح ملفه وشجّعه", tag: "start-" + uid },
           done: { title: name + " خلّص جلسته ✅" + (label ? " · " + label : ""), body: "افتح ملفه وشوف أداءه", tag: "done-" + uid + "-" + label },
-          meas: { title: name + " سجّل " + (label === "inbody" ? "نتيجة InBody" : "وزنه") + " ⚖", body: "شوف تطوره في صفحة القياسات", tag: "meas-" + uid }
+          meas: { title: name + " سجّل " + (label === "inbody" ? "نتيجة InBody" : "وزنه") + " ⚖", body: "شوف تطوره في صفحة القياسات", tag: "meas-" + uid },
+          chat: { title: name + " 💬" + (label ? " · " + label : ""), body: clip(b.text, 120) || "رسالة جديدة في المحادثة", tag: "chat-" + uid }
         };
         const m = kinds[b.kind];
         if (!m) return res.status(400).json({ error: "نوع غير معروف" });
