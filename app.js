@@ -92,7 +92,7 @@ function login(msg){
   };
   $("#go").onclick=go;$("#pw").onkeydown=e=>{if(e.key==="Enter")go()};
 }
-async function out(){SV.clr();await Promise.race([pushOff(),new Promise(r=>setTimeout(r,2500))]);await sb.auth.signOut();LOGS={};PROGS=[];P=null;VIEW=null;location.hash="";login()}
+async function out(){SV.clr();rtStop();await Promise.race([pushOff(),new Promise(r=>setTimeout(r,2500))]);await sb.auth.signOut();LOGS={};PROGS=[];P=null;VIEW=null;location.hash="";login()}
 
 /* ===== تحميل ===== */
 async function loadData(cid){
@@ -122,7 +122,7 @@ function setProg(i){PI=+i;P=PROGS[PI];route()}
 
 /* ===== الأدمن: العملاء ===== */
 async function clients(){
-  SV.clr();VIEW=null;P=null;document.body.classList.remove("av");$("nav").style.display="none";
+  SV.clr();VIEW=null;P=null;rtSync();document.body.classList.remove("av");$("nav").style.display="none";
   $("#hd").innerHTML=`<div class="hd"><div><small>لوحة المدرب</small><h1>عملائي</h1></div><img class="lgo" src="img/logo.png" alt=""></div>`;
   $("#app").innerHTML='<p class="ld">جاري التحميل...</p>';
   const since=new Date(D.getTime()-14*864e5);
@@ -850,37 +850,85 @@ async function remindNow(){
   if(!confirm(txt))return;
   try{const s=await pApi({send:true},"/api/reminders");toast(s&&s.ok?"تم الإرسال ✓":((s&&s.error)||"تعذر الإرسال"))}catch(e){toast("تعذر الإرسال")}
 }
-/* ===== تحديث لحظي: الإشعارات والطلبات تظهر في التطبيق المفتوح من غير ما العميل يقفله ويفتحه ===== */
-let LIVE_T=0,LIVE_BUSY=false;
+/* ===== تحديث لحظي: أي حاجة تحصل (إشعار، تمرين، وزن، ملاحظة، طلب قياس، تعديل برنامج) تظهر فورًا في التطبيق المفتوح عند الطرفين ===== */
+let LIVE_T=0,LIVE_BUSY=false,LIVE_AGAIN=false,LIVE_DIRTY=false;
+// true لو العميل/الأدمن بيكتب دلوقتي أو في نافذة مفتوحة: منعيد رسم الشاشة تحت إيده
+const busyUI=()=>{const a=document.activeElement;return !!document.querySelector(".md")||!!(a&&/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName))};
 function liveRender(){
-  const r=location.hash.slice(1)||"home";
+  const y=window.scrollY,r=location.hash.slice(1)||"home",m=/^s([1-9]\d?)$/.exec(r);
   if(r==="body"){measRender();signMeas().then(ok=>{if(ok&&location.hash==="#body")measRender()});return}
-  if(!P)return;
-  if(r==="notes")notes();else if(r==="home")home();
+  if(!P){route();return}
+  if(m)session(+m[1]-1);else if(r==="train")train();else if(r==="food")food();else if(r==="supp")supp();else if(r==="notes")notes();else home();
+  window.scrollTo(0,y);
 }
 async function liveRefresh(force){
-  if(!ME||LIVE_BUSY||document.hidden||(ADMIN&&!VIEW))return;
+  if(!ME||document.hidden)return;
+  if(ADMIN&&!VIEW)return listRefresh();
+  if(LIVE_BUSY){LIVE_AGAIN=true;return}
   const t=Date.now();if(!force&&t-LIVE_T<8000)return;
   LIVE_T=t;LIVE_BUSY=true;
   try{
-    const cid=CID(),sig=()=>JSON.stringify([NOTIFS.map(x=>x.id+(x.read?1:0)),REQS.map(x=>x.id+x.status),MEAS.map(x=>x.id)]);
+    const cid=CID(),adm=EDIT();
+    const sig=()=>JSON.stringify([NOTIFS.map(x=>x.id+(x.read?1:0)),REQS.map(x=>x.id+x.status),MEAS.map(x=>x.id),PROGS,adm?LOGS:0]);
     const before=sig(),known=new Set(NOTIFS.map(x=>x.id));
-    const [n]=await Promise.all([sb.from("notifications").select("*").eq("client_id",cid).order("created_at",{ascending:false}).limit(30),loadMeas(cid)]);
+    const q=[
+      sb.from("notifications").select("*").eq("client_id",cid).order("created_at",{ascending:false}).limit(30),
+      loadMeas(cid),
+      sb.from("programs").select("*").eq("client_id",cid).order("month_start",{ascending:false})];
+    // سجلات التمرين: الأدمن يحتاجها (يشوف وزن وملاحظات العميل). العميل هو اللي بيكتبها فمش بنعمل لها refetch عشان منكتبش فوق شغله.
+    if(adm)q.push(sb.from("logs").select("log_date,data").eq("client_id",cid));
+    const [n,,pg,lg]=await Promise.all(q);
     if(n&&!n.error&&n.data)NOTIFS=n.data;
+    if(pg&&!pg.error&&pg.data){
+      const cur=P&&P.id;PROGS=pg.data;
+      let i=PROGS.findIndex(x=>x.id===cur);
+      if(i<0){i=PROGS.findIndex(x=>x.month_start<=TODAY);if(i<0)i=PROGS.length-1}
+      PI=i;P=PROGS[PI];
+    }
+    if(lg&&!lg.error&&lg.data){LOGS={};lg.data.forEach(r=>LOGS[r.log_date]=r.data)}
     badge();
     if(sig()!==before){
-      liveRender();
+      if(busyUI())LIVE_DIRTY=true;else liveRender();
       const nw=NOTIFS.find(x=>!x.read&&!known.has(x.id));
       if(nw&&!EDIT())toast("📩 "+nw.title);
     }
-  }catch(e){}finally{LIVE_BUSY=false}
+  }catch(e){}finally{
+    LIVE_BUSY=false;
+    if(LIVE_AGAIN){LIVE_AGAIN=false;setTimeout(()=>liveRefresh(true),300)}
+  }
 }
-addEventListener("visibilitychange",()=>{if(!document.hidden)liveRefresh()});
+// قائمة العملاء عند الأدمن: نعيد تحميلها بهدوء لما عميل يعمل أي حاجة
+let LIST_T=0;
+function listRefresh(){
+  if(!ADMIN||VIEW||document.hidden||busyUI())return;
+  const t=Date.now();if(t-LIST_T<5000)return;LIST_T=t;
+  clients();
+}
+/* ===== Supabase Realtime: السيرفر نفسه بيبعت التغيير فورًا (من غير ما نعتمد على إشعار الموبايل) ===== */
+let RT=null,RT_KEY="";
+function rtStop(){if(RT){try{sb.removeChannel(RT)}catch(e){}RT=null}RT_KEY=""}
+function rtSync(){
+  if(!ME){rtStop();return}
+  const key=(ADMIN&&!VIEW)?"admin-list":CID();
+  if(RT_KEY===key&&RT)return;
+  rtStop();RT_KEY=key;
+  const ch=sb.channel("live-"+key+"-"+Date.now()),list=key==="admin-list",f=list?null:"client_id=eq."+key;
+  ["notifications","logs","programs","measurements","measure_requests"].forEach(t=>{
+    const o={event:"*",schema:"public",table:t};if(f)o.filter=f;
+    ch.on("postgres_changes",o,()=>{list?setTimeout(listRefresh,1200):liveRefresh(true)});
+  });
+  ch.subscribe(st=>{if(st==="CHANNEL_ERROR"||st==="TIMED_OUT"||st==="CLOSED"){if(RT===ch){RT_KEY="";setTimeout(()=>{if(ME&&!document.hidden)rtSync()},4000)}}});
+  RT=ch;
+}
+addEventListener("visibilitychange",()=>{if(!document.hidden){RT_KEY="";rtSync();liveRefresh(true)}});
 addEventListener("focus",()=>liveRefresh());
-addEventListener("pageshow",()=>liveRefresh());
-setInterval(()=>liveRefresh(),60000);
-if("serviceWorker" in navigator)navigator.serviceWorker.addEventListener("message",e=>{if(e.data&&e.data.type==="push")setTimeout(()=>liveRefresh(true),700)});
+addEventListener("pageshow",()=>{RT_KEY="";rtSync();liveRefresh(true)});
+addEventListener("online",()=>{RT_KEY="";rtSync();liveRefresh(true)});
+setInterval(()=>liveRefresh(),15000);
+setInterval(()=>{if(LIVE_DIRTY&&!busyUI()){LIVE_DIRTY=false;liveRender()}},2000);
+if("serviceWorker" in navigator)navigator.serviceWorker.addEventListener("message",e=>{if(e.data&&e.data.type==="push")setTimeout(()=>liveRefresh(true),400)});
 function route(){
+  rtSync();
   if(!ME||(ADMIN&&!VIEW))return;
   const r=location.hash.slice(1)||"home",m=/^s([1-9]\d?)$/.exec(r);
   if(r=="body"){measPage();["home","train","food","supp","notes"].forEach(x=>$("#n-"+x).classList.toggle("on",x=="home"));window.scrollTo(0,0);return}
