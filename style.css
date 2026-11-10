@@ -352,3 +352,18 @@ body.av .rest.rbtn{pointer-events:auto}
 .wain{flex:1;min-height:44px;max-height:120px;border:1.5px solid var(--line);border-radius:14px;background:transparent;color:var(--ink);font:inherit;font-size:16px;padding:9px 12px;resize:none}
 .wasd{height:44px;padding:0 18px;border:0;border-radius:14px;background:linear-gradient(90deg,var(--pk),var(--or));color:#fff;font:inherit;font-weight:800;cursor:pointer}
 .wun{display:inline-block;background:var(--or);color:#fff;border-radius:99px;padding:0 10px;font-size:12px;font-weight:800}
+
+/* ===== زر «استفسر» + نافذة المحادثة الخاصة بكل عنصر ===== */
+.qbtn{display:block;width:100%;margin-top:8px;height:40px;border:1.5px solid var(--or);background:transparent;color:var(--or);border-radius:12px;font:inherit;font-weight:700;font-size:14px;cursor:pointer}
+.qbtn.un{background:var(--or);color:#fff}
+.qbtn.un .wun{background:#fff;color:var(--or)}
+.mo .qbtn,.mrow .qbtn{display:inline-block;width:auto;height:34px;padding:0 14px;font-size:13px;margin-top:6px}
+body.av .qbtn,body.av .mo .qbtn{pointer-events:auto}
+.pills button .wun,.sec h3 .wun{margin-inline-start:6px}
+.chm{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:70;display:flex;align-items:flex-end}
+.chs{background:var(--card);width:100%;max-width:640px;margin:0 auto;max-height:88vh;max-height:88dvh;display:flex;flex-direction:column;border-radius:22px 22px 0 0;padding:14px 14px calc(14px + env(safe-area-inset-bottom,0px))}
+.chh{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:6px}
+.chh small{display:block;color:var(--mut);font-size:12px}
+.chh b{font-size:17px}
+.chx{flex:none;border:0;background:var(--chip);color:var(--ink);width:36px;height:36px;border-radius:50%;font-size:16px;cursor:pointer}
+.chs .wal{flex:1;min-height:140px;max-height:none}

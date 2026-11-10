@@ -92,7 +92,7 @@ function login(msg){
   };
   $("#go").onclick=go;$("#pw").onkeydown=e=>{if(e.key==="Enter")go()};
 }
-async function out(){SV.clr();rtStop();restStop(true);CH=[];CHCID=null;await Promise.race([pushOff(),new Promise(r=>setTimeout(r,2500))]);await sb.auth.signOut();LOGS={};PROGS=[];P=null;VIEW=null;location.hash="";login()}
+async function out(){SV.clr();rtStop();restStop(true);QC=[];QCID=null;qClose(true);await Promise.race([pushOff(),new Promise(r=>setTimeout(r,2500))]);await sb.auth.signOut();LOGS={};PROGS=[];P=null;VIEW=null;location.hash="";login()}
 
 /* ===== تحميل ===== */
 async function loadData(cid){
@@ -260,7 +260,7 @@ function editMeal(key){
     if(!v.t.trim()){toast("اكتب الاسم");return false}
     if(key)e.t=v.t.trim();else{const k="m"+Date.now().toString(36);M[k]={t:v.t.trim(),note:"",opts:[]};ft=k}
     return savePD();
-  },key&&Object.keys(M).length>1?async()=>{delete M[key];ft=Object.keys(M)[0];await savePD()}:null);
+  },key&&Object.keys(M).length>1?async()=>{oidAlign(M[key]);const dead=M[key].oid.map(x=>"ml:"+x);delete M[key];ft=Object.keys(M)[0];if(await savePD()!==false)qPurge(dead)}:null);
 }
 async function callClients(body){
   const {data:{session}}=await sb.auth.getSession();
@@ -315,9 +315,9 @@ function editEx(i,j){
   const s=P.data.sessions[i],e=j<0?{n:"",tag:"جهاز",url:"",img:""}:s.ex[j];
   modal(j<0?"إضافة تمرين":"تعديل التمرين",[{k:"n",l:"اسم التمرين",v:e.n},{k:"tag",l:"الأداة",type:"sel",o:Object.keys(TAGS),v:e.tag},{k:"url",l:"لينك فيديو يوتيوب",v:e.url,dir:"ltr"},{k:"img",l:"صورة (اختياري، وإلا تظهر صورة الفيديو)",type:"img",v:e.img},{k:"w1",l:"أوزان الأسبوع الأول (كجم) لكل مجموعة، مثل: 10 11 11 — والأسابيع الباقية بتتحسب تلقائيًا",v:(e.w1||[]).join(" "),dir:"ltr"},...[2,3,4,5].filter(n=>n<=Math.max(4,(P.data.weeks||[]).length)).map(n=>({k:"w"+n,l:`تعديل يدوي لأوزان الأسبوع ${n} (فاضي = حساب تلقائي)`,v:((e.wo||{})[n]||[]).join(" "),dir:"ltr"}))],
     async v=>{if(!v.n.trim()){toast("اكتب اسم التمرين");return false}
-      const o={n:v.n.trim(),tag:v.tag,cls:TAGS[v.tag]||"t4",url:v.url.trim(),img:v.img};const w1=numsD(v.w1);if(w1.length)o.w1=w1;const wo={};[2,3,4,5].forEach(n=>{if(v["w"+n]!==undefined){const a=numsD(v["w"+n]);if(a.length)wo[n]=a}});if(Object.keys(wo).length)o.wo=wo;
+      const o={id:e.id||nid(),n:v.n.trim(),tag:v.tag,cls:TAGS[v.tag]||"t4",url:v.url.trim(),img:v.img};const w1=numsD(v.w1);if(w1.length)o.w1=w1;const wo={};[2,3,4,5].forEach(n=>{if(v["w"+n]!==undefined){const a=numsD(v["w"+n]);if(a.length)wo[n]=a}});if(Object.keys(wo).length)o.wo=wo;
       if(j<0)s.ex.push(o);else s.ex[j]=o;return savePD()},
-    j<0?null:async()=>{s.ex.splice(j,1);await savePD()});
+    j<0?null:async()=>{const dead=s.ex[j]&&s.ex[j].id?["ex:"+s.ex[j].id]:[];s.ex.splice(j,1);if(await savePD()!==false)qPurge(dead)});
 }
 function editCardio(i){
   const s=P.data.sessions[i];
@@ -328,9 +328,9 @@ function editSess(i){
   const s=i<0?{t:"",s:""}:P.data.sessions[i];
   modal(i<0?"إضافة جلسة":"تعديل الجلسة",[{k:"t",l:"عنوان الجلسة",v:s.t},{k:"s",l:"العضلات المستهدفة",v:s.s}],
     async v=>{if(!v.t.trim()){toast("اكتب العنوان");return false}
-      if(i<0)P.data.sessions.push({t:v.t.trim(),s:v.s.trim(),c:"",cw:"بعد التمرين",cu:"",ci:"",ex:[],ab:null});else Object.assign(s,{t:v.t.trim(),s:v.s.trim()});
+      if(i<0)P.data.sessions.push({id:nid(),t:v.t.trim(),s:v.s.trim(),c:"",cw:"بعد التمرين",cu:"",ci:"",ex:[],ab:null});else Object.assign(s,{t:v.t.trim(),s:v.s.trim()});
       return savePD()},
-    i<0?null:async()=>{P.data.sessions.splice(i,1);location.hash="train";await savePD()});
+    i<0?null:async()=>{const sx=P.data.sessions[i],dead=sx?(sx.id?["se:"+sx.id]:[]).concat((sx.ex||[]).filter(e=>e.id).map(e=>"ex:"+e.id)):[];P.data.sessions.splice(i,1);location.hash="train";if(await savePD()!==false)qPurge(dead)});
 }
 function editAb(i){
   const s=P.data.sessions[i],a=s.ab||{t:"",vids:[]};
@@ -346,8 +346,8 @@ function editAbv(i,x){
 function editOpt(m,k){
   const M=P.data.meals[m],cur=k<0?"":M.opts[k];
   modal(k<0?"إضافة خيار":"تعديل الخيار",[{k:"o",l:"مكونات الخيار (افصل بين المكونات بعلامة +)",type:"area",v:cur}],
-    async v=>{const o=normOpt(v.o);if(!o){toast("اكتب الخيار");return false}if(k<0)M.opts.push(o);else M.opts[k]=o;return savePD()},
-    k<0?null:async()=>{M.opts.splice(k,1);await savePD()});
+    async v=>{const o=normOpt(v.o);if(!o){toast("اكتب الخيار");return false}oidAlign(M);if(k<0){M.opts.push(o);M.oid.push(nid())}else M.opts[k]=o;return savePD()},
+    k<0?null:async()=>{oidAlign(M);const dead=["ml:"+M.oid[k]];M.opts.splice(k,1);M.oid.splice(k,1);if(await savePD()!==false)qPurge(dead)});
 }
 function editNote(m){const M=P.data.meals[m];modal("ملاحظة الوجبة",[{k:"n",l:"الملاحظة (اتركها فاضية لإخفائها)",type:"area",v:M.note}],async v=>{M.note=v.n.trim();return savePD()})}
 function editSup(i){
@@ -356,9 +356,9 @@ function editSup(i){
     async v=>{if(!v.n.trim()){toast("اكتب الاسم");return false}
       const M=document.querySelector(".md");if(M&&M._pend){await M._pend;v.img=M.querySelector('[data-i="7"]').value}   // لو الجلب شغال دلوقتي نستناه بدل ما نكرره
       if(!v.img&&v.link.trim()){try{v.img=await fetchProductImg(v.link.trim())}catch(e){toast("اتحفظ من غير صورة: "+(e.message||"تعذر جلبها"))}}
-      const o={n:v.n.trim(),en:v.en.trim(),how:v.how.trim(),warn:v.warn.trim(),link:v.link.trim(),ll:v.ll.trim(),badge:v.badge.trim(),img:v.img};
+      const o={id:e.id||nid(),n:v.n.trim(),en:v.en.trim(),how:v.how.trim(),warn:v.warn.trim(),link:v.link.trim(),ll:v.ll.trim(),badge:v.badge.trim(),img:v.img};
       if(i<0)P.data.supp.push(o);else P.data.supp[i]=o;return savePD()},
-    i<0?null:async()=>{P.data.supp.splice(i,1);await savePD()},
+    i<0?null:async()=>{const dead=P.data.supp[i]&&P.data.supp[i].id?["sp:"+P.data.supp[i].id]:[];P.data.supp.splice(i,1);if(await savePD()!==false)qPurge(dead)},
     m=>{
       const L=m.querySelector('[data-i="4"]'),IM=m.querySelector('[data-i="7"]'),pv=m.querySelector("#pv7");
       const st=document.createElement("div");st.className="sn";L.closest("label").after(st);
@@ -500,7 +500,7 @@ function parseOpts(t){
 function editOpts(m){
   const M=P.data.meals[m];
   modal("كل خيارات "+M.t+" مرة واحدة",[{k:"o",l:"اكتب كل خيار في سطر، وافصل بين مكونات الخيار بعلامة +  (تقدر تلصق كل الخيارات مرة واحدة، وتعدّل أو تمسح أي سطر)",type:"area",big:true,v:M.opts.join("\n")}],
-    async v=>{M.opts=parseOpts(v.o);return savePD()});
+    async v=>{const nw=parseOpts(v.o),r=oidRemap(M,nw);M.opts=nw;M.oid=r.oid;const ok=await savePD();if(ok!==false)qPurge(r.dead);return ok});
 }
 function editAllMeals(){
   const M=P.data.meals,txt=Object.keys(M).map(k=>"# "+M[k].t+"\n"+(M[k].note?"ملاحظة: "+M[k].note+"\n":"")+M[k].opts.join("\n")).join("\n\n");
@@ -515,7 +515,10 @@ function editAllMeals(){
     });
     flush();
     if(!Object.keys(out).length){toast("ابدأ كل وجبة بسطر فيه # واسم الوجبة");return false}
-    P.data.meals=out;ft=Object.keys(out)[0];return savePD();
+    const dead=[];
+    Object.keys(out).forEach(k=>{if(M[k]){const r=oidRemap(M[k],out[k].opts);out[k].oid=r.oid;r.dead.forEach(x=>dead.push(x))}else out[k].oid=out[k].opts.map(()=>nid())});
+    old.forEach(k=>{if(!out[k]){oidAlign(M[k]);M[k].oid.forEach(x=>dead.push("ml:"+x))}});
+    P.data.meals=out;ft=Object.keys(out)[0];const ok=await savePD();if(ok!==false)qPurge(dead);return ok;
   });
 }
 
@@ -534,9 +537,9 @@ function home(){
   const dn=dayNo(),T=inf.days||30;
   h+=`<div class="card"><div class="hi"><b>أهلاً ${esc(NAME())}</b><span style="color:var(--mut);font-size:13px">${esc(P.title||"")}</span></div><div style="margin-top:8px;font-weight:700">${dn?`اليوم ${ar(dn)} من ${ar(T)}`:"البرنامج لسه ما بدأش"}</div><div class="bar"><i style="width:${dn/T*100}%"></i></div></div>`;
   if(PROGS.length>1)h+=`<select onchange="setProg(this.value)">${PROGS.map((p,i)=>`<option value="${i}" ${i==PI?"selected":""}>${esc(p.title||p.month_start)}${EDIT()&&!p.published?" (مسودة)":""}</option>`).join("")}</select>`;
-  h+=`<a class="card sec" href="#train"><div class="no">٠١</div><div><h3>التدريب</h3><p>${ar(dt.sessions.length)} جلسات · ${ar(n)} تمرين بفيديوهات الشرح</p></div><div class="go">‹</div></a>`;
-  h+=`<a class="card sec" href="#food"><div class="no">٠٢</div><div><h3>التغذية</h3><p>خطة الوجبات والتبادلات الغذائية</p></div><div class="go">‹</div></a>`;
-  h+=`<a class="card sec" href="#supp"><div class="no">٠٣</div><div><h3>التوصيات والمكملات الغذائية</h3><p>${ar(dt.supp.length)} توصيات</p></div><div class="go">‹</div></a>`;
+  h+=`<a class="card sec" href="#train"><div class="no">٠١</div><div><h3>التدريب${qBadgeT(qTopics(dt,"ex").concat(qTopics(dt,"se")))}</h3><p>${ar(dt.sessions.length)} جلسات · ${ar(n)} تمرين بفيديوهات الشرح</p></div><div class="go">‹</div></a>`;
+  h+=`<a class="card sec" href="#food"><div class="no">٠٢</div><div><h3>التغذية${qBadgeT(qTopics(dt,"ml"))}</h3><p>خطة الوجبات والتبادلات الغذائية</p></div><div class="go">‹</div></a>`;
+  h+=`<a class="card sec" href="#supp"><div class="no">٠٣</div><div><h3>التوصيات والمكملات الغذائية${qBadgeT(qTopics(dt,"sp"))}</h3><p>${ar(dt.supp.length)} توصيات</p></div><div class="go">‹</div></a>`;
   h+=measCard();
   h+=`<div class="card pg"><div class="sub">${esc(dt.sub||"")}</div><div class="big">${esc(dt.brand||P.title||"")}</div><div class="mem">${[["الاسم",NAME()||"—"],["العمر",inf.age],["الوزن",inf.weight],["الطول",inf.height],["البداية",inf.start],["النهاية",inf.end],["المدة",inf.days?ar(inf.days)+" يومًا":""],["التمرين",inf.minutes]].map(x=>`<div><span>${x[0]}</span><b>${esc(x[1])||"—"}</b></div>`).join("")}</div>${ed("editInfo()","تعديل بيانات العميل والبرنامج")}</div>`;
   if(EDIT()){
@@ -551,7 +554,7 @@ function home(){
 function train(){
   const dt=P.data;hd("التدريب","القسم الأول");
   let h=`<p style="margin:0 2px 10px;color:var(--mut);font-size:14px">اختر الجلسة لعرض التمارين وفيديوهات الشرح.</p>`;
-  dt.sessions.forEach((s,i)=>{h+=`<a class="card ses" href="#s${i+1}"><div class="no">${ar(i+1)}</div><div><h3>${esc(s.t)}</h3><p>${esc(s.s)}</p><p style="color:var(--or);font-weight:700">كارديو ${ar(s.cm||15)} د · ${esc(s.c)||"—"}</p><p>اليوم: ${ar(doneCount(i))} / ${ar(s.ex.length)} تمارين</p>${chUnread(i)?`<p><span class="wun">💬 ${ar(chUnread(i))} رسالة جديدة</span></p>`:""}</div><div class="go">‹</div></a>`});
+  dt.sessions.forEach((s,i)=>{const u=chUnread(i)+qUnreadT(qTopics(dt,"ex",i));h+=`<a class="card ses" href="#s${i+1}"><div class="no">${ar(i+1)}</div><div><h3>${esc(s.t)}</h3><p>${esc(s.s)}</p><p style="color:var(--or);font-weight:700">كارديو ${ar(s.cm||15)} د · ${esc(s.c)||"—"}</p><p>اليوم: ${ar(doneCount(i))} / ${ar(s.ex.length)} تمارين</p>${u?`<p><span class="wun">💬 ${ar(u)} رسالة جديدة</span></p>`:""}</div><div class="go">‹</div></a>`});
   h+=addb("editSess(-1)","إضافة جلسة");
   h+=blocksBlock("train");
   h+=filesBlock("train");
@@ -569,7 +572,7 @@ function session(i){
   const lg=L();
   s.ex.forEach((e,j)=>{
     const k=`s${i}e${j}`,w=lg.w[k]||[],PW=planW(e,WK()||1),PV=PW&&(WK()||1)>1?planW(e,(WK()||1)-1):null;
-    h+=`<div class="card ex ${lg.d[k]?"done":""}" id="c-${k}">${vid(e.url,e.n,"",e.img)}<div class="top"><div class="n">${ar(j+1)}</div><h3>${esc(e.n)}</h3><span class="pill ${e.cls||"t1"}">${esc(e.tag)}</span></div>${ed(`editEx(${i},${j})`)}${P.data.rest?`<button type="button" class="rest rbtn" onclick="restStart(${+P.data.rest||0})">⏱ راحة <b>${ar(P.data.rest)}</b> ثانية <span>· اضغط لبدء العدّاد</span></button>`:""}<div class="cap">${WK()?`التكرارات · الأسبوع ${ar(WK())} · `:""}الوزن (كجم)${PW?" · المستهدف بالأخضر وسجّل وزنك الفعلي تحته":""}</div><div class="sets">${R.map((r,x)=>`<div><div class="rp">${ar(r)}</div>${PW?(PW[x]?`<div class="tw">${fmtW(PW[x])}<small>كجم</small>${PV&&PW[x]>PV[x]?"<em>▲</em>":""}</div>`:`<div class="tw em">—</div>`):""}<input type="text" inputmode="decimal" value="${esc(w[x]||"")}" placeholder="${PW&&PW[x]?"الفعلي":(lastW(k,x)?ar(lastW(k,x)):"")}" onchange="setW('${k}',${x},this.value)"></div>`).join("")}</div><button class="chk" onclick="tgl('${k}')">${lg.d[k]?"✓ تم":"تم التمرين"}</button></div>`;
+    h+=`<div class="card ex ${lg.d[k]?"done":""}" id="c-${k}">${vid(e.url,e.n,"",e.img)}<div class="top"><div class="n">${ar(j+1)}</div><h3>${esc(e.n)}</h3><span class="pill ${e.cls||"t1"}">${esc(e.tag)}</span></div>${ed(`editEx(${i},${j})`)}${P.data.rest?`<button type="button" class="rest rbtn" onclick="restStart(${+P.data.rest||0})">⏱ راحة <b>${ar(P.data.rest)}</b> ثانية <span>· اضغط لبدء العدّاد</span></button>`:""}<div class="cap">${WK()?`التكرارات · الأسبوع ${ar(WK())} · `:""}الوزن (كجم)${PW?" · المستهدف بالأخضر وسجّل وزنك الفعلي تحته":""}</div><div class="sets">${R.map((r,x)=>`<div><div class="rp">${ar(r)}</div>${PW?(PW[x]?`<div class="tw">${fmtW(PW[x])}<small>كجم</small>${PV&&PW[x]>PV[x]?"<em>▲</em>":""}</div>`:`<div class="tw em">—</div>`):""}<input type="text" inputmode="decimal" value="${esc(w[x]||"")}" placeholder="${PW&&PW[x]?"الفعلي":(lastW(k,x)?ar(lastW(k,x)):"")}" onchange="setW('${k}',${x},this.value)"></div>`).join("")}</div><button class="chk" onclick="tgl('${k}')">${lg.d[k]?"✓ تم":"تم التمرين"}</button>${qBtn(e.id?"ex:"+e.id:"",e.n)}</div>`;
   });
   h+=addb(`editEx(${i},-1)`,"إضافة تمرين");
   if(s.ab){h+=`<div class="card dk"><div class="lbl" style="color:var(--or)">البطن · كور</div><b style="font-size:17px">${esc(s.ab.t)}</b>${ed(`editAb(${i})`)}</div><div style="display:grid;gap:10px;margin-bottom:12px">${s.ab.vids.map((v,x)=>`<div>${vid(v.url,"تمرين بطن "+(x+1),"",v.img)}${ed(`editAbv(${i},${x})`)}</div>`).join("")}</div>`}
@@ -592,11 +595,11 @@ function food(){
   h+=`<div class="icg c2">${IC("الماء",E.water)}${IC("التمرين",fi.minutes)}${E.ptn||EDIT()?IC("البروتين",E.ptn):""}${E.cho||EDIT()?IC("الكربوهيدرات",E.cho):""}</div>${ed("editInfo()","تعديل الطاقة والماء")}`;
   if(E.exch&&E.exch.length)h+=sx("٠٢","التبادلات الغذائية اليومية")+`<div class="ex6">${E.exch.map(x=>`<div><b>${ar(x[0])}</b><span>${x[1]}</span></div>`).join("")}</div>`;
   const keys=Object.keys(dt.meals);if(!dt.meals[ft])ft=keys[0];
-  h+=sx("٠٣","الوجبات")+`<div class="pills">${keys.map(m=>`<button class="${m==ft?"on":""}" onclick="ft='${m}';food()">${esc(dt.meals[m].t)}</button>`).join("")}</div>`;
+  h+=sx("٠٣","الوجبات")+`<div class="pills">${keys.map(m=>`<button class="${m==ft?"on":""}" onclick="ft='${m}';food()">${esc(dt.meals[m].t)}${qBadgeT(qTopics(dt,"ml",m))}</button>`).join("")}</div>`;
   const M=dt.meals[ft],sel=L().m[ft];
   h+=`<div class="mh"><b>يمكنك اختيار ما يناسبك أدناه</b>${E.plan?`<small>${esc(E.plan)} سعرة / يوم</small>`:""}</div>`;
   if(M.note)h+=`<div class="note"><span class="lbl">ملاحظة</span> ${esc(M.note)}</div>`;
-  M.opts.forEach((o,i)=>{h+=`<div class="mo ${sel===i?"sel":""}" onclick="pick(${i})"><div class="mn">${sel===i?"✓":ar(i+1)}</div><div class="mx"><div class="mc">${o.split(/\s*\+\s*/).filter(Boolean).map(x=>`<i>${esc(x)}</i>`).join("<b>+</b>")}</div>${ed(`editOpt('${ft}',${i})`)}</div></div>`});
+  M.opts.forEach((o,i)=>{h+=`<div class="mo ${sel===i?"sel":""}" onclick="pick(${i})"><div class="mn">${sel===i?"✓":ar(i+1)}</div><div class="mx"><div class="mc">${o.split(/\s*\+\s*/).filter(Boolean).map(x=>`<i>${esc(x)}</i>`).join("<b>+</b>")}</div>${ed(`editOpt('${ft}',${i})`)}${qBtn(M.oid&&M.oid[i]?"ml:"+M.oid[i]:"",(M.t||"")+" · خيار "+ar(i+1))}</div></div>`});
   if(!M.opts.length&&!EDIT())h+=`<div class="card" style="text-align:center;color:var(--mut)">لسه مفيش خيارات لهذه الوجبة</div>`;
   h+=addb(`editOpt('${ft}',-1)`,"إضافة خيار")+addb(`editOpts('${ft}')`,"كل خيارات هذه الوجبة مرة واحدة (لصق / تعديل)")+addb("editAllMeals()","كل الوجبات في نص واحد (لصق / تعديل)");
   h+=ed(`editMeal('${ft}')`,"تعديل اسم الوجبة / حذفها")+ed(`editNote('${ft}')`,"تعديل الملاحظة")+ed(`shareMeal('${ft}')`,"نسخ هذه الوجبة لعملاء")+addb("editMeal('')","إضافة وجبة");
@@ -609,7 +612,7 @@ function food(){
 function pick(i){const l=L();if(l.m[ft]===i)delete l.m[ft];else l.m[ft]=i;save();food()}
 function supp(){
   hd("التوصيات والمكملات","القسم الثالث");const l=L();
-  $("#app").innerHTML=P.data.supp.map((s,i)=>`<div class="card sp ${l.s[i]?"done":""}" id="p${i}"><div class="spi">${s.img||yt(s.link)?`<img src="${esc(s.img||yt(s.link))}" alt="" referrerpolicy="no-referrer">`:'<div class="ph">صورة</div>'}</div><div class="spb"><div class="lbl or">SUPPLEMENT · توصية</div><h3>${esc(s.n)}</h3>${s.en?`<div class="e" dir="ltr">${esc(s.en)}</div>`:""}${s.how?`<div class="how">${esc(s.how).replace(/\n/g,"<br>")}</div>`:""}${s.badge?`<span class="bdg">${esc(s.badge)}</span>`:""}${s.warn?`<div class="warn">${esc(s.warn)}</div>`:""}${s.link?`<a class="ih" href="${esc(s.link)}" target="_blank" rel="noopener">${esc(s.ll)||"فتح اللينك"} ↗</a>`:""}<button class="chk" onclick="tsp(${i})">${l.s[i]?"✓ تم اليوم":"تم اليوم"}</button>${ed(`editSup(${i})`)} ${ed(`shareSupp(${i})`,"نسخ لعملاء")}</div></div>`).join("")+addb("editSup(-1)","إضافة مكمل / توصية")+addb("shareSec('supp')","نسخ المكملات كلها لعملاء آخرين")+blocksBlock("supp")+filesBlock("supp");
+  $("#app").innerHTML=P.data.supp.map((s,i)=>`<div class="card sp ${l.s[i]?"done":""}" id="p${i}"><div class="spi">${s.img||yt(s.link)?`<img src="${esc(s.img||yt(s.link))}" alt="" referrerpolicy="no-referrer">`:'<div class="ph">صورة</div>'}</div><div class="spb"><div class="lbl or">SUPPLEMENT · توصية</div><h3>${esc(s.n)}</h3>${s.en?`<div class="e" dir="ltr">${esc(s.en)}</div>`:""}${s.how?`<div class="how">${esc(s.how).replace(/\n/g,"<br>")}</div>`:""}${s.badge?`<span class="bdg">${esc(s.badge)}</span>`:""}${s.warn?`<div class="warn">${esc(s.warn)}</div>`:""}${s.link?`<a class="ih" href="${esc(s.link)}" target="_blank" rel="noopener">${esc(s.ll)||"فتح اللينك"} ↗</a>`:""}<button class="chk" onclick="tsp(${i})">${l.s[i]?"✓ تم اليوم":"تم اليوم"}</button>${qBtn(s.id?"sp:"+s.id:"",s.n)}${ed(`editSup(${i})`)} ${ed(`shareSupp(${i})`,"نسخ لعملاء")}</div></div>`).join("")+addb("editSup(-1)","إضافة مكمل / توصية")+addb("shareSec('supp')","نسخ المكملات كلها لعملاء آخرين")+blocksBlock("supp")+filesBlock("supp");
 }
 function tsp(i){const l=L(),c=$("#p"+i);if(l.s[i]){delete l.s[i];c.classList.remove("done");c.querySelector(".chk").textContent="تم اليوم"}else{l.s[i]=1;c.classList.add("done");c.querySelector(".chk").textContent="✓ تم اليوم"}save()}
 function notes(){
@@ -674,7 +677,7 @@ function measCard(){
   if(!MOK&&!EDIT())return"";
   const last=MEAS[0],pend=REQS.filter(r=>r.status==="pending").length;
   const sub=!MOK?"محتاجة تفعيل (ملف inbody.sql)":last?`آخر قياس ${dmy(last.taken_on)}${last.weight!=null?" · "+fmtW(last.weight)+" كجم":""}${EDIT()&&pend?" · ⏳ طلب منتظر":""}`:"سجّل وزنك ونتيجة InBody وتابع تطورك";
-  return`<a class="card sec" href="#body"><div class="no">⚖</div><div><h3>القياسات و InBody</h3><p>${sub}</p></div><div class="go">‹</div></a>`;
+  return`<a class="card sec" href="#body"><div class="no">⚖</div><div><h3>القياسات و InBody${qBadge("ms:")}</h3><p>${sub}</p></div><div class="go">‹</div></a>`;
 }
 function measPage(){
   hd("القياسات و InBody",EDIT()?"متابعة تطور العميل":"تابع تطورك","home");
@@ -709,7 +712,7 @@ function measRender(){
       const pdf=m.file_path&&/\.pdf$/i.test(m.file_path),u=m.file_path&&MURL[m.file_path];
       const th=m.file_path?`<a class="mth" href="#" onclick="openMeas('${m.file_path}');return false">${pdf?"<span>PDF</span>":(u?`<img src="${esc(u)}" alt="">`:"<span>صورة</span>")}</a>`:"";
       const vals=[m.weight!=null?`الوزن <b>${fmtW(m.weight)}</b> كجم ${dlt(m.weight,pw&&pw.weight,null)}`:"",m.fat!=null?`دهون <b>${fmtW(m.fat)}</b>٪ ${dlt(m.fat,pf&&pf.fat,"down")}`:"",m.muscle!=null?`عضل <b>${fmtW(m.muscle)}</b> كجم ${dlt(m.muscle,pm&&pm.muscle,"up")}`:""].filter(Boolean);
-      return`<div class="mrow">${th}<div style="flex:1;min-width:0"><div><b>${dmy(m.taken_on)}</b> <span class="mk">${MK(m.kind)}</span></div>${vals.length?`<div class="mv">${vals.join(" · ")}</div>`:""}${m.note?`<div class="mn2">${esc(m.note)}</div>`:""}</div><button class="mb" onclick="editMeas('${m.kind}','${m.id}')">تعديل</button></div>`;
+      return`<div class="mrow">${th}<div style="flex:1;min-width:0"><div><b>${dmy(m.taken_on)}</b> <span class="mk">${MK(m.kind)}</span></div>${vals.length?`<div class="mv">${vals.join(" · ")}</div>`:""}${m.note?`<div class="mn2">${esc(m.note)}</div>`:""}${qBtn("ms:"+m.id,MK(m.kind)+" · "+dmy(m.taken_on))}</div><button class="mb" onclick="editMeas('${m.kind}','${m.id}')">تعديل</button></div>`;
     }).join("")+`</div>`;
   }
   A.innerHTML=h;
@@ -926,10 +929,10 @@ function rtSync(){
   if(RT_KEY===key&&RT)return;
   rtStop();RT_KEY=key;
   const ch=sb.channel("live-"+key+"-"+Date.now()),list=key==="admin-list",f=list?null:"client_id=eq."+key;
-  ["notifications","logs","programs","measurements","measure_requests","session_chat"].forEach(t=>{
-    if(list&&t==="session_chat")return;
+  ["notifications","logs","programs","measurements","measure_requests","item_chat"].forEach(t=>{
+    if(list&&t==="item_chat")return;
     const o={event:"*",schema:"public",table:t};if(f)o.filter=f;
-    ch.on("postgres_changes",o,()=>{if(t==="session_chat")chatRefresh(true);else list?setTimeout(listRefresh,1200):liveRefresh(true)});
+    ch.on("postgres_changes",o,()=>{if(t==="item_chat")qRefresh(true);else list?setTimeout(listRefresh,1200):liveRefresh(true)});
   });
   ch.subscribe(st=>{if(st==="CHANNEL_ERROR"||st==="TIMED_OUT"||st==="CLOSED"){if(RT===ch){RT_KEY="";setTimeout(()=>{if(ME&&!document.hidden)rtSync()},4000)}}});
   RT=ch;
@@ -938,43 +941,104 @@ addEventListener("visibilitychange",()=>{if(!document.hidden){RT_KEY="";rtSync()
 addEventListener("focus",()=>liveRefresh());
 addEventListener("pageshow",()=>{RT_KEY="";rtSync();liveRefresh(true)});
 addEventListener("online",()=>{RT_KEY="";rtSync();liveRefresh(true)});
-setInterval(()=>{liveRefresh();chatRefresh()},15000);
+setInterval(()=>{liveRefresh();qRefresh()},15000);
 setInterval(()=>{if(LIVE_DIRTY&&!busyUI()){LIVE_DIRTY=false;liveRefresh(true)}},2000);
 if("serviceWorker" in navigator)navigator.serviceWorker.addEventListener("message",e=>{if(e.data&&e.data.type==="push")setTimeout(()=>liveRefresh(true),400)});
-/* ===== محادثة الجلسة (زي واتساب) بين العميل والدكتور ===== */
-let CH=[],CHOK=true,CHCID=null,CHN=-1,CH_T=0,CHDRAFT={};
-const chUniq=a=>{const m=new Map();a.forEach(x=>m.set(x.id,x));return [...m.values()]};
-const chKey=i=>"ch:"+CID()+":"+(P?P.id:"")+":"+i;
-const chSeen=i=>{try{return +(localStorage.getItem(chKey(i))||0)}catch(e){return 0}};
+/* ===== أرقام ثابتة لكل عنصر (جلسة / تمرين / خيار وجبة / مكمل): المحادثة بتتربط بالرقم، مش بالاسم ولا الترتيب ===== */
+const nid=()=>"i"+Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+function oidAlign(M){
+  M.opts=M.opts||[];M.oid=Array.isArray(M.oid)?M.oid:[];let ch=false;
+  if(M.oid.length>M.opts.length){M.oid.length=M.opts.length;ch=true}
+  for(let i=0;i<M.opts.length;i++)if(!M.oid[i]){M.oid[i]=nid();ch=true}
+  return ch;
+}
+// بيرجّع true لو أضاف أي رقم جديد (الأدمن بيحفظ بعدها)
+function idsEnsure(d){
+  let ch=false;
+  (d.sessions||[]).forEach(s=>{if(!s.id){s.id=nid();ch=true}(s.ex||[]).forEach(e=>{if(!e.id){e.id=nid();ch=true}})});
+  (d.supp||[]).forEach(x=>{if(!x.id){x.id=nid();ch=true}});
+  Object.keys(d.meals||{}).forEach(k=>{if(oidAlign(d.meals[k]))ch=true});
+  return ch;
+}
+const IDS_DIRTY=new Set();
+function idsFix(){
+  if(!EDIT())return;
+  PROGS.forEach(p=>{
+    if(!p||!p.data)return;
+    if(idsEnsure(p.data))IDS_DIRTY.add(p.id);
+    if(IDS_DIRTY.has(p.id)){
+      PW=Date.now();
+      sb.from("programs").update({data:p.data}).eq("id",p.id).then(r=>{if(r&&!r.error)IDS_DIRTY.delete(p.id)},()=>{});
+    }
+  });
+}
+// تحديث خيارات الوجبة بنص جديد: الخيار اللي نصه ما اتغيرش ياخد نفس رقمه. التعديل الصريح (نفس العدد) بيحتفظ بالمحادثة. أي حالة ملتبسة = رقم جديد (عمرها ما تروح لخيار تاني).
+function oidRemap(M,newOpts){
+  oidAlign(M);
+  const oo=M.opts.slice(),oi=M.oid.slice(),used=oo.map(()=>false),res=new Array(newOpts.length).fill(null);
+  newOpts.forEach((t,i)=>{const k=oo.findIndex((x,j)=>!used[j]&&x===t);if(k>=0){used[k]=true;res[i]=oi[k]}});
+  const freeNew=res.map((r,i)=>r?-1:i).filter(i=>i>=0),freeOld=used.map((u,j)=>u?-1:j).filter(j=>j>=0);
+  if(freeNew.length&&freeNew.length===freeOld.length)freeNew.forEach((i,n)=>{used[freeOld[n]]=true;res[i]=oi[freeOld[n]]});
+  newOpts.forEach((t,i)=>{if(!res[i])res[i]=nid()});
+  return {oid:res,dead:oi.filter((x,j)=>!used[j]).map(x=>"ml:"+x)};
+}
+function qTopics(d,kind,sel){
+  const o=[];
+  if(kind==="ml"){Object.keys(d.meals||{}).forEach(k=>{if(sel!=null&&sel!==k)return;(d.meals[k].oid||[]).forEach(id=>id&&o.push("ml:"+id))});return o}
+  if(kind==="sp"){(d.supp||[]).forEach(x=>x.id&&o.push("sp:"+x.id));return o}
+  (d.sessions||[]).forEach((s,i)=>{
+    if(sel!=null&&sel!==i)return;
+    if(kind==="se"&&s.id)o.push("se:"+s.id);
+    if(kind==="ex")(s.ex||[]).forEach(e=>e.id&&o.push("ex:"+e.id));
+  });
+  return o;
+}
+const qAllTopics=d=>["se","ex","ml","sp"].reduce((a,k)=>a.concat(qTopics(d,k)),[]);
+// مسح محادثات العناصر المحذوفة فقط (ولو العنصر لسه موجود في برنامج تاني للعميل بنسيبه)
+async function qPurge(topics){
+  if(!EDIT()||!topics||!topics.length)return;
+  const live=new Set();PROGS.forEach(p=>p&&p.data&&qAllTopics(p.data).forEach(t=>live.add(t)));
+  const dead=[...new Set(topics)].filter(t=>t&&!/:(undefined|null|)$/.test(t)&&!live.has(t));
+  if(!dead.length)return;
+  try{await sb.from("item_chat").delete().eq("client_id",CID()).in("topic",dead)}catch(e){}
+  QC=QC.filter(m=>!dead.includes(m.topic));
+}
+
+/* ===== المحادثات (ملاحظات الجلسة + استفسر) كلها في جدول item_chat ===== */
+let QC=[],QOK=true,QCID=null,QN=-1,Q_T=0,QOPEN=null,QD={},CHDRAFT={};
 const chMe=()=>EDIT()?"admin":"client";
-async function chatLoad(){
-  if(!ME||!P||(ADMIN&&!VIEW))return false;
-  const pid=P.id,cid=CID();
-  if(CHCID!==cid){CHCID=cid;CH=[];CHN=-1}
+const qUniq=a=>{const m=new Map();a.forEach(x=>m.set(x.id,x));return [...m.values()]};
+const qKey=t=>"q:"+CID()+":"+t;
+const qSeen=t=>{try{return +(localStorage.getItem(qKey(t))||0)}catch(e){return 0}};
+const qT=m=>new Date(m.created_at).getTime();
+function qUnreadT(ts){if(!QOK||!ME||!ts||!ts.length)return 0;const S=new Set(ts),me=chMe();return QC.filter(m=>S.has(m.topic)&&m.sender!==me&&qT(m)>qSeen(m.topic)).length}
+function qUnreadPre(pre){if(!QOK||!ME)return 0;const me=chMe();return QC.filter(m=>m.topic.startsWith(pre)&&m.sender!==me&&qT(m)>qSeen(m.topic)).length}
+const qBadgeT=ts=>{const n=qUnreadT(ts);return n?` <span class="wun">${ar(n)}</span>`:""};
+const qBadge=pre=>{const n=qUnreadPre(pre);return n?` <span class="wun">${ar(n)}</span>`:""};
+function qBtn(topic,label){
+  if(!QOK||!topic)return "";
+  const n=qUnreadT([topic]),c=QC.filter(m=>m.topic===topic).length;
+  return `<button type="button" class="qbtn${n?" un":""}" data-t="${esc(topic)}" data-l="${esc(label)}" onclick="qOpen(this,event)">💬 ${EDIT()?"محادثة":"استفسر"}${c?" · "+ar(c):""}${n?` <span class="wun">${ar(n)} جديدة</span>`:""}</button>`;
+}
+async function qLoad(){
+  if(!ME||(ADMIN&&!VIEW))return false;
+  const cid=CID();if(QCID!==cid){QCID=cid;QC=[];QN=-1}
   try{
-    const {data,error}=await sb.from("session_chat").select("*").eq("client_id",cid).eq("program_id",pid).order("created_at",{ascending:true}).limit(1000);
-    if(error){CHOK=false;return false}
-    if(!P||pid!==P.id||cid!==CID())return false;
-    CHOK=true;
-    const nx=chUniq((data||[]).concat(CH.filter(m=>m.pending&&m.program_id===pid)));
-    const changed=JSON.stringify(nx)!==JSON.stringify(CH);
-    CH=nx;return changed;
+    const {data,error}=await sb.from("item_chat").select("*").eq("client_id",cid).order("created_at",{ascending:false}).limit(2000);
+    if(error){QOK=false;return false}
+    if(cid!==CID())return false;
+    QOK=true;
+    const nx=qUniq((data||[]).reverse().concat(QC.filter(m=>m.pending)));
+    const ch=JSON.stringify(nx)!==JSON.stringify(QC);QC=nx;return ch;
   }catch(e){return false}
 }
-function chMsgs(i){
-  const a=CH.filter(m=>m.session_idx===i&&(!P||m.program_id===P.id));
-  const old=[];
-  // ملاحظات العميل القديمة (قبل المحادثة) تفضل ظاهرة كرسائل قديمة
-  Object.keys(LOGS).forEach(d=>{const t=((LOGS[d]||{}).n||{})[i];if(t&&P&&d>=P.month_start)old.push({id:"lg"+d,sender:"client",body:t,created_at:d+"T12:00:00",legacy:true})});
-  return old.concat(a).sort((x,y)=>new Date(x.created_at)-new Date(y.created_at));
+function qMark(t){
+  if(document.hidden||!t)return;const me=chMe(),o=QC.filter(m=>m.topic===t&&m.sender!==me).map(qT);
+  if(!o.length)return;try{localStorage.setItem(qKey(t),String(Math.max.apply(null,o)))}catch(e){}
 }
-function chUnread(i){
-  if(!CHOK||!P)return 0;const me=chMe(),seen=chSeen(i);
-  return CH.filter(m=>m.session_idx===i&&m.program_id===P.id&&m.sender!==me&&new Date(m.created_at).getTime()>seen).length;
-}
-function chBubbles(i){
-  const ms=chMsgs(i),me=chMe();
-  if(!ms.length)return `<div class="waem">${EDIT()?"ابدأ المحادثة مع العميل: اسأله عن التمرين وتقدمه 👇":"اكتب ملاحظاتك أو سؤالك للدكتور هنا، وهيوصله إشعار 👇"}</div>`;
+function qBubblesOf(ms,emptyTxt){
+  const me=chMe();
+  if(!ms.length)return `<div class="waem">${emptyTxt}</div>`;
   let last="",h="";
   ms.forEach(m=>{
     const d=new Date(m.created_at),dk=d.toDateString();
@@ -984,70 +1048,127 @@ function chBubbles(i){
   });
   return h;
 }
+function qUrl(t){
+  const [k,id]=t.split(":");
+  if(k==="ml")return "./#food";if(k==="sp")return "./#supp";if(k==="ms")return "./#body";
+  const ss=P?P.data.sessions:[];
+  const i=ss.findIndex(s=>k==="se"?s.id===id:(s.ex||[]).some(e=>e.id===id));
+  return i>=0?"./#s"+(i+1):"./#train";
+}
+function qNotify(t,l,v,cid){
+  try{
+    const snip=v.length>90?v.slice(0,90)+"…":v;
+    if(EDIT()){
+      const ti="رسالة من الدكتور 💬",b=(l?l+": ":"")+snip;
+      sb.from("notifications").insert({client_id:cid,title:ti,body:b}).then(()=>{},()=>{});
+      pushTo(cid,ti,b,qUrl(t));
+    }else pApi({action:"send",to:"admin",kind:"chat",label:l,text:snip}).catch(()=>{});
+  }catch(e){}
+}
+function qRepaint(){
+  if(QOPEN)qPaint(true);
+  if(/^s([1-9]\d?)$/.test(location.hash.slice(1)))chatPaint(true);
+}
+async function qPost(t,l,v){
+  const sender=chMe(),cid=CID();
+  const tmp={id:"t"+Date.now(),client_id:cid,topic:t,label:l,sender,body:v,created_at:new Date().toISOString(),pending:true};
+  QC.push(tmp);qRepaint();
+  let res;
+  try{res=await sb.from("item_chat").insert({client_id:cid,topic:t,label:String(l||"").slice(0,120),sender,body:v}).select().single()}catch(e){res={error:e}}
+  QC=QC.filter(m=>m.id!==tmp.id);
+  if(res.error||!res.data){toast("تعذر الإرسال");qRepaint();return false}
+  QC=qUniq(QC.concat(res.data));qRepaint();
+  qNotify(t,l,v,cid);return true;
+}
+async function qRefresh(force){
+  if(!ME||(ADMIN&&!VIEW)||document.hidden)return;
+  const t=Date.now();if(!force&&t-Q_T<3000)return;Q_T=t;
+  const me=chMe(),before=QN;
+  const ch=await qLoad();
+  const oth=QC.filter(m=>m.sender!==me);QN=oth.length;
+  if(!ch)return;
+  const last=oth[oth.length-1];
+  if(QOPEN)qPaint(false);
+  if(!QOPEN&&!busyUI())liveRender();else chatPaint(false);
+  if(before>=0&&oth.length>before&&last&&(!QOPEN||QOPEN.t!==last.topic))toast("💬 رسالة جديدة"+(last.label?" عن: "+last.label:""));
+}
+
+/* --- نافذة «استفسر» --- */
+function qBubbles(t){return qBubblesOf(QC.filter(m=>m.topic===t),EDIT()?"مفيش رسائل لسه. اكتب للعميل عن هذا البند 👇":"اسأل الدكتور عن هذا البند وهيوصله إشعار بالسؤال 👇")}
+function qPaint(stick){
+  if(!QOPEN)return;const el=document.getElementById("qlist");if(!el)return;
+  const near=el.scrollHeight-el.scrollTop-el.clientHeight<90;
+  el.innerHTML=qBubbles(QOPEN.t);
+  if(stick||near)el.scrollTop=el.scrollHeight;
+  qMark(QOPEN.t);
+}
+function qDraft(el){if(QOPEN)QD[QOPEN.t]=el.value;el.style.height="auto";el.style.height=Math.min(el.scrollHeight,120)+"px"}
+function qOpen(btn,e){
+  if(e){e.stopPropagation();e.preventDefault()}
+  const t=btn.dataset.t,l=btn.dataset.l;if(!t)return;
+  qClose(true);QOPEN={t,l};
+  const m=document.createElement("div");m.id="qm";m.className="chm";
+  m.innerHTML=`<div class="chs"><div class="chh"><div><small>${EDIT()?"محادثة مع العميل عن":"استفسار عن"}</small><b>${esc(l)}</b></div><button type="button" class="chx" onclick="qClose()">✕</button></div><div class="wal" id="qlist"></div><div class="wac"><textarea id="qin" class="wain" rows="1" maxlength="1000" placeholder="${EDIT()?"اكتب ردك للعميل":"اكتب سؤالك هنا"}" oninput="qDraft(this)">${esc(QD[t]||"")}</textarea><button type="button" class="wasd" onclick="qSend()">إرسال</button></div></div>`;
+  m.addEventListener("click",ev=>{if(ev.target===m)qClose()});
+  document.body.appendChild(m);document.body.style.overflow="hidden";
+  qPaint(true);
+  qLoad().then(ch=>{if(QOPEN&&QOPEN.t===t){if(ch||!QOK)qPaint(true);else qMark(t)}});
+}
+function qClose(silent){
+  const m=document.getElementById("qm");if(m)m.remove();
+  const was=QOPEN;QOPEN=null;document.body.style.overflow="";
+  if(!silent&&was&&ME&&!busyUI())liveRender(); // نحدّث الشارات بعد القفل
+}
+async function qSend(){
+  if(!QOPEN)return;const ta=document.getElementById("qin");if(!ta)return;
+  const v=ta.value.trim();if(!v)return;
+  if(v.length>1000)return toast("الرسالة طويلة (الحد ١٠٠٠ حرف)");
+  const {t,l}=QOPEN;ta.value="";ta.style.height="auto";QD[t]="";
+  const ok=await qPost(t,l,v);
+  if(!ok){QD[t]=v;const t2=document.getElementById("qin");if(t2&&!t2.value)t2.value=v}
+}
+
+/* --- ملاحظات وتقدم: محادثة الجلسة (جوه صفحة الجلسة) --- */
+const chTopic=i=>{const s=P&&P.data.sessions[i];return s&&s.id?"se:"+s.id:""};
+function chMsgs(i){
+  const t=chTopic(i),a=t?QC.filter(m=>m.topic===t):[],old=[];
+  // ملاحظات العميل القديمة (قبل المحادثة) تفضل ظاهرة كرسائل قديمة
+  Object.keys(LOGS).forEach(d=>{const x=((LOGS[d]||{}).n||{})[i];if(x&&P&&d>=P.month_start)old.push({id:"lg"+d,sender:"client",body:x,created_at:d+"T12:00:00",legacy:true})});
+  return old.concat(a).sort((x,y)=>new Date(x.created_at)-new Date(y.created_at));
+}
+const chUnread=i=>{const t=chTopic(i);return t?qUnreadT([t]):0};
+const chBubbles=i=>qBubblesOf(chMsgs(i),EDIT()?"ابدأ المحادثة مع العميل: اسأله عن التمرين وتقدمه 👇":"اكتب ملاحظاتك أو سؤالك للدكتور هنا، وهيوصله إشعار 👇");
 function chatCard(i){
   const who=EDIT()?"العميل":"الدكتور";
-  if(!CHOK)return `<div class="card"><div class="lbl" style="color:var(--or)">ملاحظات وتقدم</div><p style="color:var(--mut);font-size:14px;margin:8px 0 0">${EDIT()?"المحادثة محتاجة تشغيل ملف supabase/chat.sql في Supabase ← SQL Editor.":"المحادثة غير متاحة دلوقتي."}</p></div>`;
-  return `<div class="card"><div class="lbl" style="color:var(--or)">ملاحظات وتقدم · محادثة مع ${who}</div><div class="wal" id="chatlist">${chBubbles(i)}</div><div class="wac"><textarea id="chin" class="wain" rows="1" maxlength="1000" placeholder="اكتب رسالتك هنا" oninput="chDraft(${i},this)">${esc(CHDRAFT[i]||"")}</textarea><button type="button" class="wasd" onclick="chatSend(${i})">إرسال</button></div></div>`;
+  if(!QOK)return `<div class="card"><div class="lbl" style="color:var(--or)">ملاحظات وتقدم</div><p style="color:var(--mut);font-size:14px;margin:8px 0 0">${EDIT()?"المحادثة محتاجة تشغيل ملف supabase/item_chat.sql في Supabase ← SQL Editor.":"المحادثة غير متاحة دلوقتي."}</p></div>`;
+  if(!chTopic(i))return `<div class="card"><div class="lbl" style="color:var(--or)">ملاحظات وتقدم</div><p style="color:var(--mut);font-size:14px;margin:8px 0 0">جاري تجهيز المحادثة...</p></div>`;
+  return `<div class="card"><div class="lbl" style="color:var(--or)">ملاحظات وتقدم · محادثة مع ${who}</div><div class="wal" id="chatlist">${chBubbles(i)}</div><div class="wac"><textarea id="chin" class="wain" rows="1" maxlength="1000" placeholder="اكتب رسالتك هنا" oninput="chDraft(${i},this)">${esc(CHDRAFT[chTopic(i)]||"")}</textarea><button type="button" class="wasd" onclick="chatSend(${i})">إرسال</button></div></div>`;
 }
-function chDraft(i,el){CHDRAFT[i]=el.value;el.style.height="auto";el.style.height=Math.min(el.scrollHeight,120)+"px"}
-function chMark(i){
-  if(document.hidden||!P)return;
-  const me=chMe(),o=CH.filter(m=>m.session_idx===i&&m.sender!==me).map(m=>new Date(m.created_at).getTime());
-  if(!o.length)return;try{localStorage.setItem(chKey(i),String(Math.max.apply(null,o)))}catch(e){}
-}
+function chDraft(i,el){CHDRAFT[chTopic(i)]=el.value;el.style.height="auto";el.style.height=Math.min(el.scrollHeight,120)+"px"}
 function chatPaint(stick){
   const el=$("#chatlist"),m=/^s([1-9]\d?)$/.exec(location.hash.slice(1));
   if(!el||!m)return;const i=+m[1]-1;
   const near=el.scrollHeight-el.scrollTop-el.clientHeight<90;
   el.innerHTML=chBubbles(i);
   if(stick||near)el.scrollTop=el.scrollHeight;
-  chMark(i);
+  qMark(chTopic(i));
 }
 async function chatEnsure(i){
   const el=$("#chatlist");if(el)el.scrollTop=el.scrollHeight;
-  const ch=await chatLoad();
-  if(ch||!CHOK){const m=/^s([1-9]\d?)$/.exec(location.hash.slice(1));if(m&&+m[1]-1===i){if(!CHOK&&!busyUI())session(i);else chatPaint(true)}}
-  else chMark(i);
-}
-async function chatRefresh(force){
-  if(!ME||!P||(ADMIN&&!VIEW)||document.hidden)return;
-  const t=Date.now();if(!force&&t-CH_T<3000)return;CH_T=t;
-  const me=chMe(),pid=P.id,before=CHN;
-  const ch=await chatLoad();
-  const oth=CH.filter(m=>m.sender!==me);CHN=oth.length;
-  if(!ch||!P||pid!==P.id)return;
-  const r=location.hash.slice(1),m=/^s([1-9]\d?)$/.exec(r),cur=m?+m[1]-1:-1;
-  if(m)chatPaint(false);
-  else if(r==="train"&&!busyUI()){const y=scrollY;train();scrollTo(0,y)}
-  const last=oth[oth.length-1];
-  if(before>=0&&oth.length>before&&last&&last.session_idx!==cur)toast("💬 رسالة جديدة من "+(me==="admin"?"العميل":"الدكتور"));
+  const was=QOK,ch=await qLoad();
+  const m=/^s([1-9]\d?)$/.exec(location.hash.slice(1));
+  if(!m||+m[1]-1!==i)return;
+  if(was&&!QOK){if(!busyUI())session(i);return}
+  if(ch)chatPaint(true);else qMark(chTopic(i));
 }
 async function chatSend(i){
-  const ta=$("#chin");if(!ta||!P)return;
+  const ta=$("#chin"),t=chTopic(i);if(!ta||!t)return;
   const v=ta.value.trim();if(!v)return;
   if(v.length>1000)return toast("الرسالة طويلة (الحد ١٠٠٠ حرف)");
-  const sender=chMe(),pid=P.id,cid=CID();
-  const tmp={id:"t"+Date.now(),client_id:cid,program_id:pid,session_idx:i,sender,body:v,created_at:new Date().toISOString(),pending:true};
-  ta.value="";ta.style.height="auto";CHDRAFT[i]="";
-  CH.push(tmp);chatPaint(true);
-  let res;
-  try{res=await sb.from("session_chat").insert({client_id:cid,program_id:pid,session_idx:i,sender,body:v}).select().single()}catch(e){res={error:e}}
-  CH=CH.filter(m=>m.id!==tmp.id);
-  if(res.error||!res.data){
-    toast("تعذر الإرسال");CHDRAFT[i]=v;const t2=$("#chin");if(t2&&!t2.value)t2.value=v;chatPaint(true);return;
-  }
-  CH=chUniq(CH.concat(res.data));chatPaint(true);
-  chNotify(i,v,cid);
-}
-function chNotify(i,v,cid){
-  try{
-    const s=P.data.sessions[i],lab=(s&&s.t)||"",snip=v.length>90?v.slice(0,90)+"…":v;
-    if(EDIT()){
-      const t="رسالة من الدكتور 💬",b=(lab?lab+": ":"")+snip;
-      sb.from("notifications").insert({client_id:cid,title:t,body:b}).then(()=>{},()=>{});
-      pushTo(cid,t,b,"./#s"+(i+1));
-    }else pApi({action:"send",to:"admin",kind:"chat",label:lab,text:snip}).catch(()=>{});
-  }catch(e){}
+  const s=P.data.sessions[i];
+  ta.value="";ta.style.height="auto";CHDRAFT[t]="";
+  const ok=await qPost(t,(s&&s.t)||"",v);
+  if(!ok){CHDRAFT[t]=v;const t2=$("#chin");if(t2&&!t2.value)t2.value=v}
 }
 
 /* ===== عدّاد الراحة بين المجموعات ===== */
@@ -1120,7 +1241,7 @@ addEventListener("visibilitychange",()=>{
 });
 
 function route(){
-  rtSync();
+  rtSync();idsFix();
   if(!ME||(ADMIN&&!VIEW))return;
   const r=location.hash.slice(1)||"home",m=/^s([1-9]\d?)$/.exec(r);
   if(r=="body"){measPage();["home","train","food","supp","notes"].forEach(x=>$("#n-"+x).classList.toggle("on",x=="home"));window.scrollTo(0,0);return}
@@ -1129,7 +1250,7 @@ function route(){
   const cur=m?"train":(["train","food","supp","notes"].includes(r)?r:"home");
   ["home","train","food","supp","notes"].forEach(x=>$("#n-"+x).classList.toggle("on",x==cur));
   window.scrollTo(0,0);
-  chatRefresh();
+  qRefresh();
 }
 addEventListener("hashchange",route);
 if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js").catch(()=>{});
