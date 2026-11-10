@@ -92,7 +92,7 @@ function login(msg){
   };
   $("#go").onclick=go;$("#pw").onkeydown=e=>{if(e.key==="Enter")go()};
 }
-async function out(){SV.clr();rtStop();restStop(true);QC=[];QCID=null;qClose(true);await Promise.race([pushOff(),new Promise(r=>setTimeout(r,2500))]);await sb.auth.signOut();LOGS={};PROGS=[];P=null;VIEW=null;location.hash="";login()}
+async function out(){SV.clr();rtStop();restStop(true);QC=[];QCID=null;qClose(true);GYM=null;try{if(GYMCH){sb.removeChannel(GYMCH);GYMCH=null}}catch(e){}await Promise.race([pushOff(),new Promise(r=>setTimeout(r,2500))]);await sb.auth.signOut();LOGS={};PROGS=[];P=null;VIEW=null;location.hash="";login()}
 
 /* ===== تحميل ===== */
 async function loadData(cid){
@@ -126,14 +126,17 @@ async function clients(){
   $("#hd").innerHTML=`<div class="hd"><div><small>لوحة المدرب</small><h1>عملائي</h1></div><img class="lgo" src="img/logo.png" alt=""></div>`;
   $("#app").innerHTML='<p class="ld">جاري التحميل...</p>';
   const since=new Date(D.getTime()-14*864e5);
-  const [a,b,c,mq,ml]=await Promise.all([
+  const [a,b,c,mq,ml,gq]=await Promise.all([
     sb.from("profiles").select("id,full_name,phone").eq("role","client").order("full_name"),
     sb.from("logs").select("client_id,log_date,data").gte("log_date",iso(since)),
     sb.from("programs").select("client_id,title,month_start,data").order("month_start",{ascending:false}),
     sb.from("measure_requests").select("client_id,kind").eq("status","pending"),
-    sb.from("measurements").select("client_id,taken_on,weight,created_at").order("created_at",{ascending:false}).limit(300)]);
+    sb.from("measurements").select("client_id,taken_on,weight,created_at").order("created_at",{ascending:false}).limit(300),
+    sb.from("gym_checkins").select("client_id,created_at").is("left_at",null).gte("created_at",new Date(Date.now()-GYM_H*36e5).toISOString()).order("created_at",{ascending:false})]);
   const cl=a.data||[],lg=b.data||[],pr=c.data||[];
-  let h=pushCard()+`<div class="card" style="text-align:center"><b>${ar(cl.length)} عميل</b><p style="margin:2px 0 0;color:var(--mut);font-size:13px">اضغط على العميل لعرض حسابه وتعديل برنامجه</p></div><button class="btn" style="margin-bottom:12px" onclick="addClient()">+ إضافة عميل جديد</button>`;
+  cl.forEach(x=>{GNAME[x.id]=x.full_name||""});
+  const gmap=new Map();((gq&&gq.data)||[]).forEach(r=>{if(!gmap.has(r.client_id))gmap.set(r.client_id,r.created_at)});
+  let h=pushCard()+gymSec(gmap,cl)+`<div class="card" style="text-align:center"><b>${ar(cl.length)} عميل</b><p style="margin:2px 0 0;color:var(--mut);font-size:13px">اضغط على العميل لعرض حسابه وتعديل برنامجه</p></div><button class="btn" style="margin-bottom:12px" onclick="addClient()">+ إضافة عميل جديد</button>`;
   cl.forEach(x=>{
     const mine=lg.filter(l=>l.client_id===x.id).sort((p,q)=>q.log_date.localeCompare(p.log_date));
     const last=mine[0],t=mine.find(l=>l.log_date===TODAY);
@@ -144,7 +147,7 @@ async function clients(){
     const p=pr.find(z=>z.client_id===x.id);
     const left=p?Math.round((new Date(p.month_start)-new Date(TODAY))/864e5)+((p.data&&p.data.info&&p.data.info.days)||30)-1:null;
     const pq=(mq.data||[]).filter(z=>z.client_id===x.id),lm=(ml.data||[]).find(z=>z.client_id===x.id);
-    h+=`<div class="card cl"><div style="flex:1;cursor:pointer" onclick="openClient('${x.id}','${esc(x.full_name||"عميل").replace(/'/g,"")}')"><h3>${esc(x.full_name||"بدون اسم")}</h3><p class="${bad?"no2":"ok"}">${act}</p><p>اليوم: ${ar(cnt)} تمارين · ${ar(mel)} وجبات · ${ar(sup)} مكملات</p>${left!==null?`<p>${left>=0?`باقي ${ar(left)} يوم على نهاية البرنامج`:"البرنامج انتهى"}</p>`:'<p>لا يوجد برنامج</p>'}${pq.length?`<p style="color:#d23b5f;font-weight:700">⏳ مطلوب منه: ${pq.map(z=>MK(z.kind)).join(" + ")}</p>`:""}${lm?`<p>آخر قياس: ${dmy(lm.taken_on)}${lm.weight!=null?" · "+fmtW(lm.weight)+" كجم":""}</p>`:""}</div><div style="display:grid;gap:6px"><button class="ed" style="display:inline-block;margin:0" onclick="sendNote('${x.id}')">✉ إشعار</button><button class="ed" style="display:inline-block;margin:0" onclick="setPass('${x.id}')">كلمة المرور</button></div></div>`;
+    h+=`<div class="card cl"><div style="flex:1;cursor:pointer" onclick="openClient('${x.id}','${esc(x.full_name||"عميل").replace(/'/g,"")}')"><h3>${gmap.has(x.id)?"🏋️ ":""}${esc(x.full_name||"بدون اسم")}</h3><p class="${bad?"no2":"ok"}">${act}</p><p>اليوم: ${ar(cnt)} تمارين · ${ar(mel)} وجبات · ${ar(sup)} مكملات</p>${left!==null?`<p>${left>=0?`باقي ${ar(left)} يوم على نهاية البرنامج`:"البرنامج انتهى"}</p>`:'<p>لا يوجد برنامج</p>'}${pq.length?`<p style="color:#d23b5f;font-weight:700">⏳ مطلوب منه: ${pq.map(z=>MK(z.kind)).join(" + ")}</p>`:""}${lm?`<p>آخر قياس: ${dmy(lm.taken_on)}${lm.weight!=null?" · "+fmtW(lm.weight)+" كجم":""}</p>`:""}</div><div style="display:grid;gap:6px"><button class="ed" style="display:inline-block;margin:0" onclick="sendNote('${x.id}')">✉ إشعار</button><button class="ed" style="display:inline-block;margin:0" onclick="setPass('${x.id}')">كلمة المرور</button></div></div>`;
   });
   h+=`<button class="btn o" onclick="remindNow()">🔔 التذكيرات التلقائية (معاينة / إرسال)</button><button class="btn o" onclick="out()">تسجيل الخروج</button>`;
   $("#app").innerHTML=h;
@@ -532,6 +535,7 @@ function home(){
   hd("الرئيسية","Training Nutrition Hub");
   let h=`<div class="card brand"><img src="img/logo.png" alt=""><small>مدربك وأخصائي التغذية</small><h1>الدكتور محمود جمال قطب</h1><div class="en">DR. MAHMOUD GAMAL</div><div class="tg">تخلّص من أمراضك</div></div>`;
   if(EDIT())h+=pubCard();
+  h+=gymCard();
   h+=pendBanner();
   h+=pushCard();
   const dn=dayNo(),T=inf.days||30;
@@ -924,6 +928,7 @@ function listRefresh(){
 let RT=null,RT_KEY="";
 function rtStop(){if(RT){try{sb.removeChannel(RT)}catch(e){}RT=null}RT_KEY=""}
 function rtSync(){
+  gymRtSync();
   if(!ME){rtStop();return}
   const key=(ADMIN&&!VIEW)?"admin-list":CID();
   if(RT_KEY===key&&RT)return;
@@ -937,11 +942,11 @@ function rtSync(){
   ch.subscribe(st=>{if(st==="CHANNEL_ERROR"||st==="TIMED_OUT"||st==="CLOSED"){if(RT===ch){RT_KEY="";setTimeout(()=>{if(ME&&!document.hidden)rtSync()},4000)}}});
   RT=ch;
 }
-addEventListener("visibilitychange",()=>{if(!document.hidden){RT_KEY="";rtSync();liveRefresh(true)}});
+addEventListener("visibilitychange",()=>{if(!document.hidden){RT_KEY="";GYMX=1;rtSync();liveRefresh(true)}});
 addEventListener("focus",()=>liveRefresh());
-addEventListener("pageshow",()=>{RT_KEY="";rtSync();liveRefresh(true)});
-addEventListener("online",()=>{RT_KEY="";rtSync();liveRefresh(true)});
-setInterval(()=>{liveRefresh();qRefresh()},15000);
+addEventListener("pageshow",()=>{RT_KEY="";GYMX=1;rtSync();liveRefresh(true)});
+addEventListener("online",()=>{RT_KEY="";GYMX=1;rtSync();liveRefresh(true)});
+setInterval(()=>{liveRefresh();qRefresh();gymLoad()},15000);
 setInterval(()=>{if(LIVE_DIRTY&&!busyUI()){LIVE_DIRTY=false;liveRefresh(true)}},2000);
 if("serviceWorker" in navigator)navigator.serviceWorker.addEventListener("message",e=>{if(e.data&&e.data.type==="push")setTimeout(()=>liveRefresh(true),400)});
 /* ===== أرقام ثابتة لكل عنصر (جلسة / تمرين / خيار وجبة / مكمل): المحادثة بتتربط بالرقم، مش بالاسم ولا الترتيب ===== */
@@ -1171,6 +1176,93 @@ async function chatSend(i){
   if(!ok){CHDRAFT[t]=v;const t2=$("#chin");if(t2&&!t2.value)t2.value=v}
 }
 
+/* ===== سجّل دخولك في الجيم: العميل بيضغط → الدكتور يوصله إشعار (خارج وداخل التطبيق) ويظهر في قسم «في الجيم الآن» ===== */
+const GYM_H=4; // الدخول بيفضل «شغّال» 4 ساعات أو لحد ما العميل يسجّل خروجه
+let GYM=null,GYMCID=null,GYM_T=0,GYM_BUSY=false,GYMCH=null,GYMX=0,GNAME={};
+function gymAgo(t){
+  const m=Math.floor((Date.now()-new Date(t).getTime())/60000);
+  if(m<1)return "لسه واصل دلوقتي";
+  if(m<60)return "وصل من "+ar(m)+" دقيقة";
+  return "وصل من "+ar(Math.floor(m/60))+" ساعة";
+}
+const gymLive=()=>GYM&&(Date.now()-new Date(GYM.created_at).getTime())<GYM_H*36e5;
+function gymCard(){
+  if(EDIT())return gymLive()?`<div class="card gymok"><b>🏋️ العميل في الجيم الآن</b><p>${gymAgo(GYM.created_at)}</p></div>`:"";
+  if(ADMIN)return "";
+  if(gymLive()){
+    const tm=ar(new Date(GYM.created_at).toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"}));
+    return `<div class="card gymok"><b>✅ تم تسجيل دخولك الجيم</b><p>الدكتور بيتابع خطتك النهاردة وتم إرسال إشعار له. ركّز في تمرينك 💪</p><p class="gt">وصلت الساعة ${tm}</p><div class="gbt"><a class="btn" href="#train" style="text-align:center">ابدأ تمرينك</a><button type="button" class="btn o" onclick="gymOut()">خلّصت وخرجت 👋</button></div></div>`;
+  }
+  return `<div class="card gym"><div><b>🏋️ وصلت الجيم؟</b><p>اضغط وهيوصل الدكتور إشعار فورًا عشان يتابعك ويركّز معاك أثناء تمرينك.</p></div><button type="button" class="btn" id="gymb" onclick="gymIn()">سجّل دخولك في الجيم</button></div>`;
+}
+function gymRender(){const r=location.hash.slice(1);if(!r||r==="home")liveRender()}
+async function gymIn(){
+  if(ADMIN||GYM_BUSY)return;
+  if(gymLive()){toast("أنت مسجّل في الجيم بالفعل 💪");return}
+  GYM_BUSY=true;
+  const b=document.getElementById("gymb");if(b){b.disabled=true;b.textContent="جاري التسجيل..."}
+  let row=null;
+  try{const r=await sb.from("gym_checkins").insert({client_id:ME.id}).select().single();if(!r.error)row=r.data}catch(e){}
+  GYM=row||{id:null,created_at:new Date().toISOString(),local:true};GYMCID=CID();
+  pushAdmin("gym");
+  GYM_BUSY=false;
+  toast("✅ الدكتور بيتابع خطتك النهاردة، وتم إرسال الإشعار له");
+  gymRender();
+}
+async function gymOut(){
+  if(ADMIN)return;
+  const g=GYM;GYM=null;
+  try{if(g&&g.id)await sb.from("gym_checkins").update({left_at:new Date().toISOString()}).eq("id",g.id)}catch(e){}
+  toast("تقبّل الله تمرينك 👋 نشوفك في المرة الجاية");
+  gymRender();
+}
+async function gymLoad(force){
+  if(!ME||(ADMIN&&!VIEW))return;
+  const t=Date.now();if(!force&&t-GYM_T<10000)return;GYM_T=t;
+  const cid=CID();if(GYMCID!==cid){GYMCID=cid;GYM=null}
+  try{
+    const {data,error}=await sb.from("gym_checkins").select("id,created_at,left_at").eq("client_id",cid).is("left_at",null).gte("created_at",new Date(Date.now()-GYM_H*36e5).toISOString()).order("created_at",{ascending:false}).limit(1);
+    if(error||cid!==CID())return;
+    const nx=(data&&data[0])||null;
+    if(GYM&&GYM.local&&!nx)return; // تسجيل اتبعت إشعاره بس مفيش جدول لسه
+    if((nx&&nx.id)!==(GYM&&GYM.id)){GYM=nx;if(!busyUI())gymRender()}
+  }catch(e){}
+}
+// ----- جهة الدكتور -----
+function gymSec(gmap,cl){
+  if(!gmap.size)return "";
+  const rows=cl.filter(x=>gmap.has(x.id)).map(x=>`<div class="card gymn"><div><b>🏋️ ${esc(x.full_name||"عميل")}</b><p>${gymAgo(gmap.get(x.id))}</p></div><button type="button" class="btn" style="width:auto;padding:0 16px" onclick="openClient('${x.id}','${esc(x.full_name||"عميل").replace(/'/g,"")}')">فتح الملف</button></div>`).join("");
+  return `<h3 style="margin:6px 4px">🏋️ في الجيم الآن (${ar(gmap.size)})</h3>${rows}`;
+}
+async function gymName(id){
+  if(GNAME[id])return GNAME[id];
+  try{const {data}=await sb.from("profiles").select("full_name").eq("id",id).maybeSingle();GNAME[id]=(data&&data.full_name)||"عميل"}catch(e){GNAME[id]="عميل"}
+  return GNAME[id];
+}
+function gymBanner(nm,id){
+  const old=document.getElementById("gyb");if(old)old.remove();
+  const e=document.createElement("div");e.id="gyb";e.className="gyb";
+  e.innerHTML=`<div><b>🏋️ ${esc(nm)} وصل الجيم الآن</b><small>تابعه وركّز معاه أثناء تمرينه</small></div><button type="button">فتح ملفه</button>`;
+  e.querySelector("button").onclick=()=>{e.remove();openClient(id,String(nm).replace(/'/g,""))};
+  document.body.appendChild(e);
+  try{if(navigator.vibrate)navigator.vibrate([200,100,200])}catch(x){}
+  setTimeout(()=>{if(e.parentNode)e.remove()},25000);
+}
+async function gymEvent(p){
+  try{
+    const r=p.new||{};
+    if(p.eventType==="INSERT"&&r.client_id&&!r.left_at){const nm=await gymName(r.client_id);gymBanner(nm,r.client_id)}
+    if(ADMIN&&!VIEW){LIST_T=0;listRefresh()}
+    else if(VIEW&&r.client_id===VIEW.id)gymLoad(true);
+  }catch(e){}
+}
+function gymRtSync(){
+  if(!ADMIN||!ME){if(GYMCH){try{sb.removeChannel(GYMCH)}catch(e){}GYMCH=null}return}
+  if(GYMCH&&!GYMX)return;
+  GYMX=0;if(GYMCH){try{sb.removeChannel(GYMCH)}catch(e){}GYMCH=null}
+  GYMCH=sb.channel("gym-"+Date.now()).on("postgres_changes",{event:"*",schema:"public",table:"gym_checkins"},gymEvent).subscribe();
+}
+
 /* ===== عدّاد الراحة بين المجموعات ===== */
 let RTM=null;
 function rtmEl(){
@@ -1250,7 +1342,7 @@ function route(){
   const cur=m?"train":(["train","food","supp","notes"].includes(r)?r:"home");
   ["home","train","food","supp","notes"].forEach(x=>$("#n-"+x).classList.toggle("on",x==cur));
   window.scrollTo(0,0);
-  qRefresh();
+  qRefresh();gymLoad();
 }
 addEventListener("hashchange",route);
 if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js").catch(()=>{});

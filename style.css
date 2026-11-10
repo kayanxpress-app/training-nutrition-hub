@@ -367,3 +367,19 @@ body.av .qbtn,body.av .mo .qbtn{pointer-events:auto}
 .chh b{font-size:17px}
 .chx{flex:none;border:0;background:var(--chip);color:var(--ink);width:36px;height:36px;border-radius:50%;font-size:16px;cursor:pointer}
 .chs .wal{flex:1;min-height:140px;max-height:none}
+
+/* ===== سجّل دخولك في الجيم ===== */
+.card.gym{border:2px solid var(--or);display:grid;gap:10px}
+.card.gym p,.card.gymok p{margin:4px 0 0;color:var(--mut);font-size:14px}
+.card.gym .btn{margin:0}
+.card.gymok{border:2px solid #3fb37f;background:linear-gradient(135deg,rgba(63,179,127,.12),transparent)}
+.card.gymok .gt{font-weight:700;color:var(--ink)}
+.card.gymok .gbt{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+.card.gymok .gbt .btn{margin:0}
+.card.gymn{display:flex;align-items:center;justify-content:space-between;gap:10px;border:2px solid #3fb37f;background:linear-gradient(135deg,rgba(63,179,127,.12),transparent)}
+.card.gymn p{margin:2px 0 0;color:var(--mut);font-size:13px}
+.gyb{position:fixed;left:10px;right:10px;top:calc(env(safe-area-inset-top,0px) + 10px);max-width:616px;margin:0 auto;z-index:80;display:flex;align-items:center;justify-content:space-between;gap:10px;background:#17401f;color:#fff;border:2px solid #3fb37f;border-radius:16px;padding:12px 14px;box-shadow:0 8px 24px rgba(0,0,0,.45);animation:gyin .35s ease-out}
+.gyb b{display:block;font-size:16px}
+.gyb small{display:block;opacity:.8;font-size:12px;margin-top:2px}
+.gyb button{flex:none;height:38px;padding:0 14px;border:0;border-radius:12px;background:#3fb37f;color:#08210f;font:inherit;font-weight:800;cursor:pointer}
+@keyframes gyin{from{transform:translateY(-120%);opacity:0}to{transform:none;opacity:1}}
