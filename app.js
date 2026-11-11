@@ -445,8 +445,8 @@ async function targetProg(cid){
   const {data,error}=await sb.from("programs").select("*").eq("client_id",cid).order("month_start",{ascending:false});
   if(error)throw error;const a=data||[];return a.find(p=>p.month_start<=TODAY)||a[0]||null;
 }
-async function pushTo(ids,fn,title,onProg){
-  let ok=0,created=0,fail=0;
+async function copyTo(ids,fn,title,onProg){
+  let ok=0,created=0,fail=0,err="";
   for(let i=0;i<ids.length;i++){
     onProg(i+1,ids.length);
     try{
@@ -454,9 +454,9 @@ async function pushTo(ids,fn,title,onProg){
       if(t){const d=clone(t.data);fn(d);const {error}=await sb.from("programs").update({data:d}).eq("id",t.id);if(error)throw error}
       else{const d=BASE();fn(d);const {error}=await sb.from("programs").insert({client_id:ids[i],title:title||("برنامج "+TODAY),month_start:TODAY,data:d});if(error)throw error;created++}
       ok++;
-    }catch(e){fail++}
+    }catch(e){fail++;err=err||(e&&(e.message||e.details))||"خطأ"}
   }
-  return {ok,created,fail};
+  return {ok,created,fail,err};
 }
 async function clientDlg(o){
   let list=[];
@@ -486,9 +486,9 @@ async function clientDlg(o){
         ks.forEach(k=>SEC[k].cp(t.data,P.data));m.remove();await savePD();return;
       }
       const fn=o.item?(d=>ITEM[o.item.type](clone(o.item.obj),d)):(d=>ks.forEach(k=>SEC[k].cp(src,d)));
-      const r=await pushTo(ids,fn,ttl,(i,n)=>b.textContent=`جاري النسخ ${ar(i)} / ${ar(n)}...`);
+      const r=await copyTo(ids,fn,ttl,(i,n)=>b.textContent=`جاري النسخ ${ar(i)} / ${ar(n)}...`);
       m.remove();
-      toast(`تم النسخ لـ ${ar(r.ok)} عميل${r.created?` (منهم ${ar(r.created)} برنامج جديد كمسودة)`:""}${r.fail?` · فشل ${ar(r.fail)}`:""}`);
+      toast(`تم النسخ لـ ${ar(r.ok)} عميل${r.created?` (منهم ${ar(r.created)} برنامج جديد كمسودة)`:""}${r.fail?` · فشل ${ar(r.fail)}${r.err?" ("+r.err+")":""}`:""}`);
     }catch(e){b.disabled=false;b.textContent=lab;toast("تعذر التنفيذ: "+(e.message||""))}
   };
 }
@@ -582,7 +582,7 @@ function warmup(i){
   const num=/^[\d.٠-٩٫]+$/;
   let h=`<div class="card wu"><div class="lbl" style="color:var(--or)">الإحماء والتسخين</div><div class="wus">جهّز عضلاتك قبل التمرين الأساسي</div>`;
   h+=a.map((e,j)=>{
-    const k="w_"+(e.id||j),m=[e.sets?`${ar(e.sets)} مجموعات`:"",e.reps?`${ar(e.reps)} عدة`:"",e.w?(num.test(e.w)?`${fmtW(e.w)} كجم`:esc(e.w)):""].filter(Boolean);
+    const k=("w_"+(e.id||j)).replace(/[^\w-]/g,""),m=[e.sets?`${ar(e.sets)} مجموعات`:"",e.reps?`${ar(e.reps)} عدة`:"",e.w?(num.test(e.w)?`${fmtW(e.w)} كجم`:esc(e.w)):""].filter(Boolean);
     return `<div class="wur ${u[k]?"done":""}" id="u-${k}">${e.url||e.img?`<div class="wuv">${vid(e.url,e.n,"sm",e.img)}</div>`:""}<div class="wub"><h3>${esc(e.n)}</h3><div class="wuc">${m.map(x=>`<i>${x}</i>`).join("")}</div>${ed(`editWu(${i},${j})`)}</div><button type="button" class="wuk" onclick="tgu('${k}')" aria-label="تم">${u[k]?"✓":""}</button></div>`}).join("");
   if(!a.length)h+=`<div class="wue">لسه مفيش تمارين إحماء في هذه الجلسة</div>`;
   return h+addb(`editWu(${i},-1)`,"إضافة تمرين إحماء")+`</div>`;
