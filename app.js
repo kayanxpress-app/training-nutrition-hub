@@ -591,7 +591,7 @@ function tgu(k){const l=L();l.u=l.u||{};const c=$("#u-"+k);if(l.u[k]){delete l.u
 function session(i){
   const s=P.data.sessions[i];if(!s)return train();
   hd(esc(s.t),`الجلسة ${ar(i+1)} / ${ar(P.data.sessions.length)} · ${esc(s.s)}`,true);
-  let h=`<div class="card cardio"><div>${vid(s.cu,s.c,"sm",s.ci)}</div><div><div class="lbl" style="color:var(--or)">تسخين / كارديو · ${ar(s.cm||15)} دقيقة</div><h3>${esc(s.c)||"—"}</h3><p>${esc(s.cw)}</p>${ed(`editCardio(${i})`)}</div></div>${EDIT()?ed(`editSess(${i})`,"تعديل عنوان الجلسة / حذفها"):""}`;
+  let h=`<div class="card cardio"><div>${vid(s.cu,s.c,"sm",s.ci)}</div><div><div class="lbl" style="color:var(--or)">تسخين كارديو / ${ar(s.cm||15)} دقيقة</div><h3>${esc(s.c)||"—"}</h3><p>${esc(s.cw)}</p>${ed(`editCardio(${i})`)}</div></div>${EDIT()?ed(`editSess(${i})`,"تعديل عنوان الجلسة / حذفها"):""}`;
   const R=REPS();
   h+='<div style="height:12px"></div>'+repsCard();
   h+=warmup(i);
