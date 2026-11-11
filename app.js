@@ -327,11 +327,20 @@ function editCardio(i){
   modal("تعديل الكارديو",[{k:"c",l:"الجهاز والمستوى",v:s.c},{k:"cm",l:"مدة الكارديو (دقائق)",type:"number",v:s.cm||15},{k:"cw",l:"التوقيت (قبل / بعد التمرين)",v:s.cw},{k:"cu",l:"لينك الفيديو",v:s.cu,dir:"ltr"},{k:"ci",l:"صورة",type:"img",v:s.ci}],
     async v=>{Object.assign(s,{c:v.c.trim(),cm:+v.cm||15,cw:v.cw.trim(),cu:v.cu.trim(),ci:v.ci});return savePD()});
 }
+function editWu(i,j){
+  const s=P.data.sessions[i];s.wu=s.wu||[];
+  const e=j<0?{n:"",sets:"",reps:"",w:"",url:"",img:""}:s.wu[j];
+  modal(j<0?"إضافة تمرين إحماء":"تعديل تمرين الإحماء",[{k:"n",l:"اسم التمرين",v:e.n},{k:"sets",l:"عدد المجموعات",type:"number",v:e.sets},{k:"reps",l:"العدات / التكرارات (مثال: 15 أو 12-15)",v:e.reps,dir:"ltr"},{k:"w",l:"الوزن (كجم) — أو اكتب: وزن الجسم",v:e.w},{k:"url",l:"لينك فيديو يوتيوب (اختياري)",v:e.url,dir:"ltr"},{k:"img",l:"صورة (اختياري)",type:"img",v:e.img}],
+    async v=>{if(!v.n.trim()){toast("اكتب اسم التمرين");return false}
+      const o={id:e.id||nid(),n:v.n.trim(),sets:+v.sets||0,reps:String(v.reps||"").trim(),w:String(v.w||"").trim(),url:String(v.url||"").trim(),img:v.img};
+      if(j<0)s.wu.push(o);else s.wu[j]=o;return savePD()},
+    j<0?null:async()=>{s.wu.splice(j,1);await savePD()});
+}
 function editSess(i){
   const s=i<0?{t:"",s:""}:P.data.sessions[i];
   modal(i<0?"إضافة جلسة":"تعديل الجلسة",[{k:"t",l:"عنوان الجلسة",v:s.t},{k:"s",l:"العضلات المستهدفة",v:s.s}],
     async v=>{if(!v.t.trim()){toast("اكتب العنوان");return false}
-      if(i<0)P.data.sessions.push({id:nid(),t:v.t.trim(),s:v.s.trim(),c:"",cw:"بعد التمرين",cu:"",ci:"",ex:[],ab:null});else Object.assign(s,{t:v.t.trim(),s:v.s.trim()});
+      if(i<0)P.data.sessions.push({id:nid(),t:v.t.trim(),s:v.s.trim(),c:"",cw:"بعد التمرين",cu:"",ci:"",ex:[],wu:[],ab:null});else Object.assign(s,{t:v.t.trim(),s:v.s.trim()});
       return savePD()},
     i<0?null:async()=>{const sx=P.data.sessions[i],dead=sx?(sx.id?["se:"+sx.id]:[]).concat((sx.ex||[]).filter(e=>e.id).map(e=>"ex:"+e.id)):[];P.data.sessions.splice(i,1);location.hash="train";if(await savePD()!==false)qPurge(dead)});
 }
@@ -567,12 +576,25 @@ function train(){
   h+=`<div class="card"><div class="lbl" style="color:var(--or)">طريقة الاستخدام</div><ul class="how"><li>الضغط على صورة أي <b>فيديو</b> يفتح شرح التمرين.</li><li>كتابة الوزن المرفوع (كجم) في كل مجموعة، ويتم حفظه تلقائيًا.</li><li>زرار «تم» بعد كل تمرين لمتابعة التقدم.</li><li>الكارديو: ١٥ دقيقة بالمستوى المذكور.</li></ul></div>`;
   $("#app").innerHTML=h;
 }
+function warmup(i){
+  const s=P.data.sessions[i],a=s.wu||[],u=L().u||{};
+  if(!a.length&&!EDIT())return "";
+  const num=/^[\d.٠-٩٫]+$/;
+  let h=`<div class="card wu"><div class="lbl" style="color:var(--or)">الإحماء والتسخين</div><div class="wus">جهّز عضلاتك قبل التمرين الأساسي</div>`;
+  h+=a.map((e,j)=>{
+    const k="w_"+(e.id||j),m=[e.sets?`${ar(e.sets)} مجموعات`:"",e.reps?`${ar(e.reps)} عدة`:"",e.w?(num.test(e.w)?`${fmtW(e.w)} كجم`:esc(e.w)):""].filter(Boolean);
+    return `<div class="wur ${u[k]?"done":""}" id="u-${k}">${e.url||e.img?`<div class="wuv">${vid(e.url,e.n,"sm",e.img)}</div>`:""}<div class="wub"><h3>${esc(e.n)}</h3><div class="wuc">${m.map(x=>`<i>${x}</i>`).join("")}</div>${ed(`editWu(${i},${j})`)}</div><button type="button" class="wuk" onclick="tgu('${k}')" aria-label="تم">${u[k]?"✓":""}</button></div>`}).join("");
+  if(!a.length)h+=`<div class="wue">لسه مفيش تمارين إحماء في هذه الجلسة</div>`;
+  return h+addb(`editWu(${i},-1)`,"إضافة تمرين إحماء")+`</div>`;
+}
+function tgu(k){const l=L();l.u=l.u||{};const c=$("#u-"+k);if(l.u[k]){delete l.u[k];c.classList.remove("done");c.querySelector(".wuk").textContent=""}else{l.u[k]=1;c.classList.add("done");c.querySelector(".wuk").textContent="✓"}save()}
 function session(i){
   const s=P.data.sessions[i];if(!s)return train();
   hd(esc(s.t),`الجلسة ${ar(i+1)} / ${ar(P.data.sessions.length)} · ${esc(s.s)}`,true);
   let h=`<div class="card cardio"><div>${vid(s.cu,s.c,"sm",s.ci)}</div><div><div class="lbl" style="color:var(--or)">تسخين / كارديو · ${ar(s.cm||15)} دقيقة</div><h3>${esc(s.c)||"—"}</h3><p>${esc(s.cw)}</p>${ed(`editCardio(${i})`)}</div></div>${EDIT()?ed(`editSess(${i})`,"تعديل عنوان الجلسة / حذفها"):""}`;
   const R=REPS();
   h+='<div style="height:12px"></div>'+repsCard();
+  h+=warmup(i);
   const lg=L();
   s.ex.forEach((e,j)=>{
     const k=`s${i}e${j}`,w=lg.w[k]||[],PW=planW(e,WK()||1),PV=PW&&(WK()||1)>1?planW(e,(WK()||1)-1):null;
