@@ -472,3 +472,6 @@ body.av .qbtn,body.av .mo .qbtn{pointer-events:auto}
   nav a{font-size:10px}
 }
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
+
+/* تحسين بسيط: عنوان البرنامج في كارت الترحيب ما يتكسرش على سطرين */
+.hi span{text-align:end;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:55%}
