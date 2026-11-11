@@ -535,17 +535,17 @@ function home(){
   hd("الرئيسية","Training Nutrition Hub");
   let h=`<div class="card brand"><img src="img/logo.png" alt=""><small>مدربك وأخصائي التغذية</small><h1>الدكتور محمود جمال قطب</h1><div class="en">DR. MAHMOUD GAMAL</div><div class="tg">تخلّص من أمراضك</div></div>`;
   if(EDIT())h+=pubCard();
-  h+=gymCard();
-  h+=pendBanner();
-  h+=pushCard();
+  h+=`<div class="card pg"><div class="sub">${esc(dt.sub||"")}</div><div class="big">${esc(dt.brand||P.title||"")}</div><div class="mem">${[["الاسم",NAME()||"—"],["العمر",inf.age],["الوزن",inf.weight],["الطول",inf.height],["البداية",inf.start],["النهاية",inf.end],["المدة",inf.days?ar(inf.days)+" يومًا":""],["التمرين",inf.minutes]].map(x=>`<div><span>${x[0]}</span><b>${esc(x[1])||"—"}</b></div>`).join("")}</div>${ed("editInfo()","تعديل بيانات العميل والبرنامج")}</div>`;
   const dn=dayNo(),T=inf.days||30;
   h+=`<div class="card"><div class="hi"><b>أهلاً ${esc(NAME())}</b><span style="color:var(--mut);font-size:13px">${esc(P.title||"")}</span></div><div style="margin-top:8px;font-weight:700">${dn?`اليوم ${ar(dn)} من ${ar(T)}`:"البرنامج لسه ما بدأش"}</div><div class="bar"><i style="width:${dn/T*100}%"></i></div></div>`;
   if(PROGS.length>1)h+=`<select onchange="setProg(this.value)">${PROGS.map((p,i)=>`<option value="${i}" ${i==PI?"selected":""}>${esc(p.title||p.month_start)}${EDIT()&&!p.published?" (مسودة)":""}</option>`).join("")}</select>`;
+  h+=gymCard();
+  h+=pendBanner();
+  h+=pushCard();
   h+=`<a class="card sec" href="#train"><div class="no">٠١</div><div><h3>التدريب${qBadgeT(qTopics(dt,"ex").concat(qTopics(dt,"se")))}</h3><p>${ar(dt.sessions.length)} جلسات · ${ar(n)} تمرين بفيديوهات الشرح</p></div><div class="go">‹</div></a>`;
   h+=`<a class="card sec" href="#food"><div class="no">٠٢</div><div><h3>التغذية${qBadgeT(qTopics(dt,"ml"))}</h3><p>خطة الوجبات والتبادلات الغذائية</p></div><div class="go">‹</div></a>`;
   h+=`<a class="card sec" href="#supp"><div class="no">٠٣</div><div><h3>التوصيات والمكملات الغذائية${qBadgeT(qTopics(dt,"sp"))}</h3><p>${ar(dt.supp.length)} توصيات</p></div><div class="go">‹</div></a>`;
   h+=measCard();
-  h+=`<div class="card pg"><div class="sub">${esc(dt.sub||"")}</div><div class="big">${esc(dt.brand||P.title||"")}</div><div class="mem">${[["الاسم",NAME()||"—"],["العمر",inf.age],["الوزن",inf.weight],["الطول",inf.height],["البداية",inf.start],["النهاية",inf.end],["المدة",inf.days?ar(inf.days)+" يومًا":""],["التمرين",inf.minutes]].map(x=>`<div><span>${x[0]}</span><b>${esc(x[1])||"—"}</b></div>`).join("")}</div>${ed("editInfo()","تعديل بيانات العميل والبرنامج")}</div>`;
   if(EDIT()){
     h+=cheerCard();
     const days=Object.keys(LOGS).sort().reverse().slice(0,7);
