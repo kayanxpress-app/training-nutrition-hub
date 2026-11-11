@@ -475,3 +475,27 @@ body.av .qbtn,body.av .mo .qbtn{pointer-events:auto}
 
 /* تحسين بسيط: عنوان البرنامج في كارت الترحيب ما يتكسرش على سطرين */
 .hi span{text-align:end;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:55%}
+
+/* ---------- الإحماء والتسخين (داخل كل جلسة) ---------- */
+.wu{position:relative;overflow:hidden;background:linear-gradient(135deg,rgba(238,132,52,.10),var(--card) 55%)}
+.wu::before{content:"";position:absolute;inset-inline-start:0;top:0;bottom:0;width:5px;background:linear-gradient(180deg,#f9b673,var(--or))}
+.wus{font-size:12.5px;color:var(--mut);font-weight:600;margin:2px 0 6px}
+.wur{display:flex;align-items:center;gap:12px;padding:12px 0;border-top:1px solid var(--line)}
+.wur:first-of-type{border-top:0}
+.wuv{flex:none;width:34%}
+.wuv .v{border-radius:14px}
+.wuv .v::before{width:36px;height:36px;box-shadow:0 0 0 5px rgba(255,255,255,.08)}
+.wuv .v::after{border-width:7px 0 7px 11px}
+.wuv .v span{display:none}
+.wub{flex:1;min-width:0}
+.wub h3{margin:0;font-size:16px;font-weight:800;line-height:1.4}
+.wuc{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.wuc i{font-style:normal;font-size:12.5px;font-weight:700;background:var(--chip2);border-radius:99px;padding:2px 11px}
+.wuc i:last-child{background:rgba(238,132,52,.16);color:#a9500e}
+.wuk{flex:none;width:44px;height:44px;border-radius:50%;border:2px solid var(--or);background:transparent;color:#fff;font:inherit;font-size:20px;font-weight:800;cursor:pointer;display:grid;place-items:center;transition:transform .15s var(--fs),background .2s}
+.wuk:active{transform:scale(.92)}
+.wur.done .wuk{background:var(--ok);border-color:var(--ok);box-shadow:0 8px 16px -8px rgba(47,174,111,.9)}
+.wur.done .wub h3{opacity:.6}
+.wue{color:var(--mut);font-size:13.5px;text-align:center;padding:14px 4px}
+.wu .addb{margin:6px 0 0}
+body.av .wuk{pointer-events:none}
