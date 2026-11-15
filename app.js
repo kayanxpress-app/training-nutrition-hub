@@ -810,6 +810,7 @@ const PAY_MSG="فضلاً سداد رسوم البرنامج وإرفاق إيص
 const PP=()=>{const pub=PROGS.filter(p=>p.published);if(!pub.length)return null;const i=pub.findIndex(p=>p.month_start<=TODAY);return i<0?pub[pub.length-1]:pub[i]};
 const curOf=(progs,cid)=>{const pub=progs.filter(p=>p.client_id===cid&&p.published);if(!pub.length)return null;const i=pub.findIndex(p=>p.month_start<=TODAY);return i<0?pub[pub.length-1]:pub[i]};
 const payPer=p=>{try{return "شهر "+new Date(p.month_start+"T00:00:00").toLocaleDateString("ar-EG",{month:"long",year:"numeric"})}catch(e){return dmy(p.month_start)}};
+const payDate=d=>{try{return ar(new Date(d).toLocaleDateString("ar-EG",{day:"numeric",month:"long",year:"numeric"}))}catch(e){return dmy(String(d).slice(0,10))}};
 const paidNow=()=>{const p=PP();return !!p&&RECS.some(r=>r.program_id===p.id)};
 const payReqNow=()=>{const p=PP();return p?PREQS.find(r=>r.status==="pending"&&r.program_id===p.id)||null:null};
 async function loadPay(cid,soft){
@@ -855,7 +856,7 @@ function payPage(){
   if(EDIT()){
     h+=paySlide("payreq","📣","إرسال إشعار سداد للعملاء","اكتب القيمة · اختر العملاء · تذكير المتأخرين");
     const pr=PREQS.filter(r=>r.status==="pending"&&r.program_id===p.id);
-    if(pr.length)h+=`<div class="card"><b>طلب سداد منتظر</b>${pr.map(r=>`<div class="act"><span>${ar(esc(r.amount))} · ${dmy(String(r.created_at).slice(0,10))}${r.remind_count?` · ${ar(r.remind_count)} تذكير`:""}</span><button class="mb" onclick="payCancel('${r.id}')">إلغاء الطلب</button></div>`).join("")}</div>`;
+    if(pr.length)h+=`<div class="card"><b>طلب سداد منتظر</b>${pr.map(r=>`<div class="act"><span>${ar(esc(r.amount))} · ${payDate(r.created_at)}${r.remind_count?` · ${ar(r.remind_count)} تذكير`:""}</span><button class="mb" onclick="payCancel('${r.id}')">إلغاء الطلب</button></div>`).join("")}</div>`;
   }
   A.innerHTML=h;
 }
@@ -926,7 +927,7 @@ async function uplRec(file){
 }
 function recRow(r){
   const pdf=/\.pdf$/i.test(r.file_path),u=RURL[r.file_path];
-  return `<div class="mrow"><a class="mth" href="#" onclick="openRec('${r.file_path}');return false">${pdf?"<span>PDF</span>":(u?`<img src="${esc(u)}" alt="">`:"<span>صورة</span>")}</a><div style="flex:1;min-width:0"><div><b>${dmy(String(r.created_at).slice(0,10))}</b></div><div class="mn2">${esc(r.file_name||(pdf?"ملف PDF":"صورة الإيصال"))}</div></div><button class="mb" onclick="payDel('${r.id}')">حذف</button></div>`;
+  return `<div class="mrow"><a class="mth" href="#" onclick="openRec('${r.file_path}');return false">${pdf?"<span>PDF</span>":(u?`<img src="${esc(u)}" alt="">`:"<span>صورة</span>")}</a><div style="flex:1;min-width:0"><div><b>${payDate(r.created_at)}</b></div><div class="mn2">${esc(r.file_name||(pdf?"ملف PDF":"صورة الإيصال"))}</div></div><button class="mb" onclick="payDel('${r.id}')">حذف</button></div>`;
 }
 function payRec(){
   hd("إيصال السداد",EDIT()?"إيصالات العميل":"ارفع إيصال التحويل","pay");
