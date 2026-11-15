@@ -827,10 +827,17 @@ const paidNow=()=>{const p=PP();return !!p&&RECS.some(r=>r.program_id===p.id)};
 const payReqNow=()=>{const p=PP();return p?PREQS.find(r=>r.status==="pending"&&r.program_id===p.id)||null:null};
 async function loadPay(cid,soft){
   try{
-    const [a,b,c]=await Promise.all([
+    const recQ=()=>sb.from("payment_receipts").select("*").eq("client_id",cid).order("created_at",{ascending:false});
+    const [a,b0,c]=await Promise.all([
       sb.from("payment_settings").select("data").eq("id",1).maybeSingle(),
-      sb.from("payment_receipts").select("*").eq("client_id",cid).order("created_at",{ascending:false}),
+      ADMIN?recQ():sb.rpc("my_paid_programs"),
       sb.from("payment_requests").select("*").eq("client_id",cid).order("created_at",{ascending:false}).limit(30)]);
+    let b=b0;
+    // العميل: مبيقراش الإيصالات نفسها، بس بيعرف أنهي برنامج اتدفع (من غير تواريخ ولا ملفات ولا عدد). لو الدالة لسه مش متفعلة (payments.sql) نرجع للطريقة القديمة.
+    if(!ADMIN){
+      if(b0.error)b=await recQ();
+      else b={data:(b0.data||[]).map(x=>({id:"p"+x.program_id,client_id:cid,program_id:x.program_id})),error:null};
+    }
     const bad=a.error||b.error||c.error;
     if(soft&&bad)return;
     POK=!bad;
@@ -845,7 +852,7 @@ function payBtn(){
   if(!POK)return EDIT()?`<div class="card" style="text-align:center"><b>💳 سداد رسوم البرنامج</b><p style="color:var(--mut);margin:4px 0 0;font-size:13px">محتاجة تفعيل: شغّل supabase/payments.sql مرة واحدة</p></div>`:"";
   const p=PP();if(!p&&!EDIT())return"";
   const paid=paidNow(),rq=payReqNow();
-  const sub=!p?"انشر البرنامج أولًا":paid?"✓ تم السداد · الإيصال مرفق":rq?`المطلوب: ${ar(esc(rq.amount))}`:"بيانات التحويل · إرفاق الإيصال";
+  const sub=!p?"انشر البرنامج أولًا":paid?(EDIT()?"✓ تم السداد · الإيصال مرفق":"✓ تم السداد"):rq?`المطلوب: ${ar(esc(rq.amount))}`:"بيانات التحويل · إرفاق الإيصال";
   return `<a class="paybtn ${paid?"ok":"due"}" href="#pay"><span class="pbi">${PAYICON}</span><span class="pbt"><b>سداد رسوم البرنامج</b><small>${sub}</small></span><span class="pbg">‹</span></a>`;
 }
 /* بانر الإشعار عند العميل */
@@ -862,9 +869,9 @@ function payPage(){
   const p=PP();
   if(!p){A.innerHTML=`<div class="card" style="text-align:center"><b>لا يوجد برنامج منشور</b><p style="color:var(--mut)">${EDIT()?"انشر برنامج العميل أولًا ليظهر السداد.":"هيظهر هنا فور ما الدكتور ينشر برنامجك."}</p></div>`;return}
   const paid=paidNow(),rq=payReqNow(),rc=RECS.filter(r=>r.program_id===p.id);
-  let h=`<div class="card payst ${paid?"ok":"due"}"><div class="psi">${paid?"✓":"!"}</div><div><b>${paid?"تم السداد":"لم يتم السداد بعد"}</b><p>${paid?`الإيصال مرفق عن ${payPer(p)}`:rq?`المطلوب: <b>${ar(esc(rq.amount))}</b>${rq.message?" — "+esc(rq.message):""}`:"حوّل الرسوم من بيانات التحويل، ثم ارفع صورة الإيصال."}</p></div></div>`;
+  let h=`<div class="card payst ${paid?"ok":"due"}"><div class="psi">${paid?"✓":"!"}</div><div><b>${paid?"تم السداد":"لم يتم السداد بعد"}</b><p>${paid?(EDIT()?`الإيصال مرفق عن ${payPer(p)}`:`تم رفع الإيصال للقسم المختص · ${payPer(p)}`):rq?`المطلوب: <b>${ar(esc(rq.amount))}</b>${rq.message?" — "+esc(rq.message):""}`:"حوّل الرسوم من بيانات التحويل، ثم ارفع صورة الإيصال."}</p></div></div>`;
   h+=paySlide("paybank","🏦","بيانات التحويل البنكي والمحافظ الإلكترونية","الحساب البنكي · IBAN · إنستا باي · فودافون كاش");
-  h+=paySlide("payrec","🧾","إرفاق إيصال السداد",rc.length?`${ar(rc.length)} إيصال مرفق`:"صورة أو PDF للإيصال");
+  h+=paySlide("payrec","🧾","إرفاق إيصال السداد",EDIT()?(rc.length?`${ar(rc.length)} إيصال مرفق`:"صورة أو PDF للإيصال"):(paid?"✓ تم الرفع للقسم المختص":"صورة أو PDF للإيصال"));
   if(EDIT()){
     h+=paySlide("payreq","📣","إرسال إشعار سداد للعملاء","اكتب القيمة · اختر العملاء · تذكير المتأخرين");
     const pr=PREQS.filter(r=>r.status==="pending"&&r.program_id===p.id);
@@ -944,7 +951,7 @@ function recRow(r){
 function payRec(){
   hd("إيصال السداد",EDIT()?"إيصالات العميل":"ارفع إيصال التحويل","pay");
   payRecRender();
-  signRec().then(ok=>{if(ok&&location.hash==="#payrec")payRecRender()});
+  if(EDIT())signRec().then(ok=>{if(ok&&location.hash==="#payrec")payRecRender()});
 }
 function payRecRender(){
   const A=$("#app");
@@ -952,8 +959,9 @@ function payRecRender(){
   const p=PP();
   if(!p){A.innerHTML=`<div class="card" style="text-align:center"><b>لا يوجد برنامج منشور</b></div>`;return}
   const paid=paidNow(),cur=RECS.filter(r=>r.program_id===p.id),old=RECS.filter(r=>r.program_id!==p.id);
-  let h=`<div class="card payst ${paid?"ok":"due"}"><div class="psi">${paid?"✓":"!"}</div><div><b>${paid?"تم السداد":"لم يتم السداد بعد"}</b><p>${paid?"الإيصال محفوظ في حسابك":"ارفع صورة أو PDF للإيصال بعد التحويل"} · ${payPer(p)}</p></div></div>`;
-  h+=`<button class="btn" onclick="payUp()">+ ${EDIT()?"إرفاق إيصال للعميل":"إرفاق إيصال السداد"}</button><p class="payhint">يتحفظ الإيصال كمستند في حسابك عن هذا الشهر.</p>`;
+  let h=`<div class="card payst ${paid?"ok":"due"}"><div class="psi">${paid?"✓":"!"}</div><div><b>${paid?"تم السداد":"لم يتم السداد بعد"}</b><p>${paid?(EDIT()?"الإيصال محفوظ في حسابه":"تم رفع الإيصال للقسم المختص"):"ارفع صورة أو PDF للإيصال بعد التحويل"} · ${payPer(p)}</p></div></div>`;
+  h+=`<button class="btn" onclick="payUp()">+ ${EDIT()?"إرفاق إيصال للعميل":(paid?"رفع إيصال إضافي":"إرفاق إيصال السداد")}</button><p class="payhint">${EDIT()?"الإيصالات ظاهرة لك فقط، والعميل بيشوف بس «تم السداد».":"هيوصل الإيصال للقسم المختص لمراجعته."}</p>`;
+  if(!EDIT()){A.innerHTML=h;return}
   if(cur.length)h+=`<h2>إيصالات هذا الشهر</h2><div class="card" style="padding:4px 14px">${cur.map(recRow).join("")}</div>`;
   if(old.length){
     const by={};old.forEach(r=>{(by[r.program_id]=by[r.program_id]||[]).push(r)});
@@ -975,7 +983,7 @@ function payUp(){
       const {error}=await sb.from("payment_receipts").insert({client_id:CID(),program_id:p.id,file_path:path,file_name:(f.name||"").slice(0,120)||null});
       if(error)throw error;
       if(!ADMIN)pushAdmin("pay");
-      await loadPay(CID());route();setTimeout(()=>toast("تم رفع الإيصال ✓"),60);
+      await loadPay(CID());route();setTimeout(()=>toast(ADMIN?"تم رفع الإيصال ✓":"تم رفع الإيصال للقسم المختص ✓"),60);
     }catch(e){if(path)sb.storage.from("receipts").remove([path]);toast("تعذر رفع الإيصال، حاول مرة أخرى")}
   };
   i.click();
@@ -1179,7 +1187,7 @@ function liveRender(){
   if(!P){route();return}
   if(r==="pay"){if(PAYCHG){payPage();window.scrollTo(0,y)}return}
   if(r==="paybank"){if(PAYCHG){payBank();window.scrollTo(0,y)}return}
-  if(r==="payrec"){if(!PAYCHG)return;payRecRender();signRec().then(ok=>{if(ok&&location.hash==="#payrec")payRecRender()});window.scrollTo(0,y);return}
+  if(r==="payrec"){if(!PAYCHG)return;payRecRender();if(EDIT())signRec().then(ok=>{if(ok&&location.hash==="#payrec")payRecRender()});window.scrollTo(0,y);return}
   if(r==="payreq")return;   // صفحة إرسال الإشعارات ليها بياناتها وحالتها (اختيارات/كتابة) فمنلمسهاش في التحديث التلقائي
   if(m)session(+m[1]-1);else if(r==="train")train();else if(r==="food")food();else if(r==="supp")supp();else if(r==="notes")notes();else home();
   window.scrollTo(0,y);
