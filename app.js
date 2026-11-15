@@ -983,7 +983,7 @@ async function loadPayAll(){
     sb.from("programs").select("id,client_id,title,month_start,published").gte("month_start",since).order("month_start",{ascending:false}),
     sb.from("payment_requests").select("*").eq("status","pending")]);
   if(a.error||b.error||d.error)throw new Error("payments");
-  const progs=b.data||[],cl=(a.data||[]).map(x=>({id:x.id,name:x.full_name||"بدون اسم",cur:curOf(progs,x.id)}));
+  const progs=b.data||[],cl=(a.data||[]).map(x=>({id:x.id,name:x.full_name||"بدون اسم",cur:curOf(progs,x.id),any:progs.some(p=>p.client_id===x.id)}));
   const ids=cl.filter(c=>c.cur).map(c=>c.cur.id);
   let recs=[];
   if(ids.length){const c=await sb.from("payment_receipts").select("client_id,program_id").in("program_id",ids);if(c.error)throw new Error("payments");recs=c.data||[]}
@@ -1022,11 +1022,12 @@ function payReqList(){
   h+=selV.length?`<button class="mb pqall" onclick="pqall()">${allOn?"إلغاء تحديد الكل":"تحديد الكل"} (${ar(selV.length)})</button>`:"";
   h+=vis.length?vis.map(r=>{
     const c=r.c,s=r.s,dis=!ok(r);
-    const chip=s.none?'<i class="stc nn">لا برنامج منشور</i>':s.paid?'<i class="stc ok">✓ سدّد</i>':s.rq?`<i class="stc late">طُلب ${ago(s.rq)}${s.rq.remind_count?" · "+ar(s.rq.remind_count)+" تذكير":""}</i>`:'<i class="stc no">لم يسدد</i>';
+    const chip=s.none?`<i class="stc nn">${c.any?"البرنامج غير منشور":"لا يوجد برنامج"}</i>`:s.paid?'<i class="stc ok">✓ سدّد</i>':s.rq?`<i class="stc late">طُلب ${ago(s.rq)}${s.rq.remind_count?" · "+ar(s.rq.remind_count)+" تذكير":""}</i>`:'<i class="stc no">لم يسدد</i>';
     return `<label class="pqr ${dis?"dis":""}"><input type="checkbox" ${PQ.sel.has(c.id)?"checked":""} ${dis?"disabled":""} onchange="pqt('${c.id}',this.checked)"><span class="pqn">${esc(c.name)}</span>${chip}</label>`;
   }).join(""):`<div class="wue">لا يوجد عملاء في هذه القائمة</div>`;
   const n=PQ.sel.size,rem=n&&[...PQ.sel].every(id=>{const r=rows.find(x=>x.c.id===id);return r&&r.s.rq});
-  h+=`<div class="pqbar"><span>المحدد: <b>${ar(n)}</b></span><button class="btn" id="pqgo" onclick="paySend()" ${n?"":"disabled"}>${rem?"🔔 إرسال تذكير":"إرسال الإشعار"}</button></div>`;
+  const nv=$("nav")&&$("nav").style.display==="none";
+  h+=`<div class="pqsp"></div><div class="pqbar ${nv?"nonav":""}"><span>المحدد: <b>${ar(n)}</b></span><button class="btn" id="pqgo" onclick="paySend()" ${n?"":"disabled"}>${rem?"🔔 إرسال تذكير":"إرسال الإشعار"}</button></div>`;
   el.innerHTML=h;
 }
 function pqf(k){PQ.flt=k;payReqList()}
