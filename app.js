@@ -121,10 +121,15 @@ function badge(){const n=NOTIFS.filter(x=>!x.read).length,b=$("#nb");b.hidden=!n
 function setProg(i){PI=+i;P=PROGS[PI];route()}
 
 /* ===== الأدمن: العملاء ===== */
-async function clients(){
-  SV.clr();VIEW=null;P=null;rtSync();document.body.classList.remove("av");$("nav").style.display="none";
-  $("#hd").innerHTML=`<div class="hd"><div><small>لوحة المدرب</small><h1>عملائي</h1></div><img class="lgo" src="img/logo.png" alt=""></div>`;
-  $("#app").innerHTML='<p class="ld">جاري التحميل...</p>';
+let ADMSCR="list",CLH="";   // الشاشة الحالية للأدمن (قائمة العملاء / إرسال السداد) + آخر HTML اترسم للقائمة
+async function clients(silent){
+  if(silent){if(!ADMIN||VIEW||ADMSCR!=="list")return}
+  else{
+    ADMSCR="list";
+    SV.clr();VIEW=null;P=null;rtSync();document.body.classList.remove("av");$("nav").style.display="none";
+    $("#hd").innerHTML=`<div class="hd"><div><small>لوحة المدرب</small><h1>عملائي</h1></div><img class="lgo" src="img/logo.png" alt=""></div>`;
+    $("#app").innerHTML='<p class="ld">جاري التحميل...</p>';
+  }
   const since=new Date(D.getTime()-14*864e5);
   const [a,b,c,mq,ml,gq,rcq,rqq]=await Promise.all([
     sb.from("profiles").select("id,full_name,phone").eq("role","client").order("full_name"),
@@ -135,6 +140,7 @@ async function clients(){
     sb.from("gym_checkins").select("client_id,created_at").is("left_at",null).gte("created_at",new Date(Date.now()-GYM_H*36e5).toISOString()).order("created_at",{ascending:false}),
     sb.from("payment_receipts").select("client_id,program_id").order("created_at",{ascending:false}).limit(1000),
     sb.from("payment_requests").select("client_id,program_id").eq("status","pending")]);
+  if(silent&&(a.error||b.error||c.error))return;   // فشل مؤقت في الشبكة: سيب القائمة زي ما هي
   const cl=a.data||[],lg=b.data||[],pr=c.data||[];
   cl.forEach(x=>{GNAME[x.id]=x.full_name||""});
   const gmap=new Map();((gq&&gq.data)||[]).forEach(r=>{if(!gmap.has(r.client_id))gmap.set(r.client_id,r.created_at)});
@@ -154,7 +160,12 @@ async function clients(){
     h+=`<div class="card cl"><div style="flex:1;cursor:pointer" onclick="openClient('${x.id}','${esc(x.full_name||"عميل").replace(/'/g,"")}')"><h3>${gmap.has(x.id)?"🏋️ ":""}${esc(x.full_name||"بدون اسم")}</h3><p class="${bad?"no2":"ok"}">${act}</p><p>اليوم: ${ar(cnt)} تمارين · ${ar(mel)} وجبات · ${ar(sup)} مكملات</p>${left!==null?`<p>${left>=0?`باقي ${ar(left)} يوم على نهاية البرنامج`:"البرنامج انتهى"}</p>`:'<p>لا يوجد برنامج</p>'}${ptag}${pq.length?`<p style="color:#d23b5f;font-weight:700">⏳ مطلوب منه: ${pq.map(z=>MK(z.kind)).join(" + ")}</p>`:""}${lm?`<p>آخر قياس: ${dmy(lm.taken_on)}${lm.weight!=null?" · "+fmtW(lm.weight)+" كجم":""}</p>`:""}</div><div style="display:grid;gap:6px"><button class="ed" style="display:inline-block;margin:0" onclick="sendNote('${x.id}')">✉ إشعار</button><button class="ed" style="display:inline-block;margin:0" onclick="setPass('${x.id}')">كلمة المرور</button></div></div>`;
   });
   h+=`<button class="btn o" onclick="remindNow()">🔔 التذكيرات التلقائية (معاينة / إرسال)</button><button class="btn o" onclick="out()">تسجيل الخروج</button>`;
-  $("#app").innerHTML=h;
+  if(silent){
+    // تحديث هادي: لو أدمن فتح عميل/صفحة تانية أو بيكتب أثناء الجلب، أو مفيش أي تغيير: منلمسش الشاشة (من غير تحميل ولا قفزة)
+    if(!ADMIN||VIEW||ADMSCR!=="list"||busyUI()||h===CLH)return;
+    const y=window.scrollY;$("#app").innerHTML=h;CLH=h;window.scrollTo(0,y);return;
+  }
+  $("#app").innerHTML=h;CLH=h;
 }
 async function openClient(id,name,keep){
   VIEW={id,name};SV.set({id,name});$("#app").innerHTML='<p class="ld">جاري التحميل...</p>';
@@ -804,13 +815,14 @@ async function cancelReq(id){
   await loadMeas(CID());route();
 }
 /* ===== سداد رسوم البرنامج ===== */
-let PAYS={},RECS=[],PREQS=[],POK=true,RURL={},PQD=null,PQ={amt:"",msg:"",sel:new Set(),flt:"unpaid",q:""};
+let PAYS={},RECS=[],PREQS=[],POK=true,RURL={},PAYCHG=false,PQD=null,PQ={amt:"",msg:"",sel:new Set(),flt:"unpaid",q:""};
 const PAY_MSG="فضلاً سداد رسوم البرنامج وإرفاق إيصال العملية في المكان المخصص";
 /* البرنامج الحالي المنشور (نفس قاعدة ما يشوفه العميل): الإيصال والسداد مربوطين بيه، فأول ما يبدأ برنامج جديد يرجع «لم يسدد» */
 const PP=()=>{const pub=PROGS.filter(p=>p.published);if(!pub.length)return null;const i=pub.findIndex(p=>p.month_start<=TODAY);return i<0?pub[pub.length-1]:pub[i]};
 const curOf=(progs,cid)=>{const pub=progs.filter(p=>p.client_id===cid&&p.published);if(!pub.length)return null;const i=pub.findIndex(p=>p.month_start<=TODAY);return i<0?pub[pub.length-1]:pub[i]};
 const payPer=p=>{try{return "شهر "+new Date(p.month_start+"T00:00:00").toLocaleDateString("ar-EG",{month:"long",year:"numeric"})}catch(e){return dmy(p.month_start)}};
 const payDate=d=>{try{return ar(new Date(d).toLocaleDateString("ar-EG",{day:"numeric",month:"long",year:"numeric"}))}catch(e){return dmy(String(d).slice(0,10))}};
+const psig=()=>JSON.stringify([PAYS,RECS.map(x=>x.id),PREQS.map(x=>x.id+x.status+(x.remind_count||0)+x.amount),POK]);
 const paidNow=()=>{const p=PP();return !!p&&RECS.some(r=>r.program_id===p.id)};
 const payReqNow=()=>{const p=PP();return p?PREQS.find(r=>r.status==="pending"&&r.program_id===p.id)||null:null};
 async function loadPay(cid,soft){
@@ -995,6 +1007,7 @@ function pst(c){
 }
 async function payReq(list){
   if(!ADMIN)return;
+  if(list)ADMSCR="payreq";
   if(list)$("#hd").innerHTML=`<div class="hd"><button class="back" onclick="clients()">›</button><div><small>لوحة المدرب</small><h1>إشعار سداد الرسوم</h1></div><img class="lgo" src="img/logo.png" alt=""></div>`;
   else hd("إرسال إشعار سداد","للعملاء","pay");
   const A=$("#app");A.innerHTML='<p class="ld">جاري التحميل...</p>';
@@ -1164,9 +1177,9 @@ function liveRender(){
   const y=window.scrollY,r=location.hash.slice(1)||"home",m=/^s([1-9]\d?)$/.exec(r);
   if(r==="body"){measRender();signMeas().then(ok=>{if(ok&&location.hash==="#body")measRender()});return}
   if(!P){route();return}
-  if(r==="pay"){payPage();window.scrollTo(0,y);return}
-  if(r==="paybank"){payBank();window.scrollTo(0,y);return}
-  if(r==="payrec"){payRecRender();signRec().then(ok=>{if(ok&&location.hash==="#payrec")payRecRender()});window.scrollTo(0,y);return}
+  if(r==="pay"){if(PAYCHG){payPage();window.scrollTo(0,y)}return}
+  if(r==="paybank"){if(PAYCHG){payBank();window.scrollTo(0,y)}return}
+  if(r==="payrec"){if(!PAYCHG)return;payRecRender();signRec().then(ok=>{if(ok&&location.hash==="#payrec")payRecRender()});window.scrollTo(0,y);return}
   if(r==="payreq")return;   // صفحة إرسال الإشعارات ليها بياناتها وحالتها (اختيارات/كتابة) فمنلمسهاش في التحديث التلقائي
   if(m)session(+m[1]-1);else if(r==="train")train();else if(r==="food")food();else if(r==="supp")supp();else if(r==="notes")notes();else home();
   window.scrollTo(0,y);
@@ -1183,7 +1196,7 @@ async function liveRefresh(force){
   try{
     const cid=CID(),adm=EDIT(),t0=Date.now();
     const sig=()=>JSON.stringify([NOTIFS.map(x=>x.id+(x.read?1:0)),REQS.map(x=>x.id+x.status),MEAS.map(x=>x.id),RECS.map(x=>x.id),PREQS.map(x=>x.id+x.status+(x.remind_count||0)),PROGS,adm?LOGS:0]);
-    const before=sig(),known=new Set(NOTIFS.map(x=>x.id));
+    const before=sig(),pb=psig(),known=new Set(NOTIFS.map(x=>x.id));
     const m0=MEAS,r0=REQS,ok0=MOK,pw0=[PAYS,RECS,PREQS,POK];
     const q=[
       sb.from("notifications").select("*").eq("client_id",cid).order("created_at",{ascending:false}).limit(30),
@@ -1207,6 +1220,7 @@ async function liveRefresh(force){
     }
     if(lg&&!lg.error&&lg.data){const nl={};lg.data.forEach(r=>nl[r.log_date]=r.data);if(JSON.stringify(nl)!==JSON.stringify(LOGS))LOGS=nl}
     badge();
+    PAYCHG=psig()!==pb;
     if(sig()!==before){
       liveRender();
       const nw=NOTIFS.find(x=>!x.read&&!known.has(x.id));
@@ -1222,8 +1236,9 @@ async function liveRefresh(force){
 let LIST_T=0;
 function listRefresh(){
   if(!ADMIN||VIEW||document.hidden||busyUI())return;
+  if(ADMSCR!=="list")return;
   const t=Date.now();if(t-LIST_T<5000)return;LIST_T=t;
-  clients();
+  clients(true);
 }
 /* ===== Supabase Realtime: السيرفر نفسه بيبعت التغيير فورًا (من غير ما نعتمد على إشعار الموبايل) ===== */
 let RT=null,RT_KEY="";
