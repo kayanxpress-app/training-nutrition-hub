@@ -824,7 +824,7 @@ async function loadPay(cid,soft){
     POK=!bad;
     PAYS=POK&&a.data&&a.data.data?a.data.data:{};RECS=POK?(b.data||[]):[];PREQS=POK?(c.data||[]):[];
   }catch(e){if(soft)return;POK=false;PAYS={};RECS=[];PREQS=[]}
-  RURL={};
+  if(!soft)RURL={};
 }
 const PAYICON='<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="5" width="19" height="14" rx="3"/><path d="M2.5 10h19M6.5 15h4"/></svg>';
 function payNeed(){return `<div class="card" style="text-align:center"><b>الميزة محتاجة تفعيل</b><p style="color:var(--mut)">${EDIT()?"شغّل ملف supabase/payments.sql مرة واحدة في Supabase ← SQL Editor، ثم أعد تحميل الصفحة.":"هتتفعل قريبًا."}</p></div>`}
@@ -1164,6 +1164,10 @@ function liveRender(){
   const y=window.scrollY,r=location.hash.slice(1)||"home",m=/^s([1-9]\d?)$/.exec(r);
   if(r==="body"){measRender();signMeas().then(ok=>{if(ok&&location.hash==="#body")measRender()});return}
   if(!P){route();return}
+  if(r==="pay"){payPage();window.scrollTo(0,y);return}
+  if(r==="paybank"){payBank();window.scrollTo(0,y);return}
+  if(r==="payrec"){payRecRender();signRec().then(ok=>{if(ok&&location.hash==="#payrec")payRecRender()});window.scrollTo(0,y);return}
+  if(r==="payreq")return;   // صفحة إرسال الإشعارات ليها بياناتها وحالتها (اختيارات/كتابة) فمنلمسهاش في التحديث التلقائي
   if(m)session(+m[1]-1);else if(r==="train")train();else if(r==="food")food();else if(r==="supp")supp();else if(r==="notes")notes();else home();
   window.scrollTo(0,y);
 }
