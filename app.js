@@ -99,7 +99,7 @@ async function loadData(cid){
   const [b,c,d]=await Promise.all([
     sb.from("programs").select("*").eq("client_id",cid).order("month_start",{ascending:false}),
     sb.from("logs").select("log_date,data").eq("client_id",cid),
-    sb.from("notifications").select("*").eq("client_id",cid).order("created_at",{ascending:false}).limit(30),loadMeas(cid)]);
+    sb.from("notifications").select("*").eq("client_id",cid).order("created_at",{ascending:false}).limit(30),loadMeas(cid),loadPay(cid)]);
   if(b.error)throw b.error;
   PROGS=b.data||[];LOGS={};(c.data||[]).forEach(r=>LOGS[r.log_date]=r.data);NOTIFS=d.data||[];
   const i=PROGS.findIndex(p=>p.month_start<=TODAY);PI=i<0?PROGS.length-1:i;P=PROGS[PI];
@@ -126,17 +126,19 @@ async function clients(){
   $("#hd").innerHTML=`<div class="hd"><div><small>لوحة المدرب</small><h1>عملائي</h1></div><img class="lgo" src="img/logo.png" alt=""></div>`;
   $("#app").innerHTML='<p class="ld">جاري التحميل...</p>';
   const since=new Date(D.getTime()-14*864e5);
-  const [a,b,c,mq,ml,gq]=await Promise.all([
+  const [a,b,c,mq,ml,gq,rcq,rqq]=await Promise.all([
     sb.from("profiles").select("id,full_name,phone").eq("role","client").order("full_name"),
     sb.from("logs").select("client_id,log_date,data").gte("log_date",iso(since)),
-    sb.from("programs").select("client_id,title,month_start,data").order("month_start",{ascending:false}),
+    sb.from("programs").select("id,published,client_id,title,month_start,data").order("month_start",{ascending:false}),
     sb.from("measure_requests").select("client_id,kind").eq("status","pending"),
     sb.from("measurements").select("client_id,taken_on,weight,created_at").order("created_at",{ascending:false}).limit(300),
-    sb.from("gym_checkins").select("client_id,created_at").is("left_at",null).gte("created_at",new Date(Date.now()-GYM_H*36e5).toISOString()).order("created_at",{ascending:false})]);
+    sb.from("gym_checkins").select("client_id,created_at").is("left_at",null).gte("created_at",new Date(Date.now()-GYM_H*36e5).toISOString()).order("created_at",{ascending:false}),
+    sb.from("payment_receipts").select("client_id,program_id").order("created_at",{ascending:false}).limit(1000),
+    sb.from("payment_requests").select("client_id,program_id").eq("status","pending")]);
   const cl=a.data||[],lg=b.data||[],pr=c.data||[];
   cl.forEach(x=>{GNAME[x.id]=x.full_name||""});
   const gmap=new Map();((gq&&gq.data)||[]).forEach(r=>{if(!gmap.has(r.client_id))gmap.set(r.client_id,r.created_at)});
-  let h=pushCard()+gymSec(gmap,cl)+`<div class="card" style="text-align:center"><b>${ar(cl.length)} عميل</b><p style="margin:2px 0 0;color:var(--mut);font-size:13px">اضغط على العميل لعرض حسابه وتعديل برنامجه</p></div><button class="btn" style="margin-bottom:12px" onclick="addClient()">+ إضافة عميل جديد</button>`;
+  let h=pushCard()+gymSec(gmap,cl)+`<div class="card" style="text-align:center"><b>${ar(cl.length)} عميل</b><p style="margin:2px 0 0;color:var(--mut);font-size:13px">اضغط على العميل لعرض حسابه وتعديل برنامجه</p></div><button class="btn" style="margin-bottom:12px" onclick="addClient()">+ إضافة عميل جديد</button><button class="btn o" style="margin:0 0 12px" onclick="payReq(true)">💳 إرسال إشعار سداد الرسوم / تذكير المتأخرين</button>`;
   cl.forEach(x=>{
     const mine=lg.filter(l=>l.client_id===x.id).sort((p,q)=>q.log_date.localeCompare(p.log_date));
     const last=mine[0],t=mine.find(l=>l.log_date===TODAY);
@@ -146,8 +148,10 @@ async function clients(){
     const bad=days===null||days>=3;
     const p=pr.find(z=>z.client_id===x.id);
     const left=p?Math.round((new Date(p.month_start)-new Date(TODAY))/864e5)+((p.data&&p.data.info&&p.data.info.days)||30)-1:null;
+    const pcur=(()=>{const pl=pr.filter(z=>z.client_id===x.id&&z.published);if(!pl.length)return null;const i=pl.findIndex(z=>z.month_start<=TODAY);return i<0?pl[pl.length-1]:pl[i]})();
+    const ptag=pcur&&rcq&&!rcq.error&&rcq.data?(rcq.data.some(z=>z.client_id===x.id&&z.program_id===pcur.id)?'<p class="ok">💳 سدّد الرسوم</p>':`<p class="no2">💳 لم يسدد${((rqq&&rqq.data)||[]).some(z=>z.client_id===x.id&&z.program_id===pcur.id)?" · تم إرسال طلب":""}</p>`):"";
     const pq=(mq.data||[]).filter(z=>z.client_id===x.id),lm=(ml.data||[]).find(z=>z.client_id===x.id);
-    h+=`<div class="card cl"><div style="flex:1;cursor:pointer" onclick="openClient('${x.id}','${esc(x.full_name||"عميل").replace(/'/g,"")}')"><h3>${gmap.has(x.id)?"🏋️ ":""}${esc(x.full_name||"بدون اسم")}</h3><p class="${bad?"no2":"ok"}">${act}</p><p>اليوم: ${ar(cnt)} تمارين · ${ar(mel)} وجبات · ${ar(sup)} مكملات</p>${left!==null?`<p>${left>=0?`باقي ${ar(left)} يوم على نهاية البرنامج`:"البرنامج انتهى"}</p>`:'<p>لا يوجد برنامج</p>'}${pq.length?`<p style="color:#d23b5f;font-weight:700">⏳ مطلوب منه: ${pq.map(z=>MK(z.kind)).join(" + ")}</p>`:""}${lm?`<p>آخر قياس: ${dmy(lm.taken_on)}${lm.weight!=null?" · "+fmtW(lm.weight)+" كجم":""}</p>`:""}</div><div style="display:grid;gap:6px"><button class="ed" style="display:inline-block;margin:0" onclick="sendNote('${x.id}')">✉ إشعار</button><button class="ed" style="display:inline-block;margin:0" onclick="setPass('${x.id}')">كلمة المرور</button></div></div>`;
+    h+=`<div class="card cl"><div style="flex:1;cursor:pointer" onclick="openClient('${x.id}','${esc(x.full_name||"عميل").replace(/'/g,"")}')"><h3>${gmap.has(x.id)?"🏋️ ":""}${esc(x.full_name||"بدون اسم")}</h3><p class="${bad?"no2":"ok"}">${act}</p><p>اليوم: ${ar(cnt)} تمارين · ${ar(mel)} وجبات · ${ar(sup)} مكملات</p>${left!==null?`<p>${left>=0?`باقي ${ar(left)} يوم على نهاية البرنامج`:"البرنامج انتهى"}</p>`:'<p>لا يوجد برنامج</p>'}${ptag}${pq.length?`<p style="color:#d23b5f;font-weight:700">⏳ مطلوب منه: ${pq.map(z=>MK(z.kind)).join(" + ")}</p>`:""}${lm?`<p>آخر قياس: ${dmy(lm.taken_on)}${lm.weight!=null?" · "+fmtW(lm.weight)+" كجم":""}</p>`:""}</div><div style="display:grid;gap:6px"><button class="ed" style="display:inline-block;margin:0" onclick="sendNote('${x.id}')">✉ إشعار</button><button class="ed" style="display:inline-block;margin:0" onclick="setPass('${x.id}')">كلمة المرور</button></div></div>`;
   });
   h+=`<button class="btn o" onclick="remindNow()">🔔 التذكيرات التلقائية (معاينة / إرسال)</button><button class="btn o" onclick="out()">تسجيل الخروج</button>`;
   $("#app").innerHTML=h;
@@ -544,11 +548,13 @@ function home(){
   hd("الرئيسية","Training Nutrition Hub");
   let h=`<div class="card brand"><img src="img/logo.png" alt=""><small>مدربك وأخصائي التغذية</small><h1>الدكتور محمود جمال قطب</h1><div class="en">DR. MAHMOUD GAMAL</div><div class="tg">تخلّص من أمراضك</div></div>`;
   if(EDIT())h+=pubCard();
+  h+=payBtn();
   h+=`<div class="card pg"><div class="sub">${esc(dt.sub||"")}</div><div class="big">${esc(dt.brand||P.title||"")}</div><div class="mem">${[["الاسم",NAME()||"—"],["العمر",inf.age],["الوزن",inf.weight],["الطول",inf.height],["البداية",inf.start],["النهاية",inf.end],["المدة",inf.days?ar(inf.days)+" يومًا":""],["التمرين",inf.minutes]].map(x=>`<div><span>${x[0]}</span><b>${esc(x[1])||"—"}</b></div>`).join("")}</div>${ed("editInfo()","تعديل بيانات العميل والبرنامج")}</div>`;
   const dn=dayNo(),T=inf.days||30;
   h+=`<div class="card"><div class="hi"><b>أهلاً ${esc(NAME())}</b><span style="color:var(--mut);font-size:13px">${esc(P.title||"")}</span></div><div style="margin-top:8px;font-weight:700">${dn?`اليوم ${ar(dn)} من ${ar(T)}`:"البرنامج لسه ما بدأش"}</div><div class="bar"><i style="width:${dn/T*100}%"></i></div></div>`;
   if(PROGS.length>1)h+=`<select onchange="setProg(this.value)">${PROGS.map((p,i)=>`<option value="${i}" ${i==PI?"selected":""}>${esc(p.title||p.month_start)}${EDIT()&&!p.published?" (مسودة)":""}</option>`).join("")}</select>`;
   h+=gymCard();
+  h+=payBanner();
   h+=pendBanner();
   h+=pushCard();
   h+=`<a class="card sec" href="#train"><div class="no">٠١</div><div><h3>التدريب${qBadgeT(qTopics(dt,"ex").concat(qTopics(dt,"se")))}</h3><p>${ar(dt.sessions.length)} جلسات · ${ar(n)} تمرين بفيديوهات الشرح</p></div><div class="go">‹</div></a>`;
@@ -797,6 +803,271 @@ async function cancelReq(id){
   if(error)return toast("تعذر الإلغاء");
   await loadMeas(CID());route();
 }
+/* ===== سداد رسوم البرنامج ===== */
+let PAYS={},RECS=[],PREQS=[],POK=true,RURL={},PQD=null,PQ={amt:"",msg:"",sel:new Set(),flt:"unpaid",q:""};
+const PAY_MSG="فضلاً سداد رسوم البرنامج وإرفاق إيصال العملية في المكان المخصص";
+/* البرنامج الحالي المنشور (نفس قاعدة ما يشوفه العميل): الإيصال والسداد مربوطين بيه، فأول ما يبدأ برنامج جديد يرجع «لم يسدد» */
+const PP=()=>{const pub=PROGS.filter(p=>p.published);if(!pub.length)return null;const i=pub.findIndex(p=>p.month_start<=TODAY);return i<0?pub[pub.length-1]:pub[i]};
+const curOf=(progs,cid)=>{const pub=progs.filter(p=>p.client_id===cid&&p.published);if(!pub.length)return null;const i=pub.findIndex(p=>p.month_start<=TODAY);return i<0?pub[pub.length-1]:pub[i]};
+const paidNow=()=>{const p=PP();return !!p&&RECS.some(r=>r.program_id===p.id)};
+const payReqNow=()=>{const p=PP();return p?PREQS.find(r=>r.status==="pending"&&r.program_id===p.id)||null:null};
+async function loadPay(cid,soft){
+  try{
+    const [a,b,c]=await Promise.all([
+      sb.from("payment_settings").select("data").eq("id",1).maybeSingle(),
+      sb.from("payment_receipts").select("*").eq("client_id",cid).order("created_at",{ascending:false}),
+      sb.from("payment_requests").select("*").eq("client_id",cid).order("created_at",{ascending:false}).limit(30)]);
+    const bad=a.error||b.error||c.error;
+    if(soft&&bad)return;
+    POK=!bad;
+    PAYS=POK&&a.data&&a.data.data?a.data.data:{};RECS=POK?(b.data||[]):[];PREQS=POK?(c.data||[]):[];
+  }catch(e){if(soft)return;POK=false;PAYS={};RECS=[];PREQS=[]}
+  RURL={};
+}
+const PAYICON='<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="5" width="19" height="14" rx="3"/><path d="M2.5 10h19M6.5 15h4"/></svg>';
+function payNeed(){return `<div class="card" style="text-align:center"><b>الميزة محتاجة تفعيل</b><p style="color:var(--mut)">${EDIT()?"شغّل ملف supabase/payments.sql مرة واحدة في Supabase ← SQL Editor، ثم أعد تحميل الصفحة.":"هتتفعل قريبًا."}</p></div>`}
+/* زر الصفحة الرئيسية */
+function payBtn(){
+  if(!POK)return EDIT()?`<div class="card" style="text-align:center"><b>💳 سداد رسوم البرنامج</b><p style="color:var(--mut);margin:4px 0 0;font-size:13px">محتاجة تفعيل: شغّل supabase/payments.sql مرة واحدة</p></div>`:"";
+  const p=PP();if(!p&&!EDIT())return"";
+  const paid=paidNow(),rq=payReqNow();
+  const sub=!p?"انشر البرنامج أولًا":paid?"✓ تم السداد · الإيصال مرفق":rq?`المطلوب: ${ar(esc(rq.amount))}`:"بيانات التحويل · إرفاق الإيصال";
+  return `<a class="paybtn ${paid?"ok":"due"}" href="#pay"><span class="pbi">${PAYICON}</span><span class="pbt"><b>سداد رسوم البرنامج</b><small>${sub}</small></span><span class="pbg">‹</span></a>`;
+}
+/* بانر الإشعار عند العميل */
+function payBanner(){
+  if(EDIT()||!POK)return"";
+  const rq=payReqNow();if(!rq||paidNow())return"";
+  return `<div class="card rq payb"><b>${rq.remind_count?"🔔 تذكير: ":"💳 "}مطلوب منك: سداد رسوم البرنامج</b><div class="payamt">${ar(esc(rq.amount))}</div>${rq.message?`<p>${esc(rq.message).replace(/\n/g,"<br>")}</p>`:""}<a class="btn" href="#pay">سدّد وأرفق الإيصال</a></div>`;
+}
+function paySlide(h,ic,t,s){return `<a class="card sec" href="#${h}"><div class="no">${ic}</div><div><h3>${t}</h3><p>${s}</p></div><div class="go">‹</div></a>`}
+function payPage(){
+  hd("سداد رسوم البرنامج",EDIT()?"إدارة السداد":"الدفع والإيصال","home");
+  const A=$("#app");
+  if(!POK){A.innerHTML=payNeed();return}
+  const p=PP();
+  if(!p){A.innerHTML=`<div class="card" style="text-align:center"><b>لا يوجد برنامج منشور</b><p style="color:var(--mut)">${EDIT()?"انشر برنامج العميل أولًا ليظهر السداد.":"هيظهر هنا فور ما الدكتور ينشر برنامجك."}</p></div>`;return}
+  const paid=paidNow(),rq=payReqNow(),rc=RECS.filter(r=>r.program_id===p.id);
+  let h=`<div class="card payst ${paid?"ok":"due"}"><div class="psi">${paid?"✓":"!"}</div><div><b>${paid?"تم السداد":"لم يتم السداد بعد"}</b><p>${paid?`الإيصال مرفق عن «${esc(p.title||p.month_start)}»`:rq?`المطلوب: <b>${ar(esc(rq.amount))}</b>${rq.message?" — "+esc(rq.message):""}`:"حوّل الرسوم من بيانات التحويل، ثم ارفع صورة الإيصال."}</p></div></div>`;
+  h+=paySlide("paybank","🏦","بيانات التحويل البنكي والمحافظ الإلكترونية","الحساب البنكي · IBAN · إنستا باي · فودافون كاش");
+  h+=paySlide("payrec","🧾","إرفاق إيصال السداد",rc.length?`${ar(rc.length)} إيصال مرفق`:"صورة أو PDF للإيصال");
+  if(EDIT()){
+    h+=paySlide("payreq","📣","إرسال إشعار سداد للعملاء","اكتب القيمة · اختر العملاء · تذكير المتأخرين");
+    const pr=PREQS.filter(r=>r.status==="pending"&&r.program_id===p.id);
+    if(pr.length)h+=`<div class="card"><b>طلب سداد منتظر</b>${pr.map(r=>`<div class="act"><span>${ar(esc(r.amount))} · ${dmy(String(r.created_at).slice(0,10))}${r.remind_count?` · ${ar(r.remind_count)} تذكير`:""}</span><button class="mb" onclick="payCancel('${r.id}')">إلغاء الطلب</button></div>`).join("")}</div>`;
+  }
+  A.innerHTML=h;
+}
+async function payCancel(id){
+  if(!confirm("إلغاء طلب السداد؟"))return;
+  const {error}=await sb.from("payment_requests").update({status:"cancelled"}).eq("id",id);
+  if(error)return toast("تعذر الإلغاء");
+  await loadPay(CID());route();
+}
+/* ===== بيانات التحويل ===== */
+const cpf=(l,v,ltr)=>`<div class="cpf"><div class="cpl">${l}</div><div class="cpv">${v?`<span ${ltr?'dir="ltr"':""}>${esc(v)}</span><button type="button" class="cpb" data-v="${esc(v)}" onclick="cpy(this)">نسخ</button>`:'<span class="cpe">لم تُضف بعد</span>'}</div></div>`;
+function cpy(b){
+  const v=b.dataset.v||"",ok=()=>{b.textContent="تم ✓";b.classList.add("ok");setTimeout(()=>{b.textContent="نسخ";b.classList.remove("ok")},1600)};
+  const fb=()=>{try{const t=document.createElement("textarea");t.value=v;t.style.cssText="position:fixed;opacity:0;top:0";document.body.appendChild(t);t.select();t.setSelectionRange(0,t.value.length);const r=document.execCommand("copy");t.remove();return r}catch(e){return false}};
+  if(navigator.clipboard&&window.isSecureContext)navigator.clipboard.writeText(v).then(ok,()=>{fb()?ok():toast("تعذر النسخ")});else fb()?ok():toast("تعذر النسخ");
+}
+function payBank(){
+  hd("بيانات التحويل","البنك والمحافظ الإلكترونية","pay");
+  if(!POK){$("#app").innerHTML=payNeed();return}
+  const d=PAYS||{};
+  let h=`<div class="card"><div class="lbl" style="color:var(--or)">التحويل البنكي</div>
+    <div class="cpg"><div class="cpt">البنك</div>${cpf("عربي",d.bank_ar)}${cpf("English",d.bank_en,1)}</div>
+    <div class="cpg"><div class="cpt">اسم صاحب الحساب</div>${cpf("عربي",d.holder_ar)}${cpf("English",d.holder_en,1)}</div>
+    <div class="cpg"><div class="cpt">رقم الحساب البنكي</div>${cpf("رقم الحساب",d.acc,1)}</div>
+    <div class="cpg"><div class="cpt">رقم الآيبان الدولي (IBAN)</div>${cpf("IBAN",d.iban,1)}</div>
+    <div class="cpg"><div class="cpt">رمز السويفت (SWIFT)</div>${cpf("SWIFT Code",d.swift,1)}</div></div>
+    <div class="card"><div class="lbl" style="color:var(--or)">المحافظ الإلكترونية</div>
+    <div class="cpg"><div class="cpt">تحويل عن طريق إنستا باي</div>${cpf("InstaPay",d.instapay,1)}</div>
+    <div class="cpg"><div class="cpt">تحويل محفظة فودافون كاش</div>${cpf("Vodafone Cash",d.voda,1)}</div></div>
+    <p class="payhint">بعد التحويل ارجع وارفع صورة الإيصال من «إرفاق إيصال السداد».</p>
+    <a class="btn" href="#payrec">إرفاق إيصال السداد</a>`;
+  if(EDIT())h+=ed("editBank()","تعديل بيانات التحويل");
+  $("#app").innerHTML=h;
+}
+function editBank(){
+  const d=PAYS||{},T=(k,l,o)=>Object.assign({k,l,v:d[k]||""},o||{});
+  modal("تعديل بيانات التحويل",[T("bank_ar","اسم البنك (عربي)"),T("bank_en","Bank name (English)",{dir:"ltr"}),T("holder_ar","اسم صاحب الحساب (عربي)"),T("holder_en","Account holder name (English)",{dir:"ltr"}),T("acc","رقم الحساب البنكي",{dir:"ltr"}),T("iban","رقم الآيبان الدولي (IBAN)",{dir:"ltr"}),T("swift","رمز السويفت (SWIFT)",{dir:"ltr"}),T("instapay","إنستا باي (رقم أو عنوان الدفع)",{dir:"ltr"}),T("voda","فودافون كاش (رقم المحفظة)",{dir:"ltr"})],
+    async v=>{
+      const o={};Object.keys(v).forEach(k=>o[k]=String(v[k]||"").trim());
+      const {error}=await sb.from("payment_settings").upsert({id:1,data:o,updated_at:new Date().toISOString()},{onConflict:"id"});
+      if(error){toast("تعذر الحفظ");return false}
+      await loadPay(CID());route();setTimeout(()=>toast("تم حفظ بيانات التحويل"),60);return true;
+    });
+}
+/* ===== إيصال السداد ===== */
+async function signRec(){
+  const ps=[...new Set(RECS.map(r=>r.file_path).filter(p=>p&&!/\.pdf$/i.test(p)&&!RURL[p]))];
+  if(!ps.length)return false;
+  try{const {data}=await sb.storage.from("receipts").createSignedUrls(ps,3600);let n=0;(data||[]).forEach(x=>{if(x&&x.signedUrl&&x.path){RURL[x.path]=x.signedUrl;n++}});return n>0}catch(e){return false}
+}
+async function openRec(p){
+  const w=window.open("","_blank");
+  const {data,error}=await sb.storage.from("receipts").createSignedUrl(p,3600);
+  if(error||!data){if(w)w.close();return toast("تعذر فتح الملف")}
+  if(w)w.location.href=data.signedUrl;else location.href=data.signedUrl;
+}
+async function uplRec(file){
+  let blob=file,ext="pdf",ct="application/pdf";
+  if(file.type!=="application/pdf"){
+    const bm=await createImageBitmap(file),sc=Math.min(1,1800/Math.max(bm.width,bm.height));
+    const cv=document.createElement("canvas");cv.width=Math.round(bm.width*sc);cv.height=Math.round(bm.height*sc);
+    cv.getContext("2d").drawImage(bm,0,0,cv.width,cv.height);
+    blob=await new Promise(r=>cv.toBlob(r,"image/jpeg",.86));ext="jpg";ct="image/jpeg";
+  }
+  const path=`${CID()}/${Date.now()}.${ext}`;
+  const {error}=await sb.storage.from("receipts").upload(path,blob,{contentType:ct});
+  if(error)throw error;return path;
+}
+function recRow(r){
+  const pdf=/\.pdf$/i.test(r.file_path),u=RURL[r.file_path];
+  return `<div class="mrow"><a class="mth" href="#" onclick="openRec('${r.file_path}');return false">${pdf?"<span>PDF</span>":(u?`<img src="${esc(u)}" alt="">`:"<span>صورة</span>")}</a><div style="flex:1;min-width:0"><div><b>${dmy(String(r.created_at).slice(0,10))}</b></div><div class="mn2">${esc(r.file_name||(pdf?"ملف PDF":"صورة الإيصال"))}</div></div><button class="mb" onclick="payDel('${r.id}')">حذف</button></div>`;
+}
+function payRec(){
+  hd("إيصال السداد",EDIT()?"إيصالات العميل":"ارفع إيصال التحويل","pay");
+  payRecRender();
+  signRec().then(ok=>{if(ok&&location.hash==="#payrec")payRecRender()});
+}
+function payRecRender(){
+  const A=$("#app");
+  if(!POK){A.innerHTML=payNeed();return}
+  const p=PP();
+  if(!p){A.innerHTML=`<div class="card" style="text-align:center"><b>لا يوجد برنامج منشور</b></div>`;return}
+  const paid=paidNow(),cur=RECS.filter(r=>r.program_id===p.id),old=RECS.filter(r=>r.program_id!==p.id);
+  let h=`<div class="card payst ${paid?"ok":"due"}"><div class="psi">${paid?"✓":"!"}</div><div><b>${paid?"تم السداد":"لم يتم السداد بعد"}</b><p>${paid?"الإيصال محفوظ في حسابك":"ارفع صورة أو PDF للإيصال بعد التحويل"} · ${esc(p.title||p.month_start)}</p></div></div>`;
+  h+=`<button class="btn" onclick="payUp()">+ ${EDIT()?"إرفاق إيصال للعميل":"إرفاق إيصال السداد"}</button><p class="payhint">يتحفظ الإيصال كمستند في حسابك عن هذا الشهر.</p>`;
+  if(cur.length)h+=`<h2>إيصالات هذا الشهر</h2><div class="card" style="padding:4px 14px">${cur.map(recRow).join("")}</div>`;
+  if(old.length){
+    const by={};old.forEach(r=>{(by[r.program_id]=by[r.program_id]||[]).push(r)});
+    h+=`<h2>إيصالات الشهور السابقة</h2>`+Object.keys(by).map(id=>{const pp=PROGS.find(x=>x.id===id);return `<div class="card" style="padding:4px 14px"><div class="lbl" style="margin-top:10px">${esc(pp?(pp.title||pp.month_start):"برنامج سابق")}</div>${by[id].map(recRow).join("")}</div>`}).join("");
+  }
+  A.innerHTML=h;
+}
+function payUp(){
+  const p=PP();if(!p)return toast("لا يوجد برنامج منشور");
+  const i=document.createElement("input");i.type="file";i.accept="image/*,application/pdf";
+  i.onchange=async()=>{
+    const f=i.files&&i.files[0];if(!f)return;
+    if(!(f.type==="application/pdf"||/^image\//.test(f.type)))return toast("اختر صورة أو ملف PDF");
+    if(f.size>12*1024*1024)return toast("الملف كبير، الحد الأقصى ١٢ ميجا");
+    toast("جاري رفع الإيصال...");
+    let path="";
+    try{
+      path=await uplRec(f);
+      const {error}=await sb.from("payment_receipts").insert({client_id:CID(),program_id:p.id,file_path:path,file_name:(f.name||"").slice(0,120)||null});
+      if(error)throw error;
+      if(!ADMIN)pushAdmin("pay");
+      await loadPay(CID());route();setTimeout(()=>toast("تم رفع الإيصال ✓"),60);
+    }catch(e){if(path)sb.storage.from("receipts").remove([path]);toast("تعذر رفع الإيصال، حاول مرة أخرى")}
+  };
+  i.click();
+}
+async function payDel(id){
+  const r=RECS.find(x=>x.id===id);if(!r||!confirm("حذف هذا الإيصال؟ لو ده الإيصال الوحيد هترجع الحالة «لم يسدد»."))return;
+  const {error}=await sb.from("payment_receipts").delete().eq("id",id);
+  if(error)return toast("تعذر الحذف");
+  sb.storage.from("receipts").remove([r.file_path]);
+  await loadPay(CID());route();
+}
+/* ===== الأدمن: إرسال إشعار سداد للعملاء / تذكير المتأخرين ===== */
+async function loadPayAll(){
+  const since=iso(new Date(D.getTime()-150*864e5));
+  const [a,b,d]=await Promise.all([
+    sb.from("profiles").select("id,full_name").eq("role","client").order("full_name"),
+    sb.from("programs").select("id,client_id,title,month_start,published").gte("month_start",since).order("month_start",{ascending:false}),
+    sb.from("payment_requests").select("*").eq("status","pending")]);
+  if(a.error||b.error||d.error)throw new Error("payments");
+  const progs=b.data||[],cl=(a.data||[]).map(x=>({id:x.id,name:x.full_name||"بدون اسم",cur:curOf(progs,x.id)}));
+  const ids=cl.filter(c=>c.cur).map(c=>c.cur.id);
+  let recs=[];
+  if(ids.length){const c=await sb.from("payment_receipts").select("client_id,program_id").in("program_id",ids);if(c.error)throw new Error("payments");recs=c.data||[]}
+  return{cl,recs,reqs:d.data||[]};
+}
+function pst(c){
+  if(!c.cur)return{none:true};
+  return{paid:PQD.recs.some(r=>r.client_id===c.id&&r.program_id===c.cur.id),rq:PQD.reqs.find(r=>r.client_id===c.id&&r.program_id===c.cur.id)||null};
+}
+async function payReq(list){
+  if(!ADMIN)return;
+  if(list)$("#hd").innerHTML=`<div class="hd"><button class="back" onclick="clients()">›</button><div><small>لوحة المدرب</small><h1>إشعار سداد الرسوم</h1></div><img class="lgo" src="img/logo.png" alt=""></div>`;
+  else hd("إرسال إشعار سداد","للعملاء","pay");
+  const A=$("#app");A.innerHTML='<p class="ld">جاري التحميل...</p>';
+  try{PQD=await loadPayAll()}catch(e){A.innerHTML=`<div class="card" style="text-align:center"><b>تعذر التحميل</b><p style="color:var(--mut)">لو الميزة لسه ما اتفعلتش شغّل supabase/payments.sql مرة واحدة.</p></div>`;return}
+  PQ.msg=PQ.msg||PAY_MSG;
+  A.innerHTML=`<div class="card"><div class="lbl" style="color:var(--or)">تفاصيل الطلب</div>
+    <label class="pql">قيمة الرسوم (اكتب الرقم والعملة)<input id="pqa" value="${esc(PQ.amt)}" placeholder="مثال: ٢٠٠٠ جنيه · 150 USD · ٣٠٠ ريال" oninput="PQ.amt=this.value"></label>
+    <label class="pql">نص الإشعار<textarea id="pqm" oninput="PQ.msg=this.value">${esc(PQ.msg)}</textarea></label></div>
+    <div class="card"><div class="lbl" style="color:var(--or)">اختر العملاء</div>
+    <label class="pql"><input id="pqs" value="${esc(PQ.q)}" placeholder="🔍 بحث بالاسم" oninput="PQ.q=this.value;payReqList()"></label><div id="pql"></div></div>`;
+  payReqList();
+}
+function payReqList(){
+  const el=$("#pql");if(!el||!PQD)return;
+  const rows=PQD.cl.map(c=>({c,s:pst(c)})),ok=r=>r.c.cur&&!r.s.paid;
+  const cnt={unpaid:rows.filter(ok).length,late:rows.filter(r=>ok(r)&&r.s.rq).length,all:rows.length};
+  PQ.sel=new Set([...PQ.sel].filter(id=>{const r=rows.find(x=>x.c.id===id);return r&&ok(r)}));
+  const q=PQ.q.trim().toLowerCase();
+  let vis=rows.filter(r=>PQ.flt==="all"||(PQ.flt==="unpaid"&&ok(r))||(PQ.flt==="late"&&ok(r)&&r.s.rq));
+  if(q)vis=vis.filter(r=>r.c.name.toLowerCase().includes(q));
+  const pk=(k,l)=>`<button class="${PQ.flt===k?"on":""}" onclick="pqf('${k}')">${l} (${ar(cnt[k])})</button>`;
+  const selV=vis.filter(ok),allOn=selV.length>0&&selV.every(r=>PQ.sel.has(r.c.id));
+  const ago=rq=>{const d=Math.floor((Date.now()-new Date(rq.last_reminded_at||rq.created_at))/864e5);return d<=0?"اليوم":`منذ ${ar(d)} يوم`};
+  let h=`<div class="pills">${pk("unpaid","لم يسددوا")}${pk("late","المتأخرون")}${pk("all","الكل")}</div>`;
+  h+=selV.length?`<button class="mb pqall" onclick="pqall()">${allOn?"إلغاء تحديد الكل":"تحديد الكل"} (${ar(selV.length)})</button>`:"";
+  h+=vis.length?vis.map(r=>{
+    const c=r.c,s=r.s,dis=!ok(r);
+    const chip=s.none?'<i class="stc nn">لا برنامج منشور</i>':s.paid?'<i class="stc ok">✓ سدّد</i>':s.rq?`<i class="stc late">طُلب ${ago(s.rq)}${s.rq.remind_count?" · "+ar(s.rq.remind_count)+" تذكير":""}</i>`:'<i class="stc no">لم يسدد</i>';
+    return `<label class="pqr ${dis?"dis":""}"><input type="checkbox" ${PQ.sel.has(c.id)?"checked":""} ${dis?"disabled":""} onchange="pqt('${c.id}',this.checked)"><span class="pqn">${esc(c.name)}</span>${chip}</label>`;
+  }).join(""):`<div class="wue">لا يوجد عملاء في هذه القائمة</div>`;
+  const n=PQ.sel.size,rem=n&&[...PQ.sel].every(id=>{const r=rows.find(x=>x.c.id===id);return r&&r.s.rq});
+  h+=`<div class="pqbar"><span>المحدد: <b>${ar(n)}</b></span><button class="btn" id="pqgo" onclick="paySend()" ${n?"":"disabled"}>${rem?"🔔 إرسال تذكير":"إرسال الإشعار"}</button></div>`;
+  el.innerHTML=h;
+}
+function pqf(k){PQ.flt=k;payReqList()}
+function pqt(id,on){on?PQ.sel.add(id):PQ.sel.delete(id);payReqList()}
+function pqall(){
+  const q=PQ.q.trim().toLowerCase();
+  const vis=PQD.cl.map(c=>({c,s:pst(c)})).filter(r=>r.c.cur&&!r.s.paid&&(PQ.flt==="all"||(PQ.flt==="unpaid")||(PQ.flt==="late"&&r.s.rq))&&(!q||r.c.name.toLowerCase().includes(q)));
+  const on=vis.length&&vis.every(r=>PQ.sel.has(r.c.id));
+  vis.forEach(r=>on?PQ.sel.delete(r.c.id):PQ.sel.add(r.c.id));payReqList();
+}
+async function paySend(){
+  if(!ADMIN||!PQD)return;
+  const amt=(PQ.amt||"").trim(),msg=(PQ.msg||"").trim()||PAY_MSG;
+  const T=[...PQ.sel].map(id=>{const c=PQD.cl.find(x=>x.id===id);return c&&c.cur?{c,s:pst(c)}:null}).filter(x=>x&&!x.s.paid);
+  if(!T.length)return toast("اختر عميل واحد على الأقل");
+  const fresh=T.filter(x=>!x.s.rq),again=T.filter(x=>x.s.rq);
+  if(fresh.length&&!amt)return toast("اكتب قيمة الرسوم أولًا");
+  if(!confirm(`إرسال ${again.length&&!fresh.length?"تذكير":"إشعار سداد"} إلى ${T.length} عميل؟${amt?"\nالقيمة: "+amt:""}`))return;
+  const b=$("#pqgo");if(b)b.disabled=true;
+  try{
+    if(fresh.length){
+      const {error}=await sb.from("payment_requests").insert(fresh.map(x=>({client_id:x.c.id,program_id:x.c.cur.id,amount:amt,message:msg})));
+      if(error)throw error;
+    }
+    const now=new Date().toISOString();
+    for(const x of again){
+      const {error}=await sb.from("payment_requests").update({amount:amt||x.s.rq.amount,message:msg,remind_count:(x.s.rq.remind_count||0)+1,last_reminded_at:now}).eq("id",x.s.rq.id);
+      if(error)throw error;
+    }
+    const notes=T.map(x=>{const a=amt||(x.s.rq&&x.s.rq.amount)||"";return{client_id:x.c.id,title:x.s.rq?"تذكير: سداد رسوم البرنامج":"مطلوب منك: سداد رسوم البرنامج",body:msg+(a?"\nالقيمة: "+a:"")}});
+    const {error:ne}=await sb.from("notifications").insert(notes);
+    notes.forEach(n=>pushTo(n.client_id,n.title,n.body,"./#pay"));
+    PQ.sel=new Set();PQ.amt="";
+    const ai=$("#pqa");if(ai)ai.value="";
+    PQD=await loadPayAll();payReqList();
+    if(VIEW)await loadPay(VIEW.id);
+    toast(ne?"تم الطلب لكن تعذر تسجيل الإشعار":`تم الإرسال إلى ${ar(T.length)} عميل`);
+  }catch(e){
+    const b2=$("#pqgo");if(b2)b2.disabled=false;
+    toast("تعذر الإرسال"+(e&&e.message?": "+e.message:""));
+  }
+}
+
 /* ===== إشعارات الموبايل (Web Push) ===== */
 const PUSH_OK=()=>"serviceWorker" in navigator&&"PushManager" in window&&"Notification" in window;
 const STANDALONE=()=>window.navigator.standalone===true||(window.matchMedia&&matchMedia("(display-mode: standalone)").matches);
@@ -904,18 +1175,19 @@ async function liveRefresh(force){
   LIVE_T=t;LIVE_BUSY=true;
   try{
     const cid=CID(),adm=EDIT(),t0=Date.now();
-    const sig=()=>JSON.stringify([NOTIFS.map(x=>x.id+(x.read?1:0)),REQS.map(x=>x.id+x.status),MEAS.map(x=>x.id),PROGS,adm?LOGS:0]);
+    const sig=()=>JSON.stringify([NOTIFS.map(x=>x.id+(x.read?1:0)),REQS.map(x=>x.id+x.status),MEAS.map(x=>x.id),RECS.map(x=>x.id),PREQS.map(x=>x.id+x.status+(x.remind_count||0)),PROGS,adm?LOGS:0]);
     const before=sig(),known=new Set(NOTIFS.map(x=>x.id));
-    const m0=MEAS,r0=REQS,ok0=MOK;
+    const m0=MEAS,r0=REQS,ok0=MOK,pw0=[PAYS,RECS,PREQS,POK];
     const q=[
       sb.from("notifications").select("*").eq("client_id",cid).order("created_at",{ascending:false}).limit(30),
       loadMeas(cid),
       sb.from("programs").select("*").eq("client_id",cid).order("month_start",{ascending:false})];
     // سجلات التمرين: الأدمن يحتاجها (يشوف وزن وملاحظات العميل). العميل هو اللي بيكتبها فمش بنعمل لها refetch عشان منكتبش فوق شغله.
     if(adm)q.push(sb.from("logs").select("log_date,data").eq("client_id",cid));
-    const [n,,pg,lg]=await Promise.all(q);
+    const pp=loadPay(cid,true);
+    const [n,,pg,lg]=await Promise.all(q);await pp;
     // أثناء الجلب: ممكن النافذة تتفتح أو يتحفظ تعديل. لو حصل كده نرجّع القديم ونتجاهل النتيجة (البيانات الأحدث موجودة عندنا).
-    if(busyUI()||PW>=t0||cid!==CID()){MEAS=m0;REQS=r0;MOK=ok0;LIVE_DIRTY=true;return}
+    if(busyUI()||PW>=t0||cid!==CID()){MEAS=m0;REQS=r0;MOK=ok0;[PAYS,RECS,PREQS,POK]=pw0;LIVE_DIRTY=true;return}
     if(n&&!n.error&&n.data)NOTIFS=n.data;
     if(pg&&!pg.error&&pg.data){
       // نستبدل بيانات البرنامج بس لو اتغيرت فعلًا على السيرفر (عشان منبدّلش الكائنات من غير داعي)
@@ -1360,7 +1632,7 @@ function route(){
   const r=location.hash.slice(1)||"home",m=/^s([1-9]\d?)$/.exec(r);
   if(r=="body"){measPage();["home","train","food","supp","notes"].forEach(x=>$("#n-"+x).classList.toggle("on",x=="home"));window.scrollTo(0,0);return}
   if(!P){empty();return}
-  if(m)session(+m[1]-1);else if(r=="train")train();else if(r=="food")food();else if(r=="supp")supp();else if(r=="notes")notes();else home();
+  if(m)session(+m[1]-1);else if(r=="train")train();else if(r=="food")food();else if(r=="supp")supp();else if(r=="notes")notes();else if(r=="pay")payPage();else if(r=="paybank")payBank();else if(r=="payrec")payRec();else if(r=="payreq"&&EDIT())payReq();else home();
   const cur=m?"train":(["train","food","supp","notes"].includes(r)?r:"home");
   ["home","train","food","supp","notes"].forEach(x=>$("#n-"+x).classList.toggle("on",x==cur));
   window.scrollTo(0,0);
