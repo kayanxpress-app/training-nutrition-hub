@@ -809,6 +809,7 @@ const PAY_MSG="فضلاً سداد رسوم البرنامج وإرفاق إيص
 /* البرنامج الحالي المنشور (نفس قاعدة ما يشوفه العميل): الإيصال والسداد مربوطين بيه، فأول ما يبدأ برنامج جديد يرجع «لم يسدد» */
 const PP=()=>{const pub=PROGS.filter(p=>p.published);if(!pub.length)return null;const i=pub.findIndex(p=>p.month_start<=TODAY);return i<0?pub[pub.length-1]:pub[i]};
 const curOf=(progs,cid)=>{const pub=progs.filter(p=>p.client_id===cid&&p.published);if(!pub.length)return null;const i=pub.findIndex(p=>p.month_start<=TODAY);return i<0?pub[pub.length-1]:pub[i]};
+const payPer=p=>{try{return "شهر "+new Date(p.month_start+"T00:00:00").toLocaleDateString("ar-EG",{month:"long",year:"numeric"})}catch(e){return dmy(p.month_start)}};
 const paidNow=()=>{const p=PP();return !!p&&RECS.some(r=>r.program_id===p.id)};
 const payReqNow=()=>{const p=PP();return p?PREQS.find(r=>r.status==="pending"&&r.program_id===p.id)||null:null};
 async function loadPay(cid,soft){
@@ -848,7 +849,7 @@ function payPage(){
   const p=PP();
   if(!p){A.innerHTML=`<div class="card" style="text-align:center"><b>لا يوجد برنامج منشور</b><p style="color:var(--mut)">${EDIT()?"انشر برنامج العميل أولًا ليظهر السداد.":"هيظهر هنا فور ما الدكتور ينشر برنامجك."}</p></div>`;return}
   const paid=paidNow(),rq=payReqNow(),rc=RECS.filter(r=>r.program_id===p.id);
-  let h=`<div class="card payst ${paid?"ok":"due"}"><div class="psi">${paid?"✓":"!"}</div><div><b>${paid?"تم السداد":"لم يتم السداد بعد"}</b><p>${paid?`الإيصال مرفق عن «${esc(p.title||p.month_start)}»`:rq?`المطلوب: <b>${ar(esc(rq.amount))}</b>${rq.message?" — "+esc(rq.message):""}`:"حوّل الرسوم من بيانات التحويل، ثم ارفع صورة الإيصال."}</p></div></div>`;
+  let h=`<div class="card payst ${paid?"ok":"due"}"><div class="psi">${paid?"✓":"!"}</div><div><b>${paid?"تم السداد":"لم يتم السداد بعد"}</b><p>${paid?`الإيصال مرفق عن ${payPer(p)}`:rq?`المطلوب: <b>${ar(esc(rq.amount))}</b>${rq.message?" — "+esc(rq.message):""}`:"حوّل الرسوم من بيانات التحويل، ثم ارفع صورة الإيصال."}</p></div></div>`;
   h+=paySlide("paybank","🏦","بيانات التحويل البنكي والمحافظ الإلكترونية","الحساب البنكي · IBAN · إنستا باي · فودافون كاش");
   h+=paySlide("payrec","🧾","إرفاق إيصال السداد",rc.length?`${ar(rc.length)} إيصال مرفق`:"صورة أو PDF للإيصال");
   if(EDIT()){
@@ -938,12 +939,12 @@ function payRecRender(){
   const p=PP();
   if(!p){A.innerHTML=`<div class="card" style="text-align:center"><b>لا يوجد برنامج منشور</b></div>`;return}
   const paid=paidNow(),cur=RECS.filter(r=>r.program_id===p.id),old=RECS.filter(r=>r.program_id!==p.id);
-  let h=`<div class="card payst ${paid?"ok":"due"}"><div class="psi">${paid?"✓":"!"}</div><div><b>${paid?"تم السداد":"لم يتم السداد بعد"}</b><p>${paid?"الإيصال محفوظ في حسابك":"ارفع صورة أو PDF للإيصال بعد التحويل"} · ${esc(p.title||p.month_start)}</p></div></div>`;
+  let h=`<div class="card payst ${paid?"ok":"due"}"><div class="psi">${paid?"✓":"!"}</div><div><b>${paid?"تم السداد":"لم يتم السداد بعد"}</b><p>${paid?"الإيصال محفوظ في حسابك":"ارفع صورة أو PDF للإيصال بعد التحويل"} · ${payPer(p)}</p></div></div>`;
   h+=`<button class="btn" onclick="payUp()">+ ${EDIT()?"إرفاق إيصال للعميل":"إرفاق إيصال السداد"}</button><p class="payhint">يتحفظ الإيصال كمستند في حسابك عن هذا الشهر.</p>`;
   if(cur.length)h+=`<h2>إيصالات هذا الشهر</h2><div class="card" style="padding:4px 14px">${cur.map(recRow).join("")}</div>`;
   if(old.length){
     const by={};old.forEach(r=>{(by[r.program_id]=by[r.program_id]||[]).push(r)});
-    h+=`<h2>إيصالات الشهور السابقة</h2>`+Object.keys(by).map(id=>{const pp=PROGS.find(x=>x.id===id);return `<div class="card" style="padding:4px 14px"><div class="lbl" style="margin-top:10px">${esc(pp?(pp.title||pp.month_start):"برنامج سابق")}</div>${by[id].map(recRow).join("")}</div>`}).join("");
+    h+=`<h2>إيصالات الشهور السابقة</h2>`+Object.keys(by).map(id=>{const pp=PROGS.find(x=>x.id===id);return `<div class="card" style="padding:4px 14px"><div class="lbl" style="margin-top:10px">${pp?payPer(pp):"برنامج سابق"}</div>${by[id].map(recRow).join("")}</div>`}).join("");
   }
   A.innerHTML=h;
 }
