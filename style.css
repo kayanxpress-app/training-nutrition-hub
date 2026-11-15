@@ -499,3 +499,62 @@ body.av .qbtn,body.av .mo .qbtn{pointer-events:auto}
 .wue{color:var(--mut);font-size:13.5px;text-align:center;padding:14px 4px}
 .wu .addb{margin:6px 0 0}
 body.av .wuk{pointer-events:none}
+
+/* ---------- سداد رسوم البرنامج ---------- */
+.paybtn{position:relative;display:flex;align-items:center;gap:14px;overflow:hidden;margin:0 0 14px;padding:15px 14px;border-radius:24px;color:#2a1300;cursor:pointer;
+  background:linear-gradient(120deg,#ffb347 0%,#ff8a2b 45%,#ffd36a 100%);box-shadow:0 18px 34px -14px rgba(255,138,43,.9),inset 0 1px 0 rgba(255,255,255,.55);
+  animation:paypulse 2.4s ease-in-out infinite;transition:transform .18s var(--fs)}
+.paybtn:active{transform:scale(.985)}
+.paybtn::after{content:"";position:absolute;inset:0;background:linear-gradient(105deg,transparent 35%,rgba(255,255,255,.6) 50%,transparent 65%);transform:translateX(-130%);animation:payshine 3.4s ease-in-out infinite;pointer-events:none}
+.paybtn .pbi{flex:none;width:52px;height:52px;border-radius:17px;display:grid;place-items:center;background:rgba(255,255,255,.4);box-shadow:inset 0 0 0 1px rgba(255,255,255,.55)}
+.paybtn .pbi svg{width:28px;height:28px;fill:none;stroke:#2a1300;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.paybtn .pbt{flex:1;min-width:0}
+.paybtn .pbt b{display:block;font-size:18px;font-weight:800;line-height:1.35}
+.paybtn .pbt small{display:block;font-size:12.5px;font-weight:700;opacity:.8}
+.paybtn .pbg{flex:none;width:34px;height:34px;border-radius:50%;background:rgba(42,19,0,.14);display:grid;place-items:center;font-size:20px;padding-bottom:2px}
+.paybtn.ok{background:linear-gradient(120deg,#9be83a,#4fbf6a);color:#08210f;animation:none;box-shadow:0 14px 28px -14px rgba(47,174,111,.85),inset 0 1px 0 rgba(255,255,255,.45)}
+.paybtn.ok::after{display:none}
+.paybtn.ok .pbi svg{stroke:#08210f}
+@keyframes paypulse{0%,100%{box-shadow:0 18px 34px -14px rgba(255,138,43,.9),0 0 0 0 rgba(255,138,43,.45),inset 0 1px 0 rgba(255,255,255,.55)}50%{box-shadow:0 18px 34px -14px rgba(255,138,43,.9),0 0 0 9px rgba(255,138,43,0),inset 0 1px 0 rgba(255,255,255,.55)}}
+@keyframes payshine{0%,55%{transform:translateX(-130%)}100%{transform:translateX(130%)}}
+.payst{display:flex;align-items:center;gap:14px}
+.payst .psi{flex:none;width:48px;height:48px;border-radius:50%;display:grid;place-items:center;font-size:24px;font-weight:800;color:#fff;background:var(--or);box-shadow:0 10px 20px -10px rgba(238,132,52,.9)}
+.payst.ok{border-color:var(--ok);background:linear-gradient(135deg,rgba(47,174,111,.16),var(--card) 70%)}
+.payst.ok .psi{background:var(--ok);box-shadow:0 10px 20px -10px rgba(47,174,111,.9)}
+.payst.due{border-color:var(--or);background:linear-gradient(135deg,rgba(238,132,52,.12),var(--card) 70%)}
+.payst b{font-size:16.5px}.payst p{margin:2px 0 0;color:var(--mut);font-size:13.5px}
+.payb .payamt{font-size:26px;font-weight:800;color:var(--or);margin:4px 0 2px;line-height:1.3}
+.payb .btn{margin-top:10px}
+.payhint{color:var(--mut);font-size:13px;text-align:center;margin:8px 4px 14px}
+/* بيانات التحويل */
+.cpg{margin-top:14px}
+.cpt{font-weight:800;font-size:14.5px;margin-bottom:6px}
+.cpf{margin-bottom:8px}
+.cpl{font-size:11.5px;font-weight:700;color:var(--mut);margin:0 4px 3px;letter-spacing:.3px}
+.cpv{display:flex;align-items:center;gap:10px;background:var(--chip);border:1.5px solid var(--line);border-radius:14px;padding:6px 8px 6px 12px;min-height:50px}
+.cpv span{flex:1;min-width:0;font-weight:800;font-size:15.5px;overflow-wrap:anywhere;word-break:break-all}
+.cpv span[dir=ltr]{text-align:right}
+.cpv .cpe{color:var(--mut);font-weight:600;font-size:13px}
+.cpb{flex:none;height:36px;min-width:64px;padding:0 14px;border:0;border-radius:11px;background:var(--dk);color:var(--lime);font:inherit;font-weight:800;font-size:13px;cursor:pointer;transition:transform .15s var(--fs),background .2s,color .2s}
+.cpb:active{transform:scale(.94)}
+.cpb.ok{background:var(--ok);color:#fff}
+/* إرسال الإشعارات (أدمن) */
+.pql{display:block;font-size:13px;font-weight:700;color:var(--mut);margin:10px 0 4px}
+.pql input,.pql textarea{display:block;width:100%;margin-top:4px;border:1.5px solid var(--line);border-radius:14px;background:var(--chip);color:var(--ink);font:inherit;font-size:16px;padding:11px 13px;transition:border-color .2s,box-shadow .2s}
+.pql textarea{min-height:92px;line-height:1.7}
+.pql input:focus,.pql textarea:focus{outline:0;border-color:var(--pk);background:var(--card);box-shadow:0 0 0 4px var(--glow)}
+.pqall{margin:0 0 10px}
+.pqr{display:flex;align-items:center;gap:12px;background:var(--card);border:1.5px solid var(--line);border-radius:16px;padding:11px 12px;margin-bottom:8px;cursor:pointer;transition:border-color .2s,background .2s}
+.pqr:has(input:checked){border-color:var(--pk);background:linear-gradient(135deg,rgba(143,224,44,.14),var(--card) 70%)}
+.pqr.dis{opacity:.55;cursor:default}
+.pqr input{width:22px;height:22px;flex:none;accent-color:var(--pk)}
+.pqn{flex:1;min-width:0;font-weight:700;font-size:15px;overflow-wrap:anywhere}
+.stc{flex:none;font-style:normal;font-size:11.5px;font-weight:800;border-radius:99px;padding:2px 10px;white-space:nowrap}
+.stc.ok{background:rgba(47,174,111,.18);color:#1d7d4f}
+.stc.no{background:rgba(238,132,52,.18);color:#a9500e}
+.stc.late{background:rgba(214,66,95,.15);color:#c0304f}
+.stc.nn{background:var(--chip2);color:var(--mut)}
+.pqbar{position:sticky;bottom:calc(98px + env(safe-area-inset-bottom,0px));z-index:6;display:flex;align-items:center;gap:12px;margin-top:12px;padding:10px 12px;border-radius:20px;color:#fff;background:rgba(10,18,11,.94);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);box-shadow:0 14px 30px -12px rgba(0,0,0,.6);border:1px solid rgba(255,255,255,.1)}
+.pqbar span{flex:none;font-size:14px}
+.pqbar b{color:var(--lime);font-size:18px}
+.pqbar .btn{flex:1;margin:0;height:46px;line-height:46px;font-size:15px}
