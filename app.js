@@ -70,7 +70,8 @@ function repsCard(){
   if(dt.weeks&&dt.weeks.length){const w=WK();return `<div class="card dk"><div class="lbl">تدرّج التكرارات حسب الأسبوع · المجموعات ١ · ٢ · ٣</div><div class="rt4">${dt.weeks.map((r,i)=>`<div class="${i+1==w?"cur":""}" ${EDIT()?`onclick="setVW(${i+1})"`:""}><span>الأسبوع ${ar(i+1)}</span><b>${r.map(ar).join("·")}</b></div>`).join("")}</div>${EDIT()?`<div style="margin-top:8px;font-size:11.5px;opacity:.7">اضغط على أي أسبوع لمعاينة تكراراته وأوزانه المحسوبة</div>`:""}${dt.rest?`<div style="margin-top:8px;font-size:12px;opacity:.75">الراحة بين المجموعات: ${ar(dt.rest)} ثانية</div>`:""}</div>`}
   return `<div class="card dk"><div class="lbl">التكرارات في كل مجموعة</div><div class="rt">${dt.reps.map((x,i)=>`<div><span>المجموعة ${ar(i+1)}</span><b>${ar(x)}</b></div>`).join("")}</div></div>`;
 }
-const doneCount=i=>Object.keys(L().d).filter(k=>k.startsWith("s"+i+"e")).length;
+const doneCount=i=>Object.keys(L().d).filter(k=>k.startsWith("s"+i+"e")||k.startsWith("s"+i+"b")).length;
+const sessTotal=s=>(s.ex||[]).length+(s.bk||[]).length;
 
 /* ===== بطاقة الدكتور (صفحة الدخول) ===== */
 function docCard(){
@@ -357,7 +358,7 @@ function editSess(i){
     async v=>{if(!v.t.trim()){toast("اكتب العنوان");return false}
       if(i<0)P.data.sessions.push({id:nid(),t:v.t.trim(),s:v.s.trim(),c:"",cw:"بعد التمرين",cu:"",ci:"",ex:[],wu:[],ab:null});else Object.assign(s,{t:v.t.trim(),s:v.s.trim()});
       return savePD()},
-    i<0?null:async()=>{const sx=P.data.sessions[i],dead=sx?(sx.id?["se:"+sx.id]:[]).concat((sx.ex||[]).filter(e=>e.id).map(e=>"ex:"+e.id)):[];P.data.sessions.splice(i,1);location.hash="train";if(await savePD()!==false)qPurge(dead)});
+    i<0?null:async()=>{const sx=P.data.sessions[i],dead=sx?(sx.id?["se:"+sx.id]:[]).concat((sx.ex||[]).filter(e=>e.id).map(e=>"ex:"+e.id)).concat((sx.bk||[]).filter(b=>b.id).map(b=>"bk:"+b.id)):[];P.data.sessions.splice(i,1);location.hash="train";if(await savePD()!==false)qPurge(dead)});
 }
 function editAb(i){
   const s=P.data.sessions[i],a=s.ab||{t:"",vids:[]};
@@ -555,7 +556,7 @@ function empty(){
   $("#app").innerHTML=EDIT()?`<div class="card" style="text-align:center"><b>لا يوجد برنامج لهذا العميل</b></div>${addb("importProg()","استيراد برنامج من ملف PDF")}${addb("pullProg()","سحب برنامج من عميل آخر")}${addb("newProgram()","إنشاء برنامج فارغ")}`:`<div class="card" style="text-align:center"><b>لسه مفيش برنامج متاح لحسابك</b><p style="color:var(--mut)">هيظهر هنا فور ما الدكتور يضيفه.</p></div><button class="btn o" onclick="out()">تسجيل الخروج</button>`;
 }
 function home(){
-  const dt=P.data,inf=dt.info,n=dt.sessions.reduce((a,s)=>a+s.ex.length,0);
+  const dt=P.data,inf=dt.info,n=dt.sessions.reduce((a,s)=>a+sessTotal(s),0);
   hd("الرئيسية","Training Nutrition Hub");
   let h=`<div class="card brand"><img src="img/logo.png" alt=""><small>مدربك وأخصائي التغذية</small><h1>الدكتور محمود جمال قطب</h1><div class="en">DR. MAHMOUD GAMAL</div><div class="tg">تخلّص من أمراضك</div></div>`;
   if(EDIT())h+=pubCard();
@@ -568,7 +569,7 @@ function home(){
   h+=payBanner();
   h+=pendBanner();
   h+=pushCard();
-  h+=`<a class="card sec" href="#train"><div class="no">٠١</div><div><h3>التدريب${qBadgeT(qTopics(dt,"ex").concat(qTopics(dt,"se")))}</h3><p>${ar(dt.sessions.length)} جلسات · ${ar(n)} تمرين بفيديوهات الشرح</p></div><div class="go">‹</div></a>`;
+  h+=`<a class="card sec" href="#train"><div class="no">٠١</div><div><h3>التدريب${qBadgeT(qTopics(dt,"ex").concat(qTopics(dt,"se")).concat(qTopics(dt,"bk")))}</h3><p>${ar(dt.sessions.length)} جلسات · ${ar(n)} تمرين بفيديوهات الشرح</p></div><div class="go">‹</div></a>`;
   h+=`<a class="card sec" href="#food"><div class="no">٠٢</div><div><h3>التغذية${qBadgeT(qTopics(dt,"ml"))}</h3><p>خطة الوجبات والتبادلات الغذائية</p></div><div class="go">‹</div></a>`;
   h+=`<a class="card sec" href="#supp"><div class="no">٠٣</div><div><h3>التوصيات والمكملات الغذائية${qBadgeT(qTopics(dt,"sp"))}</h3><p>${ar(dt.supp.length)} توصيات</p></div><div class="go">‹</div></a>`;
   h+=measCard();
@@ -584,7 +585,7 @@ function home(){
 function train(){
   const dt=P.data;hd("التدريب","القسم الأول");
   let h=`<p style="margin:0 2px 10px;color:var(--mut);font-size:14px">اختر الجلسة لعرض التمارين وفيديوهات الشرح.</p>`;
-  dt.sessions.forEach((s,i)=>{const u=chUnread(i)+qUnreadT(qTopics(dt,"ex",i));h+=`<a class="card ses" href="#s${i+1}"><div class="no">${ar(i+1)}</div><div><h3>${esc(s.t)}</h3><p>${esc(s.s)}</p><p style="color:var(--or);font-weight:700">كارديو ${ar(s.cm||15)} د · ${esc(s.c)||"—"}</p><p>اليوم: ${ar(doneCount(i))} / ${ar(s.ex.length)} تمارين</p>${u?`<p><span class="wun">💬 ${ar(u)} رسالة جديدة</span></p>`:""}</div><div class="go">‹</div></a>`});
+  dt.sessions.forEach((s,i)=>{const u=chUnread(i)+qUnreadT(qTopics(dt,"ex",i))+qUnreadT(qTopics(dt,"bk",i));h+=`<a class="card ses" href="#s${i+1}"><div class="no">${ar(i+1)}</div><div><h3>${esc(s.t)}</h3><p>${esc(s.s)}</p><p style="color:var(--or);font-weight:700">كارديو ${ar(s.cm||15)} د · ${esc(s.c)||"—"}</p><p>اليوم: ${ar(doneCount(i))} / ${ar(sessTotal(s))} تمارين</p>${u?`<p><span class="wun">💬 ${ar(u)} رسالة جديدة</span></p>`:""}</div><div class="go">‹</div></a>`});
   h+=addb("editSess(-1)","إضافة جلسة");
   h+=blocksBlock("train");
   h+=filesBlock("train");
@@ -605,6 +606,143 @@ function warmup(i){
   return h+addb(`editWu(${i},-1)`,"إضافة تمرين إحماء")+`</div>`;
 }
 function tgu(k){const l=L();l.u=l.u||{};const c=$("#u-"+k);if(l.u[k]){delete l.u[k];c.classList.remove("done");c.querySelector(".wuk").textContent=""}else{l.u[k]=1;c.classList.add("done");c.querySelector(".wuk").textContent="✓"}save()}
+/* ===== بلوكات أساليب التدريب: سوبر ست · تراي ست · دروب ست (قوالب جاهزة، وأساليب تانية بتتضاف بنفس الطريقة) ===== */
+const BKT={
+  ss:{l:"سوبر ست",c:"ss",n:2,ic:"⇄",d:"تمرينين ورا بعض من غير راحة بينهم"},
+  ts:{l:"تراي ست",c:"ts",n:3,ic:"٣",d:"ثلاث تمارين ورا بعض من غير راحة بينهم"},
+  ds:{l:"دروب ست",c:"ds",n:1,ic:"▼",d:"تمرين واحد وتنزّل الوزن كل مرحلة لحد الفشل"}};
+const bkLet=k=>String.fromCharCode(65+k%26);
+const bkRounds=b=>Math.max(1,Math.min(10,Math.round(+b.rounds)||3));
+const bkStages=b=>Math.max(2,Math.min(6,Math.round(+b.stages)||3));
+const bkDrop=b=>{const d=+b.drop;return d>=1&&d<=60?d:20};
+const bkReps=(t,n)=>{const a=String(t||"").trim().split(/[\s,،]+/).filter(Boolean);if(!a.length)return Array(n).fill("");return Array.from({length:n},(_,i)=>a[Math.min(i,a.length-1)])};
+const bkNums=(t,n)=>{const a=numsD(t);if(!a.length)return null;return Array.from({length:n},(_,i)=>a[Math.min(i,a.length-1)])};
+/* أوزان مراحل الدروب ست: من الوزن الأساسي (أو الوزن اللي العميل كتبه فعلًا في المرحلة الأولى) كل مرحلة تنقص النسبة المحددة، وأي مرحلة المدرب كتب لها وزن يدوي تتقدّم على الحساب التلقائي */
+function dsPlan(b,e,first){
+  const S=bkStages(b),pct=bkDrop(b)/100,st=P.data.wsnap??0.5,man=numsD(e.wo||"");
+  const snap=v=>Number((st>0?Math.round(v/st)*st:v).toFixed(2));
+  let cur=+first>0?+first:(numsD(e.base||"")[0]||0);const out=[];
+  for(let x=0;x<S;x++){
+    if(man[x]>0)cur=man[x];
+    else if(x>0)cur=cur>0?snap(cur*(1-pct)):0;
+    else if(cur>0)cur=snap(cur);
+    out.push(cur>0?cur:0);
+  }
+  return out;
+}
+function bkRule(b){
+  const T=BKT[b.t]||BKT.ss,R=bkRounds(b),rest=+b.rest||0;
+  if(b.t==="ds")return `كمّل لحد ما تتعب، ثم <b>نزّل الوزن ${ar(bkDrop(b))}٪ فورًا</b> وكمّل من غير راحة${rest?`، وبعدها ارتاح <b>${ar(rest)} ثانية</b>`:""}.`;
+  return `${T.n===2?"تمرينين":"ثلاث تمارين"} ورا بعض <b>من غير راحة</b>${rest?`، وبعد آخر تمرين ارتاح <b>${ar(rest)} ثانية</b>`:""}، وكرّر <b>${ar(R)} جولات</b>.`;
+}
+function bkRender(i){
+  const s=P.data.sessions[i],B=s.bk||[];
+  return B.map((b,k)=>bkCard(i,k,b)).join("");
+}
+function bkCard(i,k,b){
+  const T=BKT[b.t]||BKT.ss,R=bkRounds(b),S=bkStages(b),lg=L(),key=`s${i}b${k}`,done=!!lg.d[key],ex=b.ex||[];
+  const lab=ex.map(e=>e.n).filter(Boolean).join(" + ")||T.l;
+  let h=`<div class="card blk ${T.c} ${done?"done":""}" id="c-${key}"><div class="bh"><span class="bb">${T.l}</span><span class="bn">${b.t==="ds"?`تمرين واحد · ${ar(S)} مراحل${R>1?` × ${ar(R)} جولات`:""}`:`${ar(R)} جولات`}</span><button type="button" class="bq" onclick="bkExplain(${i},${k})" aria-label="شرح أسلوب التمرين">؟</button></div><div class="br">${bkRule(b)}</div>`;
+  if(b.note)h+=`<div class="note"><span class="lbl">ملاحظة</span> ${esc(b.note)}</div>`;
+  h+=ed(`editBk(${i},${k})`,"تعديل البلوك");
+  if(b.t==="ds"){
+    const e=ex[0]||{},wk=`${key}x0`,w=lg.w[wk]||[];
+    h+=`<div class="bxh" style="margin-bottom:10px"><span class="bl">${bkLet(k)}١</span><h3 style="margin:0;font-size:16px;font-weight:800;flex:1">${esc(e.n)}</h3><span class="pill ${e.cls||"t1"}">${esc(e.tag||"")}</span></div>${e.url||e.img?`<div style="margin-bottom:10px">${vid(e.url,e.n,"sm",e.img)}</div>`:""}${ed(`editBkEx(${i},${k},0)`)}`;
+    for(let r=0;r<R;r++){
+      const plan=dsPlan(b,e,w[r*S]);
+      if(R>1)h+=`<div class="cap" style="margin:${r?"12px":"0"} 0 6px">الجولة ${ar(r+1)} من ${ar(R)}</div>`;
+      h+=`<div class="dsr">`;
+      for(let x=0;x<S;x++){
+        const idx=r*S+x,t=plan[x],rp=x===0?(e.reps?ar(e.reps):"لحد الفشل"):"لحد الفشل",wdt=Math.max(30,Math.round(100*Math.pow(1-bkDrop(b)/100,x)));
+        h+=`<div class="dst"><div class="dh">المرحلة ${ar(x+1)}${x===0?" · الأساسية":""}<i>${t?fmtW(t)+" كجم · ":""}${rp}</i></div><div class="tg" style="width:${wdt}%"></div><input type="text" inputmode="decimal" value="${esc(w[idx]||"")}" placeholder="${t?"الفعلي":"كجم"}" onchange="setW('${wk}',${idx},this.value)${x===0?`;bkRe(${i})`:""}"></div>`;
+        if(x<S-1)h+=`<div class="dar">نزّل ${ar(bkDrop(b))}٪ وكمّل فورًا</div>`;
+      }
+      h+=`</div>`;
+    }
+  }else{
+    ex.forEach((e,j)=>{
+      const wk=`${key}x${j}`,w=lg.w[wk]||[],rp=bkReps(e.reps,R),tg=bkNums(e.w,R);
+      h+=`${j?'<div class="bc">🔗 بدون راحة</div>':""}<div class="bx"><div>${vid(e.url,e.n,"",e.img)}</div><div><div class="bxh"><span class="bl">${bkLet(k)}${ar(j+1)}</span><h3>${esc(e.n)}</h3><span class="pill ${e.cls||"t1"}">${esc(e.tag||"")}</span></div><div class="sets" style="grid-template-columns:repeat(${Math.min(R,4)},1fr)">${rp.map((r,x)=>`<div><div class="rp">${r?ar(r):"—"}</div>${tg?(tg[x]?`<div class="tw">${fmtW(tg[x])}<small>كجم</small></div>`:""):""}<input type="text" inputmode="decimal" value="${esc(w[x]||"")}" placeholder="${tg&&tg[x]?"الفعلي":(lastW(wk,x)?ar(lastW(wk,x)):"كجم")}" onchange="setW('${wk}',${x},this.value)"></div>`).join("")}</div>${ed(`editBkEx(${i},${k},${j})`)}</div></div>`;
+    });
+  }
+  if(+b.rest)h+=`<button type="button" class="brest" onclick="restStart(${+b.rest||0})"><span>⏱ ${b.t==="ds"?"راحة بعد الدروب ست":"راحة بعد كل جولة"} · اضغط لبدء العدّاد</span><b>${ar(+b.rest)} ثانية</b></button>`;
+  h+=`<button class="chk" onclick="bkTgl('${key}')">${done?"✓ تم البلوك":"تم البلوك"}</button>${qBtn(b.id?"bk:"+b.id:"",T.l+" · "+lab)}</div>`;
+  return h;
+}
+function bkTgl(k){const l=L(),c=$("#c-"+k);if(l.d[k]){delete l.d[k];c.classList.remove("done");c.querySelector(".chk").textContent="تم البلوك"}else{l.d[k]=1;c.classList.add("done");c.querySelector(".chk").textContent="✓ تم البلوك"}save();pushTick(k)}
+function bkRe(i){const m=/^s([1-9]\d?)$/.exec(location.hash.slice(1));if(!m||+m[1]-1!==i)return;setTimeout(()=>{const y=window.scrollY;session(i);window.scrollTo(0,y)},0)}
+/* شرح أسلوب التمرين (للعميل) */
+function bkExplain(i,k){
+  const s=P.data.sessions[i],b=(s.bk||[])[k];if(!b)return;
+  const T=BKT[b.t]||BKT.ss,R=bkRounds(b),rest=+b.rest||0,S=bkStages(b),dp=bkDrop(b),L0=bkLet(k);
+  let sum,steps,tip;
+  if(b.t==="ds"){
+    sum="أسلوب بيرهق العضلة لآخرها بأقل وقت.";
+    steps=[`ابدأ بالوزن الأساسي (المرحلة ١) لحد ما تتعب${(b.ex&&b.ex[0]&&b.ex[0].reps)?` أو لحد ${ar(b.ex[0].reps)} عدة`:""}.`,`نزّل الوزن <b>${ar(dp)}٪ فورًا</b> من غير ما ترتاح وكمّل لحد الفشل.`,`كرّر النزول لحد ما تخلّص <b>${ar(S)} مراحل</b>.`,rest?`ارتاح <b>${ar(rest)} ثانية</b> (اضغط زر الراحة)${R>1?` وكرّر الجولة، المجموع ${ar(R)} جولات`:""}.`:(R>1?`كرّر الجولة، المجموع ${ar(R)} جولات.`:"")].filter(Boolean);
+    tip="اكتب الوزن الفعلي في كل مرحلة. لو غيّرت وزن المرحلة الأولى الأوزان المقترحة بعدها بتتحدّث لوحدها.";
+  }else{
+    const n=T.n,names=Array.from({length:n},(_,j)=>`${L0}${ar(j+1)}`);
+    sum="أسلوب بيوفّر وقت وبيرفع شدة التمرين.";
+    steps=[`اعمل <b>${names[0]}</b> مجموعة كاملة.`,`روح على طول <b>${names.slice(1).join(" ثم ")}</b> من غير راحة.`,rest?`ارتاح <b>${ar(rest)} ثانية</b> (اضغط زر الراحة).`:"",`كرّر لحد آخر جولة: <b>${ar(R)} جولات</b>.`].filter(Boolean);
+    tip="اكتب وزنك في كل جولة، والتطبيق يفكّرك بيه المرة الجاية.";
+  }
+  const m=document.createElement("div");m.className="md";
+  m.innerHTML=`<div class="sh exs ${T.c}"><h3><span class="bb">${T.l}</span> شرح أسلوب التمرين</h3><p class="exsum">${sum}</p>${steps.map((x,n)=>`<div class="stp"><div class="no">${ar(n+1)}</div><p>${x}</p></div>`).join("")}${b.note?`<div class="ex-tip">📝 ${esc(b.note)}</div>`:""}<div class="ex-tip">💡 ${tip}</div><button class="btn" id="mk">فهمت</button></div>`;
+  document.body.appendChild(m);
+  m.onclick=e=>{if(e.target===m)m.remove()};m.querySelector("#mk").onclick=()=>m.remove();
+}
+/* إضافة / تعديل بلوك (أدمن) */
+function addBlock(i){
+  const m=document.createElement("div");m.className="md";
+  const rows=[["ex","هرمي (تمرين عادي)","عدات بتقل ووزن بيزيد كل مجموعة","△","#7c5cff"]].concat(Object.keys(BKT).map(t=>[t,BKT[t].l,BKT[t].d,BKT[t].ic,{ss:"#ee8434",ts:"#2f80ed",ds:"#d6425f"}[t]]));
+  m.innerHTML=`<div class="sh"><h3>اختر أسلوب التمرين</h3>${rows.map(r=>`<div class="tpl" style="--bc:${r[4]}" data-a="${r[0]}"><div class="ti">${r[3]}</div><div><b>${r[1]}</b><small>${r[2]}</small></div><div class="go">‹</div></div>`).join("")}<div class="tpl" style="--bc:#8a8f98;opacity:.6;cursor:default"><div class="ti">+</div><div><b>سيركت · EMOM · AMRAP · جاينت ست</b><small>قريبًا: بنضيفهم بنفس الطريقة</small></div></div><button class="btn o" id="mc">إلغاء</button></div>`;
+  document.body.appendChild(m);
+  m.onclick=e=>{if(e.target===m)m.remove()};m.querySelector("#mc").onclick=()=>m.remove();
+  m.querySelectorAll("[data-a]").forEach(x=>x.onclick=()=>{const a=x.dataset.a;m.remove();if(a==="ex")editEx(i,-1);else newBk(i,a)});
+}
+function newBk(i,t){
+  const T=BKT[t],s=P.data.sessions[i],f=[];
+  f.push({k:"rounds",l:"عدد الجولات (ممكن 2 أو 3 أو 4 أو 5 …)",type:"number",v:t==="ds"?1:3},{k:"rest",l:"الراحة بعد "+(t==="ds"?"الدروب ست":"كل جولة")+" (ثانية، 0 = بدون)",type:"number",v:t==="ds"?120:90});
+  const L0=bkLet((s.bk||[]).length);
+  if(t==="ds")f.push({k:"stages",l:"عدد مراحل النزول",type:"number",v:3},{k:"drop",l:"نسبة تنزيل الوزن في كل مرحلة (٪)",type:"number",v:20},{k:"n0",l:"اسم التمرين",v:""},{k:"r0",l:"التكرارات في المرحلة الأولى (مثال: 12 أو لحد الفشل)",v:"12"},{k:"b0",l:"الوزن الأساسي المستهدف (كجم) — اختياري، والباقي بيتحسب",v:"",dir:"ltr"});
+  else for(let j=0;j<T.n;j++)f.push({k:"n"+j,l:`اسم التمرين ${L0}${ar(j+1)}`,v:""},{k:"r"+j,l:`تكرارات ${L0}${ar(j+1)} (رقم واحد لكل الجولات، أو رقم لكل جولة مثل: 12 10 8)`,v:"12"});
+  f.push({k:"note",l:"ملاحظة للعميل (اختياري)",type:"area",v:""});
+  modal("إضافة "+T.l,f,async v=>{
+    const b={id:nid(),t,rounds:Math.max(1,Math.min(10,Math.round(+v.rounds)||3)),rest:Math.max(0,Math.round(+v.rest)||0),note:v.note.trim(),ex:[]};
+    const mk=(n,r)=>({id:nid(),n:n.trim(),tag:"جهاز",cls:"t1",url:"",img:"",reps:String(r||"").trim()});
+    if(t==="ds"){
+      if(!v.n0.trim()){toast("اكتب اسم التمرين");return false}
+      b.stages=Math.max(2,Math.min(6,Math.round(+v.stages)||3));b.drop=bkDrop({drop:v.drop});
+      const e=mk(v.n0,v.r0);e.base=String(v.b0||"").trim();b.ex.push(e);
+    }else for(let j=0;j<T.n;j++){
+      if(!v["n"+j].trim()){toast("اكتب أسماء كل التمارين");return false}
+      const e=mk(v["n"+j],v["r"+j]||"12");e.w="";b.ex.push(e);
+    }
+    s.bk=s.bk||[];s.bk.push(b);return savePD();
+  });
+}
+function editBk(i,k){
+  const s=P.data.sessions[i],b=s.bk[k],ds=b.t==="ds",f=[{k:"rounds",l:"عدد الجولات",type:"number",v:bkRounds(b)},{k:"rest",l:"الراحة (ثانية، 0 = بدون)",type:"number",v:+b.rest||0}];
+  if(ds)f.push({k:"stages",l:"عدد مراحل النزول",type:"number",v:bkStages(b)},{k:"drop",l:"نسبة تنزيل الوزن في كل مرحلة (٪)",type:"number",v:bkDrop(b)});
+  f.push({k:"note",l:"ملاحظة للعميل (اختياري)",type:"area",v:b.note||""});
+  modal("تعديل "+(BKT[b.t]||BKT.ss).l,f,async v=>{
+    b.rounds=Math.max(1,Math.min(10,Math.round(+v.rounds)||3));b.rest=Math.max(0,Math.round(+v.rest)||0);b.note=v.note.trim();
+    if(ds){b.stages=Math.max(2,Math.min(6,Math.round(+v.stages)||3));b.drop=bkDrop({drop:v.drop})}
+    return savePD();
+  },async()=>{const dead=b.id?["bk:"+b.id]:[];s.bk.splice(k,1);if(await savePD()!==false)qPurge(dead)});
+}
+function editBkEx(i,k,j){
+  const s=P.data.sessions[i],b=s.bk[k],e=b.ex[j],ds=b.t==="ds";
+  const f=[{k:"n",l:"اسم التمرين",v:e.n},{k:"tag",l:"الأداة",type:"sel",o:Object.keys(TAGS),v:e.tag||"جهاز"},{k:"url",l:"لينك فيديو يوتيوب",v:e.url||"",dir:"ltr"},{k:"img",l:"صورة (اختياري)",type:"img",v:e.img||""},{k:"reps",l:ds?"التكرارات في المرحلة الأولى":"التكرارات (رقم واحد لكل الجولات، أو رقم لكل جولة مثل: 12 10 8)",v:e.reps||"",dir:"ltr"}];
+  if(ds)f.push({k:"base",l:"الوزن الأساسي المستهدف (كجم) — والمراحل بعده بتنقص تلقائيًا",v:e.base||"",dir:"ltr"},{k:"wo",l:"تعديل يدوي لأوزان المراحل (مثال: 80 62 48) — فاضي = حساب تلقائي",v:e.wo||"",dir:"ltr"});
+  else f.push({k:"w",l:"الوزن المستهدف (كجم) — رقم واحد لكل الجولات أو رقم لكل جولة (اختياري)",v:e.w||"",dir:"ltr"});
+  modal("تعديل التمرين",f,async v=>{
+    if(!v.n.trim()){toast("اكتب اسم التمرين");return false}
+    Object.assign(e,{n:v.n.trim(),tag:v.tag,cls:TAGS[v.tag]||"t1",url:v.url.trim(),img:v.img,reps:v.reps.trim()});
+    if(ds)Object.assign(e,{base:v.base.trim(),wo:v.wo.trim()});else e.w=v.w.trim();
+    return savePD();
+  });
+}
 function session(i){
   const s=P.data.sessions[i];if(!s)return train();
   hd(esc(s.t),`الجلسة ${ar(i+1)} / ${ar(P.data.sessions.length)} · ${esc(s.s)}`,true);
@@ -617,7 +755,8 @@ function session(i){
     const k=`s${i}e${j}`,w=lg.w[k]||[],PW=planW(e,WK()||1),PV=PW&&(WK()||1)>1?planW(e,(WK()||1)-1):null;
     h+=`<div class="card ex ${lg.d[k]?"done":""}" id="c-${k}">${vid(e.url,e.n,"",e.img)}<div class="top"><div class="n">${ar(j+1)}</div><h3>${esc(e.n)}</h3><span class="pill ${e.cls||"t1"}">${esc(e.tag)}</span></div>${ed(`editEx(${i},${j})`)}${P.data.rest?`<button type="button" class="rest rbtn" onclick="restStart(${+P.data.rest||0})">⏱ راحة <b>${ar(P.data.rest)}</b> ثانية <span>· اضغط لبدء العدّاد</span></button>`:""}<div class="cap">${WK()?`التكرارات · الأسبوع ${ar(WK())} · `:""}الوزن (كجم)${PW?" · المستهدف بالأخضر وسجّل وزنك الفعلي تحته":""}</div><div class="sets">${R.map((r,x)=>`<div><div class="rp">${ar(r)}</div>${PW?(PW[x]?`<div class="tw">${fmtW(PW[x])}<small>كجم</small>${PV&&PW[x]>PV[x]?"<em>▲</em>":""}</div>`:`<div class="tw em">—</div>`):""}<input type="text" inputmode="decimal" value="${esc(w[x]||"")}" placeholder="${PW&&PW[x]?"الفعلي":(lastW(k,x)?ar(lastW(k,x)):"")}" onchange="setW('${k}',${x},this.value)"></div>`).join("")}</div><button class="chk" onclick="tgl('${k}')">${lg.d[k]?"✓ تم":"تم التمرين"}</button>${qBtn(e.id?"ex:"+e.id:"",e.n)}</div>`;
   });
-  h+=addb(`editEx(${i},-1)`,"إضافة تمرين");
+  h+=bkRender(i);
+  h+=addb(`editEx(${i},-1)`,"إضافة تمرين")+addb(`addBlock(${i})`,"إضافة بلوك: سوبر ست · تراي ست · دروب ست");
   if(s.ab){h+=`<div class="card dk"><div class="lbl" style="color:var(--or)">البطن · كور</div><b style="font-size:17px">${esc(s.ab.t)}</b>${ed(`editAb(${i})`)}</div><div style="display:grid;gap:10px;margin-bottom:12px">${s.ab.vids.map((v,x)=>`<div>${vid(v.url,"تمرين بطن "+(x+1),"",v.img)}${ed(`editAbv(${i},${x})`)}</div>`).join("")}</div>`}
   h+=chatCard(i);
   h+=EDIT()?(s.ab?"":addb(`editAb(${i})`,"إضافة قسم البطن"))+addb(`editAbv(${i},-1)`,"إضافة فيديو بطن")+addb(`shareSess(${i})`,"نسخ هذه الجلسة لعملاء آخرين"):"";
@@ -1144,9 +1283,9 @@ function pushTick(k){
   try{
     if(ADMIN||!L().d[k])return;
     if(once("start"))pushAdmin("start");
-    const m=/^s(\d+)e/.exec(k);if(!m)return;
+    const m=/^s(\d+)[eb]/.exec(k);if(!m)return;
     const i=+m[1],s=P.data.sessions[i];
-    if(s&&s.ex.length&&doneCount(i)>=s.ex.length&&once("done"+i))pushAdmin("done",s.t);
+    if(s&&sessTotal(s)&&doneCount(i)>=sessTotal(s)&&once("done"+i))pushAdmin("done",s.t);
   }catch(e){}
 }
 function deepClient(){
@@ -1284,7 +1423,7 @@ function oidAlign(M){
 // بيرجّع true لو أضاف أي رقم جديد (الأدمن بيحفظ بعدها)
 function idsEnsure(d){
   let ch=false;
-  (d.sessions||[]).forEach(s=>{if(!s.id){s.id=nid();ch=true}(s.ex||[]).forEach(e=>{if(!e.id){e.id=nid();ch=true}})});
+  (d.sessions||[]).forEach(s=>{if(!s.id){s.id=nid();ch=true}(s.ex||[]).forEach(e=>{if(!e.id){e.id=nid();ch=true}});(s.bk||[]).forEach(b=>{if(!b.id){b.id=nid();ch=true}(b.ex||[]).forEach(e=>{if(!e.id){e.id=nid();ch=true}})})});
   (d.supp||[]).forEach(x=>{if(!x.id){x.id=nid();ch=true}});
   Object.keys(d.meals||{}).forEach(k=>{if(oidAlign(d.meals[k]))ch=true});
   return ch;
@@ -1319,10 +1458,11 @@ function qTopics(d,kind,sel){
     if(sel!=null&&sel!==i)return;
     if(kind==="se"&&s.id)o.push("se:"+s.id);
     if(kind==="ex")(s.ex||[]).forEach(e=>e.id&&o.push("ex:"+e.id));
+    if(kind==="bk")(s.bk||[]).forEach(b=>b.id&&o.push("bk:"+b.id));
   });
   return o;
 }
-const qAllTopics=d=>["se","ex","ml","sp"].reduce((a,k)=>a.concat(qTopics(d,k)),[]);
+const qAllTopics=d=>["se","ex","bk","ml","sp"].reduce((a,k)=>a.concat(qTopics(d,k)),[]);
 // مسح محادثات العناصر المحذوفة فقط (ولو العنصر لسه موجود في برنامج تاني للعميل بنسيبه)
 async function qPurge(topics){
   if(!EDIT()||!topics||!topics.length)return;
@@ -1381,7 +1521,7 @@ function qUrl(t){
   const [k,id]=t.split(":");
   if(k==="ml")return "./#food";if(k==="sp")return "./#supp";if(k==="ms")return "./#body";
   const ss=P?P.data.sessions:[];
-  const i=ss.findIndex(s=>k==="se"?s.id===id:(s.ex||[]).some(e=>e.id===id));
+  const i=ss.findIndex(s=>k==="se"?s.id===id:k==="bk"?(s.bk||[]).some(b=>b.id===id):(s.ex||[]).some(e=>e.id===id));
   return i>=0?"./#s"+(i+1):"./#train";
 }
 function qNotify(t,l,v,cid){
