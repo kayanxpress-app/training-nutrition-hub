@@ -561,3 +561,54 @@ body.av .wuk{pointer-events:none}
 .pqbar span{flex:none;font-size:14px}
 .pqbar b{color:var(--lime);font-size:18px}
 .pqbar .btn{flex:1;margin:0;height:46px;line-height:46px;font-size:15px}
+
+/* ---------- بلوكات أساليب التدريب (سوبر ست · دروب ست · سيركت ...) ---------- */
+.blk{position:relative;overflow:hidden;padding:15px 14px 14px;--bc:#ee8434}
+.blk::before{content:"";position:absolute;inset-inline-start:0;top:0;bottom:0;width:6px;background:var(--bc)}
+.blk.ss{--bc:#ee8434}.blk.ds{--bc:#d6425f}.blk.ts{--bc:#2f80ed}.blk.ci{--bc:#1fa97a}
+.bh{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.bb{background:var(--bc);color:#fff;font-weight:800;font-size:13.5px;border-radius:99px;padding:3px 15px;letter-spacing:.2px}
+.bn{font-size:12px;font-weight:800;color:var(--mut);background:var(--chip);border-radius:99px;padding:3px 11px}
+.bq{margin-inline-start:auto;flex:none;width:34px;height:34px;border-radius:50%;border:1.5px solid var(--line);background:var(--chip);color:var(--ink);font:inherit;font-weight:800;font-size:16px;cursor:pointer;display:grid;place-items:center}
+.br{margin:9px 0 12px;font-size:14px;font-weight:700;line-height:1.7}
+.br b{color:var(--bc)}
+.bx{display:grid;grid-template-columns:96px 1fr;gap:12px;align-items:start;background:var(--chip);border-radius:18px;padding:10px}
+.bx .v{border-radius:14px;aspect-ratio:1/1}
+.bx .v::before{width:38px;height:38px;box-shadow:0 0 0 5px rgba(255,255,255,.08)}.bx .v::after{border-width:8px 0 8px 12px}
+.bx .v span{display:none}
+.bxh{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.bl{flex:none;min-width:34px;height:30px;padding:0 8px;border-radius:10px;background:var(--dk);color:var(--lime);display:grid;place-items:center;font-size:13px;font-weight:800;letter-spacing:.4px}
+.bx h3{margin:0;font-size:15.5px;font-weight:800;line-height:1.35}
+.bx .sets{gap:7px}
+.bx .sets input{height:44px;font-size:16px;background:var(--card)}
+.bx .rp{font-size:13px;padding:2px 0;margin-bottom:5px}
+.bc{display:flex;align-items:center;gap:8px;margin:6px 4px;color:var(--bc);font-weight:800;font-size:12.5px}
+.bc::before,.bc::after{content:"";flex:1;border-top:2px dashed color-mix(in srgb,var(--bc) 55%,transparent)}
+.brest{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:12px;padding:10px 14px;border-radius:14px;background:color-mix(in srgb,var(--bc) 12%,var(--card));border:1.5px solid color-mix(in srgb,var(--bc) 55%,transparent);font-weight:700;font-size:14px;width:100%;color:var(--ink);font-family:inherit;cursor:pointer}
+.brest b{color:var(--bc);font-size:17px}.brest span{font-size:12px;color:var(--mut)}
+/* دروب ست: سلم نزول */
+.dsr{display:grid;gap:0;margin-top:2px}
+.dst{position:relative;padding:11px 12px;border-radius:16px;background:var(--chip);border:1.5px solid var(--line)}
+.dst .dh{display:flex;align-items:center;gap:8px;font-weight:800;font-size:14px}
+.dst .dh i{font-style:normal;margin-inline-start:auto;font-size:12.5px;color:var(--bc);background:color-mix(in srgb,var(--bc) 14%,var(--card));border-radius:99px;padding:1px 11px}
+.dst .tg{margin:8px 0 6px;height:10px;border-radius:99px;background:linear-gradient(90deg,var(--bc),color-mix(in srgb,var(--bc) 60%,#fff));box-shadow:0 0 12px color-mix(in srgb,var(--bc) 40%,transparent)}
+.dst input{width:100%;height:44px;border:1.5px solid var(--line);border-radius:12px;background:var(--card);color:var(--ink);font:inherit;font-size:16px;font-weight:800;text-align:center}
+.dar{display:flex;align-items:center;justify-content:center;gap:8px;color:var(--bc);font-weight:800;font-size:12.5px;height:30px}
+.dar::before{content:"▼";font-size:14px}
+/* نافذة «شرح أسلوب التمرين» (داخل .md/.sh) */
+.sh.exs{--bc:#ee8434}.sh.exs.ds{--bc:#d6425f}.sh.exs.ts{--bc:#2f80ed}.sh.exs.ss{--bc:#ee8434}
+.sh.exs h3{display:flex;align-items:center;gap:10px;margin:0 0 4px}
+.sh.exs .exsum{margin:4px 0 8px;color:var(--mut);font-weight:600;font-size:14px}
+.exs .stp{display:flex;gap:12px;align-items:flex-start;padding:10px 0;border-top:1px solid var(--line)}
+.exs .stp .no{flex:none;width:30px;height:30px;border-radius:50%;background:var(--bc);color:#fff;display:grid;place-items:center;font-weight:800;font-size:14px;margin:0}
+.exs .stp p{margin:0;font-size:14.5px;line-height:1.7;font-weight:600}
+.exs .ex-tip{background:color-mix(in srgb,var(--bc) 12%,var(--card));border-radius:14px;padding:9px 12px;font-size:13.5px;font-weight:700;margin-top:8px;line-height:1.7}
+/* اختيار قالب (أدمن) */
+.tpl{display:flex;align-items:center;gap:12px;padding:12px;border:1.5px solid var(--line);border-radius:18px;background:var(--card);margin-bottom:9px;cursor:pointer}
+.tpl .ti{flex:none;width:46px;height:46px;border-radius:15px;background:var(--bc);color:#fff;display:grid;place-items:center;font-size:20px;font-weight:800}
+.tpl b{display:block;font-size:15.5px}.tpl small{display:block;color:var(--mut);font-size:12.5px;font-weight:600;line-height:1.5}
+.tpl .go{margin-inline-start:auto;flex:none;width:30px;height:30px;border-radius:50%;background:var(--chip);display:grid;place-items:center}
+
+.blk.done::before{background:var(--ok)}
+body.av .dst input{pointer-events:none}
+.tpl:active{transform:scale(.985)}
