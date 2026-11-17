@@ -569,7 +569,9 @@ body.av .wuk{pointer-events:none}
 .bh{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
 .bb{background:var(--bc);color:#fff;font-weight:800;font-size:13.5px;border-radius:99px;padding:3px 15px;letter-spacing:.2px}
 .bn{font-size:12px;font-weight:800;color:var(--mut);background:var(--chip);border-radius:99px;padding:3px 11px}
-.bq{margin-inline-start:auto;flex:none;width:34px;height:34px;border-radius:50%;border:1.5px solid var(--line);background:var(--chip);color:var(--ink);font:inherit;font-weight:800;font-size:16px;cursor:pointer;display:grid;place-items:center}
+.bq{margin-inline-start:auto;flex:none;display:inline-flex;align-items:center;gap:7px;height:34px;padding:0 13px 0 8px;border-radius:99px;border:1.5px solid color-mix(in srgb,var(--bc) 55%,transparent);background:color-mix(in srgb,var(--bc) 10%,var(--card));color:var(--ink);font:inherit;font-weight:800;font-size:12.5px;cursor:pointer;transition:transform .15s var(--fs)}
+.bq i{font-style:normal;width:22px;height:22px;border-radius:50%;background:var(--bc);color:#fff;display:grid;place-items:center;font-size:13px}
+.bq:active{transform:scale(.96)}
 .br{margin:9px 0 12px;font-size:14px;font-weight:700;line-height:1.7}
 .br b{color:var(--bc)}
 .bx{display:grid;grid-template-columns:96px 1fr;gap:12px;align-items:start;background:var(--chip);border-radius:18px;padding:10px}
@@ -612,3 +614,10 @@ body.av .wuk{pointer-events:none}
 .blk.done::before{background:var(--ok)}
 body.av .dst input{pointer-events:none}
 .tpl:active{transform:scale(.985)}
+
+/* منع خروج خانات الجولات عن كارت التمرين لو الأرقام طويلة */
+.bx>div{min-width:0}
+.bx .sets>div{min-width:0}
+.bx .tw{font-size:14px;gap:2px;padding:5px 2px;flex-wrap:wrap;line-height:1.3}
+.bx .tw small{font-size:9.5px}
+.bx .sets input{padding:0 4px}
