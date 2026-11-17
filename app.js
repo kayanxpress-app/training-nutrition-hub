@@ -34,15 +34,17 @@ const WK=()=>{const w=P.data.weeks;if(!w||!w.length)return null;if(EDIT()&&VW)re
 /* ===== أوزان التدرّج: المتخصص يكتب أوزان الأسبوع الأول، والباقي بيتحسب ===== */
 const numsD=t=>String(t||"").replace(/[٠-٩]/g,c=>"٠١٢٣٤٥٦٧٨٩".indexOf(c)).replace(/٫/g,".").split(/[^0-9.]+/).filter(x=>x&&x!==".").map(Number);
 const fmtW=n=>ar(String(n).replace(".","٫"));
-function planW(e,wk){
+function planW(e,wk,n,ro){
   /* الوزن مربوط بعدد التكرارات (منحنى عدات ↔ وزن) من أوزان الأسبوع الأول:
      • نفس العدات = نفس الوزن في كل الأسابيع
      • أقل من أقل عدات في الأسبوع الأول ← أثقل وزن عندها +5٪
      • أكتر من أكتر عدات في الأسبوع الأول ← أخف وزن عندها −5٪
      • عدات بين رقمين ← استيفاء بينهم، والكل بيتقرّب لأقرب 0.5 كجم */
-  const D=P.data,w1=(e.w1||[]).map(Number),ov=wk>1&&e.wo&&e.wo[wk]?e.wo[wk].map(Number):null;
+  const D=P.data;let w1=(e.w1||[]).map(Number);const ov=wk>1&&e.wo&&e.wo[wk]?e.wo[wk].map(Number):null;
   const W=D.weeks&&D.weeks.length?D.weeks:null;
-  const R1=(W?W[0]:D.reps)||[],Rw=(W?W[Math.min(wk,W.length)-1]:D.reps)||[];
+  let R1=(W?W[0]:D.reps)||[],Rw=(W?W[Math.min(wk,W.length)-1]:D.reps)||[];
+  if(ro){R1=ro;Rw=ro}
+  if(n){const fx=a=>a.length?Array.from({length:n},(_,i)=>a[Math.min(i,a.length-1)]):a;R1=fx(R1);Rw=fx(Rw);if(w1.length===1)w1=fx(w1)}
   if(!w1.some(x=>x>0)&&!(ov&&ov.some(x=>x>0)))return null;
   if(wk<=1)return w1.map(x=>x>0?x:0);
   const pct=(D.wpct??5)/100,st=D.wsnap??0.5;
@@ -606,7 +608,8 @@ function warmup(i){
   return h+addb(`editWu(${i},-1)`,"إضافة تمرين إحماء")+`</div>`;
 }
 function tgu(k){const l=L();l.u=l.u||{};const c=$("#u-"+k);if(l.u[k]){delete l.u[k];c.classList.remove("done");c.querySelector(".wuk").textContent=""}else{l.u[k]=1;c.classList.add("done");c.querySelector(".wuk").textContent="✓"}save()}
-/* ===== بلوكات أساليب التدريب: سوبر ست · تراي ست · دروب ست (قوالب جاهزة، وأساليب تانية بتتضاف بنفس الطريقة) ===== */
+/* ===== بلوكات أساليب التدريب: سوبر ست · تراي ست · دروب ست (قوالب جاهزة، وأساليب تانية بتتضاف بنفس الطريقة) =====
+   نفس منطق النظام الهرمي: التكرارات من جدول تدرّج الأسبوع، وأوزان الأسبوع الأول بيكتبها المدرب، والباقي بيتحسب (+٥٪ لما التكرارات تقل)، وتقدر تعدّل أي أسبوع يدويًا */
 const BKT={
   ss:{l:"سوبر ست",c:"ss",n:2,ic:"⇄",d:"تمرينين ورا بعض من غير راحة بينهم"},
   ts:{l:"تراي ست",c:"ts",n:3,ic:"٣",d:"ثلاث تمارين ورا بعض من غير راحة بينهم"},
@@ -615,17 +618,44 @@ const bkLet=k=>String.fromCharCode(65+k%26);
 const bkRounds=b=>Math.max(1,Math.min(10,Math.round(+b.rounds)||3));
 const bkStages=b=>Math.max(2,Math.min(6,Math.round(+b.stages)||3));
 const bkDrop=b=>{const d=+b.drop;return d>=1&&d<=60?d:20};
-const bkReps=(t,n)=>{const a=String(t||"").trim().split(/[\s,،]+/).filter(Boolean);if(!a.length)return Array(n).fill("");return Array.from({length:n},(_,i)=>a[Math.min(i,a.length-1)])};
-const bkNums=(t,n)=>{const a=numsD(t);if(!a.length)return null;return Array.from({length:n},(_,i)=>a[Math.min(i,a.length-1)])};
-/* أوزان مراحل الدروب ست: من الوزن الأساسي (أو الوزن اللي العميل كتبه فعلًا في المرحلة الأولى) كل مرحلة تنقص النسبة المحددة، وأي مرحلة المدرب كتب لها وزن يدوي تتقدّم على الحساب التلقائي */
+const bkFit=(a,n)=>a.length?Array.from({length:n},(_,i)=>a[Math.min(i,a.length-1)]):[];
+const bkReps=(t,n)=>{const a=String(t||"").trim().split(/[\s,،]+/).filter(Boolean);return a.length?bkFit(a,n):Array(n).fill("")};
+/* أوزان التمرين: w1 = أوزان الأسبوع الأول، wo = تعديل يدوي لكل أسبوع (نفس هيكل التمرين الهرمي). بيقرا كمان الحقول القديمة لو كانت اتحفظت */
+const bkW1=e=>Array.isArray(e.w1)?e.w1.map(Number):(e.base?[numsD(e.base)[0]||0].concat(typeof e.wo==="string"?numsD(e.wo).slice(1):[]):numsD(e.w||""));
+const bkWo=e=>(e.wo&&typeof e.wo==="object"&&!Array.isArray(e.wo))?e.wo:{};
+const bkOv=(e,n)=>{const t=String(e.reps||"").trim();if(!t)return null;const a=bkReps(t,n);return{txt:a,num:a.map(Number)}};
+/* تكرارات كل جولة في الأسبوع: تمرين ليه تكرارات خاصة = ثابتة، وغير كده = جدول تدرّج التكرارات بتاع البرنامج (زي الهرمي) */
+function bkRepsWk(e,n,wk){
+  const o=bkOv(e,n);if(o)return o.txt;
+  const D=P.data,W=D.weeks&&D.weeks.length?D.weeks:null,base=(W?W[Math.min(wk,W.length)-1]:D.reps)||[];
+  return bkFit(base,n).map(String);
+}
+/* أوزان جولات السوبر ست / التراي ست: نفس planW بتاع الهرمي (منحنى عدات↔وزن +٥٪ لما العدات تقل + التعديل اليدوي) */
+function bkPlan(e,wk,n){
+  const o=bkOv(e,n),w1=bkW1(e),wo=bkWo(e);
+  if(o&&o.num.some(x=>isNaN(x))){   // تكرارات نصية (مثل: لحد الفشل): مفيش منحنى، يدوي بس
+    const man=wk>1?(wo[wk]||[]):w1,a=Array.from({length:n},(_,i)=>+man[i]||(man.length===1?+man[0]:0)||0);
+    return a.some(x=>x>0)?a:null;
+  }
+  return planW({w1,wo},wk,n,o?o.num:null);
+}
+/* الدروب ست: وزن المرحلة الأولى بيتحسب زي الهرمي حسب الأسبوع، وكل مرحلة بعدها بتنقص النسبة (٢٠٪ مثلًا)، وأي مرحلة المدرب كتب لها وزن يدوي بتتقدّم */
+function dsBase(e,wk){
+  const w1=bkW1(e),wo=bkWo(e),t=String(e.reps||"").trim(),r0=t?Number(bkReps(t,1)[0]):null;
+  const man0=wk>1?+((wo[wk]||[])[0])||0:0;
+  if(man0>0)return man0;
+  if(r0!==null&&isNaN(r0))return w1[0]>0?w1[0]:0;
+  const wo1={};Object.keys(wo).forEach(k=>{wo1[k]=[(wo[k]||[])[0]]});
+  const pw=planW({w1:[w1[0]||0],wo:wo1},wk,1,r0===null?null:[r0]);
+  return pw&&pw[0]>0?pw[0]:0;
+}
 function dsPlan(b,e,first){
-  const S=bkStages(b),pct=bkDrop(b)/100,st=P.data.wsnap??0.5,man=numsD(e.wo||"");
+  const wk=WK()||1,S=bkStages(b),pct=bkDrop(b)/100,st=P.data.wsnap??0.5;
   const snap=v=>Number((st>0?Math.round(v/st)*st:v).toFixed(2));
-  let cur=+first>0?+first:(numsD(e.base||"")[0]||0);const out=[];
+  const man=(wk>1?(bkWo(e)[wk]||[]):bkW1(e)).map(Number);
+  let cur=+first>0?+first:dsBase(e,wk);const out=[];
   for(let x=0;x<S;x++){
-    if(man[x]>0)cur=man[x];
-    else if(x>0)cur=cur>0?snap(cur*(1-pct)):0;
-    else if(cur>0)cur=snap(cur);
+    if(x>0){if(man[x]>0)cur=man[x];else cur=cur>0?snap(cur*(1-pct)):0}
     out.push(cur>0?cur:0);
   }
   return out;
@@ -640,29 +670,30 @@ function bkRender(i){
   return B.map((b,k)=>bkCard(i,k,b)).join("");
 }
 function bkCard(i,k,b){
-  const T=BKT[b.t]||BKT.ss,R=bkRounds(b),S=bkStages(b),lg=L(),key=`s${i}b${k}`,done=!!lg.d[key],ex=b.ex||[];
+  const T=BKT[b.t]||BKT.ss,R=bkRounds(b),S=bkStages(b),lg=L(),key=`s${i}b${k}`,done=!!lg.d[key],ex=b.ex||[],wk=WK()||1;
   const lab=ex.map(e=>e.n).filter(Boolean).join(" + ")||T.l;
-  let h=`<div class="card blk ${T.c} ${done?"done":""}" id="c-${key}"><div class="bh"><span class="bb">${T.l}</span><span class="bn">${b.t==="ds"?`تمرين واحد · ${ar(S)} مراحل${R>1?` × ${ar(R)} جولات`:""}`:`${ar(R)} جولات`}</span><button type="button" class="bq" onclick="bkExplain(${i},${k})" aria-label="شرح أسلوب التمرين">؟</button></div><div class="br">${bkRule(b)}</div>`;
+  let h=`<div class="card blk ${T.c} ${done?"done":""}" id="c-${key}"><div class="bh"><span class="bb">${T.l}</span><span class="bn">${b.t==="ds"?`تمرين واحد · ${ar(S)} مراحل${R>1?` × ${ar(R)} جولات`:""}`:`${ar(R)} جولات`}${WK()?` · الأسبوع ${ar(wk)}`:""}</span><button type="button" class="bq" onclick="bkExplain(${i},${k})"><i>؟</i> شرح أسلوب التمرين</button></div><div class="br">${bkRule(b)}</div>`;
   if(b.note)h+=`<div class="note"><span class="lbl">ملاحظة</span> ${esc(b.note)}</div>`;
   h+=ed(`editBk(${i},${k})`,"تعديل البلوك");
   if(b.t==="ds"){
-    const e=ex[0]||{},wk=`${key}x0`,w=lg.w[wk]||[];
+    const e=ex[0]||{},wkey=`${key}x0`,w=lg.w[wkey]||[],t0=String(e.reps||"").trim();
     h+=`<div class="bxh" style="margin-bottom:10px"><span class="bl">${bkLet(k)}١</span><h3 style="margin:0;font-size:16px;font-weight:800;flex:1">${esc(e.n)}</h3><span class="pill ${e.cls||"t1"}">${esc(e.tag||"")}</span></div>${e.url||e.img?`<div style="margin-bottom:10px">${vid(e.url,e.n,"sm",e.img)}</div>`:""}${ed(`editBkEx(${i},${k},0)`)}`;
+    const r1=bkRepsWk(e,1,wk)[0];
     for(let r=0;r<R;r++){
       const plan=dsPlan(b,e,w[r*S]);
       if(R>1)h+=`<div class="cap" style="margin:${r?"12px":"0"} 0 6px">الجولة ${ar(r+1)} من ${ar(R)}</div>`;
       h+=`<div class="dsr">`;
       for(let x=0;x<S;x++){
-        const idx=r*S+x,t=plan[x],rp=x===0?(e.reps?ar(e.reps):"لحد الفشل"):"لحد الفشل",wdt=Math.max(30,Math.round(100*Math.pow(1-bkDrop(b)/100,x)));
-        h+=`<div class="dst"><div class="dh">المرحلة ${ar(x+1)}${x===0?" · الأساسية":""}<i>${t?fmtW(t)+" كجم · ":""}${rp}</i></div><div class="tg" style="width:${wdt}%"></div><input type="text" inputmode="decimal" value="${esc(w[idx]||"")}" placeholder="${t?"الفعلي":"كجم"}" onchange="setW('${wk}',${idx},this.value)${x===0?`;bkRe(${i})`:""}"></div>`;
+        const idx=r*S+x,t=plan[x],rp=x===0?(r1?ar(r1):"لحد الفشل"):"لحد الفشل",wdt=Math.max(30,Math.round(100*Math.pow(1-bkDrop(b)/100,x)));
+        h+=`<div class="dst"><div class="dh">المرحلة ${ar(x+1)}${x===0?" · الأساسية":""}<i>${t?fmtW(t)+" كجم · ":""}${rp}</i></div><div class="tg" style="width:${wdt}%"></div><input type="text" inputmode="decimal" value="${esc(w[idx]||"")}" placeholder="${t?"الفعلي":"كجم"}" onchange="setW('${wkey}',${idx},this.value)${x===0?`;bkRe(${i})`:""}"></div>`;
         if(x<S-1)h+=`<div class="dar">نزّل ${ar(bkDrop(b))}٪ وكمّل فورًا</div>`;
       }
       h+=`</div>`;
     }
   }else{
     ex.forEach((e,j)=>{
-      const wk=`${key}x${j}`,w=lg.w[wk]||[],rp=bkReps(e.reps,R),tg=bkNums(e.w,R);
-      h+=`${j?'<div class="bc">🔗 بدون راحة</div>':""}<div class="bx"><div>${vid(e.url,e.n,"",e.img)}</div><div><div class="bxh"><span class="bl">${bkLet(k)}${ar(j+1)}</span><h3>${esc(e.n)}</h3><span class="pill ${e.cls||"t1"}">${esc(e.tag||"")}</span></div><div class="sets" style="grid-template-columns:repeat(${Math.min(R,4)},1fr)">${rp.map((r,x)=>`<div><div class="rp">${r?ar(r):"—"}</div>${tg?(tg[x]?`<div class="tw">${fmtW(tg[x])}<small>كجم</small></div>`:""):""}<input type="text" inputmode="decimal" value="${esc(w[x]||"")}" placeholder="${tg&&tg[x]?"الفعلي":(lastW(wk,x)?ar(lastW(wk,x)):"كجم")}" onchange="setW('${wk}',${x},this.value)"></div>`).join("")}</div>${ed(`editBkEx(${i},${k},${j})`)}</div></div>`;
+      const wkey=`${key}x${j}`,w=lg.w[wkey]||[],rp=bkRepsWk(e,R,wk),PW=bkPlan(e,wk,R),PV=PW&&wk>1?bkPlan(e,wk-1,R):null;
+      h+=`${j?'<div class="bc">🔗 بدون راحة</div>':""}<div class="bx"><div>${vid(e.url,e.n,"",e.img)}</div><div><div class="bxh"><span class="bl">${bkLet(k)}${ar(j+1)}</span><h3>${esc(e.n)}</h3><span class="pill ${e.cls||"t1"}">${esc(e.tag||"")}</span></div><div class="sets" style="grid-template-columns:repeat(${Math.min(R,4)},minmax(0,1fr))">${rp.map((r,x)=>`<div><div class="rp">${r?ar(r):"—"}</div>${PW?(PW[x]?`<div class="tw">${fmtW(PW[x])}<small>كجم</small>${PV&&PW[x]>PV[x]?"<em>▲</em>":""}</div>`:`<div class="tw em">—</div>`):""}<input type="text" inputmode="decimal" value="${esc(w[x]||"")}" placeholder="${PW&&PW[x]?"الفعلي":(lastW(wkey,x)?ar(lastW(wkey,x)):"كجم")}" onchange="setW('${wkey}',${x},this.value)"></div>`).join("")}</div>${ed(`editBkEx(${i},${k},${j})`)}</div></div>`;
     });
   }
   if(+b.rest)h+=`<button type="button" class="brest" onclick="restStart(${+b.rest||0})"><span>⏱ ${b.t==="ds"?"راحة بعد الدروب ست":"راحة بعد كل جولة"} · اضغط لبدء العدّاد</span><b>${ar(+b.rest)} ثانية</b></button>`;
@@ -678,13 +709,13 @@ function bkExplain(i,k){
   let sum,steps,tip;
   if(b.t==="ds"){
     sum="أسلوب بيرهق العضلة لآخرها بأقل وقت.";
-    steps=[`ابدأ بالوزن الأساسي (المرحلة ١) لحد ما تتعب${(b.ex&&b.ex[0]&&b.ex[0].reps)?` أو لحد ${ar(b.ex[0].reps)} عدة`:""}.`,`نزّل الوزن <b>${ar(dp)}٪ فورًا</b> من غير ما ترتاح وكمّل لحد الفشل.`,`كرّر النزول لحد ما تخلّص <b>${ar(S)} مراحل</b>.`,rest?`ارتاح <b>${ar(rest)} ثانية</b> (اضغط زر الراحة)${R>1?` وكرّر الجولة، المجموع ${ar(R)} جولات`:""}.`:(R>1?`كرّر الجولة، المجموع ${ar(R)} جولات.`:"")].filter(Boolean);
-    tip="اكتب الوزن الفعلي في كل مرحلة. لو غيّرت وزن المرحلة الأولى الأوزان المقترحة بعدها بتتحدّث لوحدها.";
+    steps=[`ابدأ بالوزن الأساسي (المرحلة ١) لحد ما تتعب.`,`نزّل الوزن <b>${ar(dp)}٪ فورًا</b> من غير ما ترتاح وكمّل لحد الفشل.`,`كرّر النزول لحد ما تخلّص <b>${ar(S)} مراحل</b>.`,rest?`ارتاح <b>${ar(rest)} ثانية</b> (اضغط زر الراحة)${R>1?` وكرّر الجولة، المجموع ${ar(R)} جولات`:""}.`:(R>1?`كرّر الجولة، المجموع ${ar(R)} جولات.`:"")].filter(Boolean);
+    tip="اكتب الوزن الفعلي في كل مرحلة. لو غيّرت وزن المرحلة الأولى الأوزان المقترحة بعدها بتتحدّث لوحدها، والأوزان بتتغير كل أسبوع حسب التكرارات.";
   }else{
     const n=T.n,names=Array.from({length:n},(_,j)=>`${L0}${ar(j+1)}`);
     sum="أسلوب بيوفّر وقت وبيرفع شدة التمرين.";
     steps=[`اعمل <b>${names[0]}</b> مجموعة كاملة.`,`روح على طول <b>${names.slice(1).join(" ثم ")}</b> من غير راحة.`,rest?`ارتاح <b>${ar(rest)} ثانية</b> (اضغط زر الراحة).`:"",`كرّر لحد آخر جولة: <b>${ar(R)} جولات</b>.`].filter(Boolean);
-    tip="اكتب وزنك في كل جولة، والتطبيق يفكّرك بيه المرة الجاية.";
+    tip="اكتب وزنك في كل جولة. الأوزان المقترحة والتكرارات بتتغير كل أسبوع زي باقي التمارين.";
   }
   const m=document.createElement("div");m.className="md";
   m.innerHTML=`<div class="sh exs ${T.c}"><h3><span class="bb">${T.l}</span> شرح أسلوب التمرين</h3><p class="exsum">${sum}</p>${steps.map((x,n)=>`<div class="stp"><div class="no">${ar(n+1)}</div><p>${x}</p></div>`).join("")}${b.note?`<div class="ex-tip">📝 ${esc(b.note)}</div>`:""}<div class="ex-tip">💡 ${tip}</div><button class="btn" id="mk">فهمت</button></div>`;
@@ -704,21 +735,24 @@ function newBk(i,t){
   const T=BKT[t],s=P.data.sessions[i],f=[];
   f.push({k:"rounds",l:"عدد الجولات (ممكن 2 أو 3 أو 4 أو 5 …)",type:"number",v:t==="ds"?1:3},{k:"rest",l:"الراحة بعد "+(t==="ds"?"الدروب ست":"كل جولة")+" (ثانية، 0 = بدون)",type:"number",v:t==="ds"?120:90});
   const L0=bkLet((s.bk||[]).length);
-  if(t==="ds")f.push({k:"stages",l:"عدد مراحل النزول",type:"number",v:3},{k:"drop",l:"نسبة تنزيل الوزن في كل مرحلة (٪)",type:"number",v:20},{k:"n0",l:"اسم التمرين",v:""},{k:"r0",l:"التكرارات في المرحلة الأولى (مثال: 12 أو لحد الفشل)",v:"12"},{k:"b0",l:"الوزن الأساسي المستهدف (كجم) — اختياري، والباقي بيتحسب",v:"",dir:"ltr"});
-  else for(let j=0;j<T.n;j++)f.push({k:"n"+j,l:`اسم التمرين ${L0}${ar(j+1)}`,v:""},{k:"r"+j,l:`تكرارات ${L0}${ar(j+1)} (رقم واحد لكل الجولات، أو رقم لكل جولة مثل: 12 10 8)`,v:"12"});
+  if(t==="ds")f.push({k:"stages",l:"عدد مراحل النزول",type:"number",v:3},{k:"drop",l:"نسبة تنزيل الوزن في كل مرحلة (٪)",type:"number",v:20},{k:"n0",l:"اسم التمرين",v:""});
+  else for(let j=0;j<T.n;j++)f.push({k:"n"+j,l:`اسم التمرين ${L0}${ar(j+1)}`,v:""});
   f.push({k:"note",l:"ملاحظة للعميل (اختياري)",type:"area",v:""});
-  modal("إضافة "+T.l,f,async v=>{
+  modal("إضافة "+T.l+" — الخطوة ١: الإعدادات",f,async v=>{
     const b={id:nid(),t,rounds:Math.max(1,Math.min(10,Math.round(+v.rounds)||3)),rest:Math.max(0,Math.round(+v.rest)||0),note:v.note.trim(),ex:[]};
-    const mk=(n,r)=>({id:nid(),n:n.trim(),tag:"جهاز",cls:"t1",url:"",img:"",reps:String(r||"").trim()});
+    const mk=n=>({id:nid(),n:n.trim(),tag:"جهاز",cls:"t1",url:"",img:""});
     if(t==="ds"){
       if(!v.n0.trim()){toast("اكتب اسم التمرين");return false}
-      b.stages=Math.max(2,Math.min(6,Math.round(+v.stages)||3));b.drop=bkDrop({drop:v.drop});
-      const e=mk(v.n0,v.r0);e.base=String(v.b0||"").trim();b.ex.push(e);
+      b.stages=Math.max(2,Math.min(6,Math.round(+v.stages)||3));b.drop=bkDrop({drop:v.drop});b.ex.push(mk(v.n0));
     }else for(let j=0;j<T.n;j++){
       if(!v["n"+j].trim()){toast("اكتب أسماء كل التمارين");return false}
-      const e=mk(v["n"+j],v["r"+j]||"12");e.w="";b.ex.push(e);
+      b.ex.push(mk(v["n"+j]));
     }
-    s.bk=s.bk||[];s.bk.push(b);return savePD();
+    s.bk=s.bk||[];s.bk.push(b);
+    const ok=await savePD();
+    // الخطوة ٢: نفس نافذة تعديل التمرين الهرمي (فيديو + أوزان الأسابيع) بتفتح تلقائيًا لكل تمرين في البلوك
+    if(ok!==false){const kk=s.bk.length-1;setTimeout(()=>editBkEx(i,kk,0,true),80)}
+    return ok;
   });
 }
 function editBk(i,k){
@@ -731,16 +765,26 @@ function editBk(i,k){
     return savePD();
   },async()=>{const dead=b.id?["bk:"+b.id]:[];s.bk.splice(k,1);if(await savePD()!==false)qPurge(dead)});
 }
-function editBkEx(i,k,j){
-  const s=P.data.sessions[i],b=s.bk[k],e=b.ex[j],ds=b.t==="ds";
-  const f=[{k:"n",l:"اسم التمرين",v:e.n},{k:"tag",l:"الأداة",type:"sel",o:Object.keys(TAGS),v:e.tag||"جهاز"},{k:"url",l:"لينك فيديو يوتيوب",v:e.url||"",dir:"ltr"},{k:"img",l:"صورة (اختياري)",type:"img",v:e.img||""},{k:"reps",l:ds?"التكرارات في المرحلة الأولى":"التكرارات (رقم واحد لكل الجولات، أو رقم لكل جولة مثل: 12 10 8)",v:e.reps||"",dir:"ltr"}];
-  if(ds)f.push({k:"base",l:"الوزن الأساسي المستهدف (كجم) — والمراحل بعده بتنقص تلقائيًا",v:e.base||"",dir:"ltr"},{k:"wo",l:"تعديل يدوي لأوزان المراحل (مثال: 80 62 48) — فاضي = حساب تلقائي",v:e.wo||"",dir:"ltr"});
-  else f.push({k:"w",l:"الوزن المستهدف (كجم) — رقم واحد لكل الجولات أو رقم لكل جولة (اختياري)",v:e.w||"",dir:"ltr"});
-  modal("تعديل التمرين",f,async v=>{
+/* نافذة تعديل تمرين داخل بلوك: نفس حقول تمرين النظام الهرمي (أوزان الأسبوع الأول + تعديل يدوي للأسابيع) */
+function editBkEx(i,k,j,chain){
+  const s=P.data.sessions[i],b=s.bk[k];if(!b||!b.ex[j])return;
+  const e=b.ex[j],ds=b.t==="ds",n=b.ex.length,w1=bkW1(e),wo=bkWo(e);
+  const wkN=[2,3,4,5].filter(x=>x<=Math.max(4,(P.data.weeks||[]).length));
+  const f=[{k:"n",l:"اسم التمرين",v:e.n},{k:"tag",l:"الأداة",type:"sel",o:Object.keys(TAGS),v:e.tag||"جهاز"},{k:"url",l:"لينك فيديو يوتيوب",v:e.url||"",dir:"ltr"},{k:"img",l:"صورة (اختياري، وإلا تظهر صورة الفيديو)",type:"img",v:e.img||""},
+    {k:"reps",l:"تكرارات خاصة بالتمرين ده (اختياري) — فاضي = بيتبع جدول تدرّج التكرارات حسب الأسبوع زي الهرمي. أو اكتب رقم لكل جولة مثل: 12 10 8",v:e.reps||"",dir:"ltr"},
+    {k:"w1",l:ds?"وزن المرحلة الأولى في الأسبوع الأول (كجم) — والمراحل بعده بتنقص تلقائيًا. أو اكتب وزن كل مرحلة مثل: 80 62 48":"أوزان الأسبوع الأول (كجم) لكل جولة، مثل: 10 11 11 — والأسابيع الباقية بتتحسب تلقائيًا",v:w1.filter(x=>x>0).length?w1.join(" "):"",dir:"ltr"},
+    ...wkN.map(x=>({k:"w"+x,l:ds?`تعديل يدوي لأوزان مراحل الأسبوع ${x} (فاضي = حساب تلقائي)`:`تعديل يدوي لأوزان الأسبوع ${x} (فاضي = حساب تلقائي)`,v:(wo[x]||[]).join(" "),dir:"ltr"}))];
+  modal((chain?`${(BKT[b.t]||BKT.ss).l} — الخطوة ٢: بيانات التمرين ${bkLet(k)}${ar(j+1)}${n>1?` من ${ar(n)}`:""}`:"تعديل التمرين"),f,async v=>{
     if(!v.n.trim()){toast("اكتب اسم التمرين");return false}
-    Object.assign(e,{n:v.n.trim(),tag:v.tag,cls:TAGS[v.tag]||"t1",url:v.url.trim(),img:v.img,reps:v.reps.trim()});
-    if(ds)Object.assign(e,{base:v.base.trim(),wo:v.wo.trim()});else e.w=v.w.trim();
-    return savePD();
+    Object.assign(e,{n:v.n.trim(),tag:v.tag,cls:TAGS[v.tag]||"t1",url:v.url.trim(),img:v.img});
+    const rp=v.reps.trim();if(rp)e.reps=rp;else delete e.reps;
+    const a=numsD(v.w1);if(a.length)e.w1=a;else delete e.w1;
+    const o={};wkN.forEach(x=>{const z=numsD(v["w"+x]);if(z.length)o[x]=z});
+    if(Object.keys(o).length)e.wo=o;else delete e.wo;
+    delete e.w;delete e.base;
+    const ok=await savePD();
+    if(ok!==false&&chain&&j+1<n)setTimeout(()=>editBkEx(i,k,j+1,true),80);
+    return ok;
   });
 }
 function session(i){
