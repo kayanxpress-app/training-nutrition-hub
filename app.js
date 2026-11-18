@@ -608,32 +608,48 @@ function warmup(i){
   return h+addb(`editWu(${i},-1)`,"إضافة تمرين إحماء")+`</div>`;
 }
 function tgu(k){const l=L();l.u=l.u||{};const c=$("#u-"+k);if(l.u[k]){delete l.u[k];c.classList.remove("done");c.querySelector(".wuk").textContent=""}else{l.u[k]=1;c.classList.add("done");c.querySelector(".wuk").textContent="✓"}save()}
-/* ===== بلوكات أساليب التدريب: سوبر ست · تراي ست · دروب ست (قوالب جاهزة، وأساليب تانية بتتضاف بنفس الطريقة) =====
+/* ===== بلوكات أساليب التدريب: سوبر ست · تراي ست · جاينت ست · دروب ست · سيركت · EMOM · AMRAP (قوالب جاهزة، وأي أسلوب جديد بيتضاف بنفس الطريقة) =====
    نفس منطق النظام الهرمي: التكرارات من جدول تدرّج الأسبوع، وأوزان الأسبوع الأول بيكتبها المدرب، والباقي بيتحسب (+٥٪ لما التكرارات تقل)، وتقدر تعدّل أي أسبوع يدويًا */
 const BKT={
-  ss:{l:"سوبر ست",c:"ss",n:2,ic:"⇄",d:"تمرينين ورا بعض من غير راحة بينهم"},
-  ts:{l:"تراي ست",c:"ts",n:3,ic:"٣",d:"ثلاث تمارين ورا بعض من غير راحة بينهم"},
-  ds:{l:"دروب ست",c:"ds",n:1,ic:"▼",d:"تمرين واحد وتنزّل الوزن كل مرحلة لحد الفشل"}};
+  ss:{l:"سوبر ست",c:"ss",n:2,ic:"⇄",col:"#ee8434",d:"تمرينين ورا بعض من غير راحة بينهم"},
+  ts:{l:"تراي ست",c:"ts",n:3,ic:"٣",col:"#2f80ed",d:"ثلاث تمارين ورا بعض من غير راحة بينهم"},
+  gs:{l:"جاينت ست",c:"gs",n:4,max:6,ic:"٤+",col:"#8b5cf6",d:"٤ تمارين أو أكتر ورا بعض من غير راحة"},
+  ds:{l:"دروب ست",c:"ds",n:1,ic:"▼",col:"#d6425f",d:"تمرين واحد وتنزّل الوزن كل مرحلة لحد الفشل"},
+  ci:{l:"سيركت",c:"ci",n:3,max:8,ic:"↻",col:"#1fa97a",d:"محطات متتالية بوقت شغل وراحة وجولات"},
+  em:{l:"EMOM",c:"em",n:1,max:4,ic:"⏱",col:"#d99a00",d:"كل دقيقة تمرين: اشتغل وارتاح باقي الدقيقة"},
+  am:{l:"AMRAP",c:"am",n:2,max:6,ic:"∞",col:"#e0457b",d:"أكبر عدد جولات ممكن في وقت محدد"}};
 const bkLet=k=>String.fromCharCode(65+k%26);
-const bkRounds=b=>Math.max(1,Math.min(10,Math.round(+b.rounds)||3));
-const bkStages=b=>Math.max(2,Math.min(6,Math.round(+b.stages)||3));
+const bkClamp=(v,a,b,d)=>{v=Math.round(+v);return v>=a&&v<=b?v:d};
+const bkRounds=b=>bkClamp(b.rounds,1,10,3);
+const bkStages=b=>bkClamp(b.stages,2,6,3);
+const bkMin=b=>bkClamp(b.min,1,90,b.t==="am"?12:10);
+const bkIv=b=>bkClamp(b.iv,15,300,60);
 const bkDrop=b=>{const d=+b.drop;return d>=1&&d<=60?d:20};
+/* عدد جولات كل تمرين: EMOM بيتحسب من الوقت وعدد التمارين، AMRAP تمرين واحد (والعميل بيسجّل الجولات اللي خلصها) */
+function bkR(b){
+  if(b.t==="em"){const tot=Math.floor(bkMin(b)*60/bkIv(b));return Math.max(1,Math.floor(tot/Math.max(1,(b.ex||[]).length)))}
+  if(b.t==="am")return 1;
+  return bkRounds(b);
+}
+const bkWord=n=>n===2?"تمرينين":n===3?"ثلاث تمارين":`${ar(n)} تمارين`;
 const bkFit=(a,n)=>a.length?Array.from({length:n},(_,i)=>a[Math.min(i,a.length-1)]):[];
 const bkReps=(t,n)=>{const a=String(t||"").trim().split(/[\s,،]+/).filter(Boolean);return a.length?bkFit(a,n):Array(n).fill("")};
+const bkTimed=b=>b.t==="ci"&&(+b.work||0)>0;
 /* أوزان التمرين: w1 = أوزان الأسبوع الأول، wo = تعديل يدوي لكل أسبوع (نفس هيكل التمرين الهرمي). بيقرا كمان الحقول القديمة لو كانت اتحفظت */
 const bkW1=e=>Array.isArray(e.w1)?e.w1.map(Number):(e.base?[numsD(e.base)[0]||0].concat(typeof e.wo==="string"?numsD(e.wo).slice(1):[]):numsD(e.w||""));
 const bkWo=e=>(e.wo&&typeof e.wo==="object"&&!Array.isArray(e.wo))?e.wo:{};
 const bkOv=(e,n)=>{const t=String(e.reps||"").trim();if(!t)return null;const a=bkReps(t,n);return{txt:a,num:a.map(Number)}};
-/* تكرارات كل جولة في الأسبوع: تمرين ليه تكرارات خاصة = ثابتة، وغير كده = جدول تدرّج التكرارات بتاع البرنامج (زي الهرمي) */
-function bkRepsWk(e,n,wk){
+/* تكرارات كل جولة في الأسبوع: تمرين ليه تكرارات خاصة = ثابتة، السيركت بالوقت = وقت الشغل، وغير كده = جدول تدرّج التكرارات بتاع البرنامج (زي الهرمي) */
+function bkRepsWk(b,e,n,wk){
   const o=bkOv(e,n);if(o)return o.txt;
+  if(bkTimed(b))return Array(n).fill(`${+b.work}ث`);
   const D=P.data,W=D.weeks&&D.weeks.length?D.weeks:null,base=(W?W[Math.min(wk,W.length)-1]:D.reps)||[];
   return bkFit(base,n).map(String);
 }
-/* أوزان جولات السوبر ست / التراي ست: نفس planW بتاع الهرمي (منحنى عدات↔وزن +٥٪ لما العدات تقل + التعديل اليدوي) */
-function bkPlan(e,wk,n){
+/* أوزان الجولات: نفس planW بتاع الهرمي (منحنى عدات↔وزن +٥٪ لما العدات تقل + التعديل اليدوي). تكرارات نصية أو سيركت بالوقت: مفيش منحنى، يدوي بس */
+function bkPlan(b,e,wk,n){
   const o=bkOv(e,n),w1=bkW1(e),wo=bkWo(e);
-  if(o&&o.num.some(x=>isNaN(x))){   // تكرارات نصية (مثل: لحد الفشل): مفيش منحنى، يدوي بس
+  if((o&&o.num.some(x=>isNaN(x)))||(!o&&bkTimed(b))){
     const man=wk>1?(wo[wk]||[]):w1,a=Array.from({length:n},(_,i)=>+man[i]||(man.length===1?+man[0]:0)||0);
     return a.some(x=>x>0)?a:null;
   }
@@ -661,24 +677,32 @@ function dsPlan(b,e,first){
   return out;
 }
 function bkRule(b){
-  const T=BKT[b.t]||BKT.ss,R=bkRounds(b),rest=+b.rest||0;
+  const R=bkR(b),rest=+b.rest||0,n=(b.ex||[]).length;
   if(b.t==="ds")return `كمّل لحد ما تتعب، ثم <b>نزّل الوزن ${ar(bkDrop(b))}٪ فورًا</b> وكمّل من غير راحة${rest?`، وبعدها ارتاح <b>${ar(rest)} ثانية</b>`:""}.`;
-  return `${T.n===2?"تمرينين":"ثلاث تمارين"} ورا بعض <b>من غير راحة</b>${rest?`، وبعد آخر تمرين ارتاح <b>${ar(rest)} ثانية</b>`:""}، وكرّر <b>${ar(R)} جولات</b>.`;
+  if(b.t==="ci"){
+    if(bkTimed(b))return `اشتغل <b>${ar(+b.work)} ثانية</b> في كل محطة${+b.restSt?`، وارتاح <b>${ar(+b.restSt)} ثانية</b> قبل اللي بعدها`:""}${rest?`، وبعد الجولة ارتاح <b>${ar(rest)} ثانية</b>`:""}، وكرّر <b>${ar(R)} جولات</b>.`;
+    return `اعمل المحطات ورا بعض${+b.restSt?` (راحة <b>${ar(+b.restSt)} ثانية</b> بين المحطات)`:""}${rest?`، وبعد الجولة ارتاح <b>${ar(rest)} ثانية</b>`:""}، وكرّر <b>${ar(R)} جولات</b>.`;
+  }
+  if(b.t==="em"){const iv=bkIv(b);return `كل <b>${iv===60?"دقيقة":ar(iv)+" ثانية"}</b> ابدأ التمرين المطلوب وارتاح باقي الوقت${n>1?"، وبدّل بين التمارين":""}، لمدة <b>${ar(bkMin(b))} دقيقة</b>.`}
+  if(b.t==="am")return `اعمل أكبر عدد جولات ممكن من التمارين دي في <b>${ar(bkMin(b))} دقيقة</b>، وسجّل عدد الجولات اللي خلصتها.`;
+  return `${bkWord(n)} ورا بعض <b>من غير راحة</b>${rest?`، وبعد آخر تمرين ارتاح <b>${ar(rest)} ثانية</b>`:""}، وكرّر <b>${ar(R)} جولات</b>.`;
 }
+const bkDur=s=>`${ar(Math.ceil(s/60))} دقيقة`;
 function bkRender(i){
   const s=P.data.sessions[i],B=s.bk||[];
   return B.map((b,k)=>bkCard(i,k,b)).join("");
 }
 function bkCard(i,k,b){
-  const T=BKT[b.t]||BKT.ss,R=bkRounds(b),S=bkStages(b),lg=L(),key=`s${i}b${k}`,done=!!lg.d[key],ex=b.ex||[],wk=WK()||1;
+  const T=BKT[b.t]||BKT.ss,R=bkR(b),S=bkStages(b),lg=L(),key=`s${i}b${k}`,done=!!lg.d[key],ex=b.ex||[],wk=WK()||1,n=ex.length;
   const lab=ex.map(e=>e.n).filter(Boolean).join(" + ")||T.l;
-  let h=`<div class="card blk ${T.c} ${done?"done":""}" id="c-${key}"><div class="bh"><span class="bb">${T.l}</span><span class="bn">${b.t==="ds"?`تمرين واحد · ${ar(S)} مراحل${R>1?` × ${ar(R)} جولات`:""}`:`${ar(R)} جولات`}${WK()?` · الأسبوع ${ar(wk)}`:""}</span><button type="button" class="bq" onclick="bkExplain(${i},${k})"><i>؟</i> شرح أسلوب التمرين</button></div><div class="br">${bkRule(b)}</div>`;
+  const bn=b.t==="ds"?`تمرين واحد · ${ar(S)} مراحل${R>1?` × ${ar(R)} جولات`:""}`:b.t==="ci"?`${ar(R)} جولات · ${ar(n)} محطات`:b.t==="em"?`${ar(bkMin(b))} دقيقة · كل ${bkIv(b)===60?"دقيقة":ar(bkIv(b))+" ث"}`:b.t==="am"?`${ar(bkMin(b))} دقيقة`:`${ar(R)} جولات`;
+  let h=`<div class="card blk ${T.c} ${done?"done":""}" id="c-${key}"><div class="bh"><span class="bb">${T.l}</span><span class="bn">${bn}${WK()?` · الأسبوع ${ar(wk)}`:""}</span><button type="button" class="bq" onclick="bkExplain(${i},${k})"><i>؟</i> شرح أسلوب التمرين</button></div><div class="br">${bkRule(b)}</div>`;
   if(b.note)h+=`<div class="note"><span class="lbl">ملاحظة</span> ${esc(b.note)}</div>`;
   h+=ed(`editBk(${i},${k})`,"تعديل البلوك");
   if(b.t==="ds"){
-    const e=ex[0]||{},wkey=`${key}x0`,w=lg.w[wkey]||[],t0=String(e.reps||"").trim();
+    const e=ex[0]||{},wkey=`${key}x0`,w=lg.w[wkey]||[];
     h+=`<div class="bxh" style="margin-bottom:10px"><span class="bl">${bkLet(k)}١</span><h3 style="margin:0;font-size:16px;font-weight:800;flex:1">${esc(e.n)}</h3><span class="pill ${e.cls||"t1"}">${esc(e.tag||"")}</span></div>${e.url||e.img?`<div style="margin-bottom:10px">${vid(e.url,e.n,"sm",e.img)}</div>`:""}${ed(`editBkEx(${i},${k},0)`)}`;
-    const r1=bkRepsWk(e,1,wk)[0];
+    const r1=bkRepsWk(b,e,1,wk)[0];
     for(let r=0;r<R;r++){
       const plan=dsPlan(b,e,w[r*S]);
       if(R>1)h+=`<div class="cap" style="margin:${r?"12px":"0"} 0 6px">الجولة ${ar(r+1)} من ${ar(R)}</div>`;
@@ -691,62 +715,105 @@ function bkCard(i,k,b){
       h+=`</div>`;
     }
   }else{
+    const nR=b.t==="am"?1:R;
     ex.forEach((e,j)=>{
-      const wkey=`${key}x${j}`,w=lg.w[wkey]||[],rp=bkRepsWk(e,R,wk),PW=bkPlan(e,wk,R),PV=PW&&wk>1?bkPlan(e,wk-1,R):null;
-      h+=`${j?'<div class="bc">🔗 بدون راحة</div>':""}<div class="bx"><div>${vid(e.url,e.n,"",e.img)}</div><div><div class="bxh"><span class="bl">${bkLet(k)}${ar(j+1)}</span><h3>${esc(e.n)}</h3><span class="pill ${e.cls||"t1"}">${esc(e.tag||"")}</span></div><div class="sets" style="grid-template-columns:repeat(${Math.min(R,4)},minmax(0,1fr))">${rp.map((r,x)=>`<div><div class="rp">${r?ar(r):"—"}</div>${PW?(PW[x]?`<div class="tw">${fmtW(PW[x])}<small>كجم</small>${PV&&PW[x]>PV[x]?"<em>▲</em>":""}</div>`:`<div class="tw em">—</div>`):""}<input type="text" inputmode="decimal" value="${esc(w[x]||"")}" placeholder="${PW&&PW[x]?"الفعلي":(lastW(wkey,x)?ar(lastW(wkey,x)):"كجم")}" onchange="setW('${wkey}',${x},this.value)"></div>`).join("")}</div>${ed(`editBkEx(${i},${k},${j})`)}</div></div>`;
+      const wkey=`${key}x${j}`,w=lg.w[wkey]||[],rp=bkRepsWk(b,e,nR,wk),PW=bkPlan(b,e,wk,nR),PV=PW&&wk>1?bkPlan(b,e,wk-1,nR):null;
+      const rpt=b.t==="am"?(rp[0]?`${ar(rp[0])} عدة`:"—"):null;
+      h+=`${j?`<div class="bc">${b.t==="ci"&&+b.restSt?`⏱ راحة ${ar(+b.restSt)} ث`:"🔗 بدون راحة"}</div>`:""}<div class="bx"><div>${vid(e.url,e.n,"",e.img)}</div><div><div class="bxh"><span class="bl">${bkLet(k)}${ar(j+1)}</span><h3>${esc(e.n)}</h3><span class="pill ${e.cls||"t1"}">${esc(e.tag||"")}</span></div><div class="sets" style="grid-template-columns:repeat(${Math.min(nR,4)},minmax(0,1fr))">${rp.map((r,x)=>`<div><div class="rp">${rpt||(r?ar(r):"—")}</div>${PW?(PW[x]?`<div class="tw">${fmtW(PW[x])}<small>كجم</small>${PV&&PW[x]>PV[x]?"<em>▲</em>":""}</div>`:`<div class="tw em">—</div>`):""}<input type="text" inputmode="decimal" value="${esc(w[x]||"")}" placeholder="${PW&&PW[x]?"الفعلي":(lastW(wkey,x)?ar(lastW(wkey,x)):"كجم")}" onchange="setW('${wkey}',${x},this.value)"></div>`).join("")}</div>${ed(`editBkEx(${i},${k},${j})`)}</div></div>`;
     });
+    if(T.max&&n<T.max)h+=addb(`editBkEx(${i},${k},-1)`,b.t==="ci"?"إضافة محطة":"إضافة تمرين");
+    if(b.t==="am"){const rk=`${key}xr`,rv=(lg.w[rk]||[])[0]||"";h+=`<div class="amr"><label>عدد الجولات اللي خلصتها في ${ar(bkMin(b))} دقيقة</label><input type="text" inputmode="numeric" value="${esc(rv)}" placeholder="${lastW(rk,0)?"آخر مرة: "+ar(lastW(rk,0)):"مثال: ٥"}" onchange="setW('${rk}',0,this.value)"></div>`}
   }
-  if(+b.rest)h+=`<button type="button" class="brest" onclick="restStart(${+b.rest||0})"><span>⏱ ${b.t==="ds"?"راحة بعد الدروب ست":"راحة بعد كل جولة"} · اضغط لبدء العدّاد</span><b>${ar(+b.rest)} ثانية</b></button>`;
+  const ph=bkPhases(b,k);
+  if(ph.length)h+=`<button type="button" class="brest" onclick="bkTimer(${i},${k})"><span>▶ ابدأ عدّاد ${T.l} · الراحة والمحطات تلقائيًا</span><b>${bkDur(ph.reduce((a,p)=>a+p.sec,0))}</b></button>`;
+  else if(+b.rest&&b.t!=="em"&&b.t!=="am")h+=`<button type="button" class="brest" onclick="restStart(${+b.rest||0})"><span>⏱ ${b.t==="ds"?"راحة بعد الدروب ست":"راحة بعد كل جولة"} · اضغط لبدء العدّاد</span><b>${ar(+b.rest)} ثانية</b></button>`;
   h+=`<button class="chk" onclick="bkTgl('${key}')">${done?"✓ تم البلوك":"تم البلوك"}</button>${qBtn(b.id?"bk:"+b.id:"",T.l+" · "+lab)}</div>`;
   return h;
 }
+/* مراحل العدّاد التلقائي للسيركت بالوقت وEMOM وAMRAP */
+function bkPhases(b,k){
+  const ex=b.ex||[],ph=[],nm=j=>`${bkLet(k)}${ar(j+1)} ${ex[j].n||""}`;
+  if(b.t==="ci"&&bkTimed(b)){
+    const R=bkRounds(b),W=+b.work||0,RS=+b.restSt||0,RR=+b.rest||0;
+    for(let r=0;r<R;r++){
+      ex.forEach((e,j)=>{ph.push({sec:W,lab:`🔥 جولة ${ar(r+1)}/${ar(R)} · ${nm(j)}`});if(j<ex.length-1&&RS)ph.push({sec:RS,lab:`⏱ راحة · التالي ${bkLet(k)}${ar(j+2)}`})});
+      if(r<R-1&&RR)ph.push({sec:RR,lab:`⏱ راحة بين الجولات`});
+    }
+  }else if(b.t==="em"&&ex.length){
+    const iv=bkIv(b),tot=Math.floor(bkMin(b)*60/iv);
+    for(let t=0;t<tot;t++)ph.push({sec:iv,lab:`${iv===60?"الدقيقة":"الفترة"} ${ar(t+1)}/${ar(tot)} · ${nm(t%ex.length)}`});
+  }else if(b.t==="am")ph.push({sec:bkMin(b)*60,lab:"⏱ AMRAP · أكبر عدد جولات"});
+  return ph.filter(p=>p.sec>0);
+}
+function bkTimer(i,k){const b=P.data.sessions[i].bk[k];if(!b)return;const ph=bkPhases(b,k);if(ph.length)restSeq(ph)}
 function bkTgl(k){const l=L(),c=$("#c-"+k);if(l.d[k]){delete l.d[k];c.classList.remove("done");c.querySelector(".chk").textContent="تم البلوك"}else{l.d[k]=1;c.classList.add("done");c.querySelector(".chk").textContent="✓ تم البلوك"}save();pushTick(k)}
 function bkRe(i){const m=/^s([1-9]\d?)$/.exec(location.hash.slice(1));if(!m||+m[1]-1!==i)return;setTimeout(()=>{const y=window.scrollY;session(i);window.scrollTo(0,y)},0)}
 /* شرح أسلوب التمرين (للعميل) */
 function bkExplain(i,k){
   const s=P.data.sessions[i],b=(s.bk||[])[k];if(!b)return;
-  const T=BKT[b.t]||BKT.ss,R=bkRounds(b),rest=+b.rest||0,S=bkStages(b),dp=bkDrop(b),L0=bkLet(k);
+  const T=BKT[b.t]||BKT.ss,R=bkR(b),rest=+b.rest||0,S=bkStages(b),dp=bkDrop(b),L0=bkLet(k),n=(b.ex||[]).length;
+  const names=Array.from({length:n},(_,j)=>`${L0}${ar(j+1)}`);
   let sum,steps,tip;
+  const wkTip="الأوزان المقترحة والتكرارات بتتغير كل أسبوع زي باقي التمارين.";
   if(b.t==="ds"){
     sum="أسلوب بيرهق العضلة لآخرها بأقل وقت.";
     steps=[`ابدأ بالوزن الأساسي (المرحلة ١) لحد ما تتعب.`,`نزّل الوزن <b>${ar(dp)}٪ فورًا</b> من غير ما ترتاح وكمّل لحد الفشل.`,`كرّر النزول لحد ما تخلّص <b>${ar(S)} مراحل</b>.`,rest?`ارتاح <b>${ar(rest)} ثانية</b> (اضغط زر الراحة)${R>1?` وكرّر الجولة، المجموع ${ar(R)} جولات`:""}.`:(R>1?`كرّر الجولة، المجموع ${ar(R)} جولات.`:"")].filter(Boolean);
-    tip="اكتب الوزن الفعلي في كل مرحلة. لو غيّرت وزن المرحلة الأولى الأوزان المقترحة بعدها بتتحدّث لوحدها، والأوزان بتتغير كل أسبوع حسب التكرارات.";
+    tip="اكتب الوزن الفعلي في كل مرحلة. لو غيّرت وزن المرحلة الأولى الأوزان المقترحة بعدها بتتحدّث لوحدها، وبتتغير كل أسبوع حسب التكرارات.";
+  }else if(b.t==="ci"){
+    sum="أسلوب بيجمع قوة وكارديو: محطات ورا بعض وبتلف عليها أكتر من مرة.";
+    steps=[bkTimed(b)?`اشتغل <b>${ar(+b.work)} ثانية</b> في كل محطة (${names.join(" ← ")}).`:`اعمل المحطات بالترتيب (${names.join(" ← ")}).`,+b.restSt?`ارتاح <b>${ar(+b.restSt)} ثانية</b> بين كل محطة والتانية.`:"روح للمحطة اللي بعدها على طول.",rest?`بعد آخر محطة ارتاح <b>${ar(rest)} ثانية</b>.`:"",`كرّر لحد آخر جولة: <b>${ar(R)} جولات</b>.`].filter(Boolean);
+    tip=(bkTimed(b)?"اضغط «ابدأ عدّاد السيركت» وهو يقولك امتى تشتغل وامتى ترتاح. ":"")+"اكتب وزنك في كل جولة. "+wkTip;
+  }else if(b.t==="em"){
+    const iv=bkIv(b);
+    sum="أسلوب بيعلّمك الإيقاع: شغل وراحة منظمين بالوقت.";
+    steps=[`مع بداية كل ${iv===60?"دقيقة":ar(iv)+" ثانية"} ابدأ ${n>1?`التمرين بالدور (${names.join(" ثم ")})`:`التمرين ${names[0]}`}.`,"خلّص التكرارات المطلوبة بأسرع ما تقدر، وارتاح لحد ما الوقت يخلص.",`كمّل <b>${ar(bkMin(b))} دقيقة</b>.`,"لو مقدرتش تكمل التكرارات في الوقت، قلّل الوزن."].filter(Boolean);
+    tip="اضغط «ابدأ عدّاد EMOM» وهو ينبّهك لبداية كل فترة. "+wkTip;
+  }else if(b.t==="am"){
+    sum="أسلوب بيقيس قدرتك: كام جولة تقدر تعمل في وقت محدد.";
+    steps=[`اعمل التمارين (${names.join(" ← ")}) بالتكرارات المكتوبة، وده يعتبر <b>جولة</b>.`,"ابدأ جولة جديدة على طول من غير ما توقف.",`كمّل لحد ما <b>${ar(bkMin(b))} دقيقة</b> تخلص.`,"اكتب عدد الجولات اللي خلصتها في الخانة الأخيرة."];
+    tip="اضغط «ابدأ عدّاد AMRAP». حاول تكسر رقمك المرة الجاية. "+wkTip;
   }else{
-    const n=T.n,names=Array.from({length:n},(_,j)=>`${L0}${ar(j+1)}`);
-    sum="أسلوب بيوفّر وقت وبيرفع شدة التمرين.";
+    sum=n>=4?"أسلوب بيرهق نفس العضلة أو أكتر من زاوية من غير راحة.":"أسلوب بيوفّر وقت وبيرفع شدة التمرين.";
     steps=[`اعمل <b>${names[0]}</b> مجموعة كاملة.`,`روح على طول <b>${names.slice(1).join(" ثم ")}</b> من غير راحة.`,rest?`ارتاح <b>${ar(rest)} ثانية</b> (اضغط زر الراحة).`:"",`كرّر لحد آخر جولة: <b>${ar(R)} جولات</b>.`].filter(Boolean);
-    tip="اكتب وزنك في كل جولة. الأوزان المقترحة والتكرارات بتتغير كل أسبوع زي باقي التمارين.";
+    tip="اكتب وزنك في كل جولة. "+wkTip;
   }
   const m=document.createElement("div");m.className="md";
-  m.innerHTML=`<div class="sh exs ${T.c}"><h3><span class="bb">${T.l}</span> شرح أسلوب التمرين</h3><p class="exsum">${sum}</p>${steps.map((x,n)=>`<div class="stp"><div class="no">${ar(n+1)}</div><p>${x}</p></div>`).join("")}${b.note?`<div class="ex-tip">📝 ${esc(b.note)}</div>`:""}<div class="ex-tip">💡 ${tip}</div><button class="btn" id="mk">فهمت</button></div>`;
+  m.innerHTML=`<div class="sh exs ${T.c}"><h3><span class="bb">${T.l}</span> شرح أسلوب التمرين</h3><p class="exsum">${sum}</p>${steps.map((x,q)=>`<div class="stp"><div class="no">${ar(q+1)}</div><p>${x}</p></div>`).join("")}${b.note?`<div class="ex-tip">📝 ${esc(b.note)}</div>`:""}<div class="ex-tip">💡 ${tip}</div><button class="btn" id="mk">فهمت</button></div>`;
   document.body.appendChild(m);
   m.onclick=e=>{if(e.target===m)m.remove()};m.querySelector("#mk").onclick=()=>m.remove();
 }
 /* إضافة / تعديل بلوك (أدمن) */
 function addBlock(i){
   const m=document.createElement("div");m.className="md";
-  const rows=[["ex","هرمي (تمرين عادي)","عدات بتقل ووزن بيزيد كل مجموعة","△","#7c5cff"]].concat(Object.keys(BKT).map(t=>[t,BKT[t].l,BKT[t].d,BKT[t].ic,{ss:"#ee8434",ts:"#2f80ed",ds:"#d6425f"}[t]]));
-  m.innerHTML=`<div class="sh"><h3>اختر أسلوب التمرين</h3>${rows.map(r=>`<div class="tpl" style="--bc:${r[4]}" data-a="${r[0]}"><div class="ti">${r[3]}</div><div><b>${r[1]}</b><small>${r[2]}</small></div><div class="go">‹</div></div>`).join("")}<div class="tpl" style="--bc:#8a8f98;opacity:.6;cursor:default"><div class="ti">+</div><div><b>سيركت · EMOM · AMRAP · جاينت ست</b><small>قريبًا: بنضيفهم بنفس الطريقة</small></div></div><button class="btn o" id="mc">إلغاء</button></div>`;
+  const rows=[["ex","هرمي (تمرين عادي)","عدات بتقل ووزن بيزيد كل مجموعة","△","#7c5cff"]].concat(Object.keys(BKT).map(t=>[t,BKT[t].l,BKT[t].d,BKT[t].ic,BKT[t].col]));
+  m.innerHTML=`<div class="sh"><h3>اختر أسلوب التمرين</h3>${rows.map(r=>`<div class="tpl" style="--bc:${r[4]}" data-a="${r[0]}"><div class="ti">${r[3]}</div><div><b>${r[1]}</b><small>${r[2]}</small></div><div class="go">‹</div></div>`).join("")}<div class="tpl" style="--bc:#8a8f98;opacity:.6;cursor:default"><div class="ti">+</div><div><b>ريست-بوز · كلاستر · تاباتا</b><small>قريبًا: بنضيفهم بنفس الطريقة</small></div></div><button class="btn o" id="mc">إلغاء</button></div>`;
   document.body.appendChild(m);
   m.onclick=e=>{if(e.target===m)m.remove()};m.querySelector("#mc").onclick=()=>m.remove();
   m.querySelectorAll("[data-a]").forEach(x=>x.onclick=()=>{const a=x.dataset.a;m.remove();if(a==="ex")editEx(i,-1);else newBk(i,a)});
 }
 function newBk(i,t){
-  const T=BKT[t],s=P.data.sessions[i],f=[];
-  f.push({k:"rounds",l:"عدد الجولات (ممكن 2 أو 3 أو 4 أو 5 …)",type:"number",v:t==="ds"?1:3},{k:"rest",l:"الراحة بعد "+(t==="ds"?"الدروب ست":"كل جولة")+" (ثانية، 0 = بدون)",type:"number",v:t==="ds"?120:90});
-  const L0=bkLet((s.bk||[]).length);
-  if(t==="ds")f.push({k:"stages",l:"عدد مراحل النزول",type:"number",v:3},{k:"drop",l:"نسبة تنزيل الوزن في كل مرحلة (٪)",type:"number",v:20},{k:"n0",l:"اسم التمرين",v:""});
-  else for(let j=0;j<T.n;j++)f.push({k:"n"+j,l:`اسم التمرين ${L0}${ar(j+1)}`,v:""});
+  const T=BKT[t],s=P.data.sessions[i],f=[],L0=bkLet((s.bk||[]).length),nmax=T.max||T.n;
+  if(t==="em")f.push({k:"min",l:"المدة الكلية (دقائق)",type:"number",v:10},{k:"iv",l:"كل كام ثانية تبدأ التمرين (60 = كل دقيقة)",type:"number",v:60});
+  else if(t==="am")f.push({k:"min",l:"المدة الكلية (دقائق)",type:"number",v:12});
+  else{
+    f.push({k:"rounds",l:"عدد الجولات (ممكن 2 أو 3 أو 4 أو 5 …)",type:"number",v:t==="ds"?1:3});
+    if(t==="ci")f.push({k:"work",l:"وقت الشغل في كل محطة (ثانية) — 0 = بالتكرارات بدل الوقت",type:"number",v:40},{k:"restSt",l:"الراحة بين المحطات (ثانية)",type:"number",v:20});
+    f.push({k:"rest",l:t==="ci"?"الراحة بين الجولات (ثانية)":"الراحة بعد "+(t==="ds"?"الدروب ست":"كل جولة")+" (ثانية، 0 = بدون)",type:"number",v:t==="ds"?120:90});
+    if(t==="ds")f.push({k:"stages",l:"عدد مراحل النزول",type:"number",v:3},{k:"drop",l:"نسبة تنزيل الوزن في كل مرحلة (٪)",type:"number",v:20});
+  }
+  for(let j=0;j<nmax;j++)f.push({k:"n"+j,l:`${t==="ci"?"اسم المحطة":"اسم التمرين"} ${L0}${ar(j+1)}${j>=T.n?" (اختياري)":""}`,v:""});
   f.push({k:"note",l:"ملاحظة للعميل (اختياري)",type:"area",v:""});
   modal("إضافة "+T.l+" — الخطوة ١: الإعدادات",f,async v=>{
-    const b={id:nid(),t,rounds:Math.max(1,Math.min(10,Math.round(+v.rounds)||3)),rest:Math.max(0,Math.round(+v.rest)||0),note:v.note.trim(),ex:[]};
-    const mk=n=>({id:nid(),n:n.trim(),tag:"جهاز",cls:"t1",url:"",img:""});
-    if(t==="ds"){
-      if(!v.n0.trim()){toast("اكتب اسم التمرين");return false}
-      b.stages=Math.max(2,Math.min(6,Math.round(+v.stages)||3));b.drop=bkDrop({drop:v.drop});b.ex.push(mk(v.n0));
-    }else for(let j=0;j<T.n;j++){
-      if(!v["n"+j].trim()){toast("اكتب أسماء كل التمارين");return false}
-      b.ex.push(mk(v["n"+j]));
+    const b={id:nid(),t,note:v.note.trim(),ex:[]};
+    if(t==="em"){b.min=bkClamp(v.min,1,90,10);b.iv=bkClamp(v.iv,15,300,60)}
+    else if(t==="am")b.min=bkClamp(v.min,1,90,12);
+    else{b.rounds=bkClamp(v.rounds,1,10,3);b.rest=Math.max(0,Math.round(+v.rest)||0);
+      if(t==="ci"){b.work=Math.max(0,Math.round(+v.work)||0);b.restSt=Math.max(0,Math.round(+v.restSt)||0)}
+      if(t==="ds"){b.stages=bkClamp(v.stages,2,6,3);b.drop=bkDrop({drop:v.drop})}}
+    for(let j=0;j<nmax;j++){
+      const nm=(v["n"+j]||"").trim();
+      if(!nm){if(j<T.n){toast(T.n>1?"اكتب أسماء كل التمارين المطلوبة":"اكتب اسم التمرين");return false}continue}
+      b.ex.push({id:nid(),n:nm,tag:"جهاز",cls:"t1",url:"",img:""});
     }
     s.bk=s.bk||[];s.bk.push(b);
     const ok=await savePD();
@@ -756,36 +823,49 @@ function newBk(i,t){
   });
 }
 function editBk(i,k){
-  const s=P.data.sessions[i],b=s.bk[k],ds=b.t==="ds",f=[{k:"rounds",l:"عدد الجولات",type:"number",v:bkRounds(b)},{k:"rest",l:"الراحة (ثانية، 0 = بدون)",type:"number",v:+b.rest||0}];
-  if(ds)f.push({k:"stages",l:"عدد مراحل النزول",type:"number",v:bkStages(b)},{k:"drop",l:"نسبة تنزيل الوزن في كل مرحلة (٪)",type:"number",v:bkDrop(b)});
+  const s=P.data.sessions[i],b=s.bk[k],t=b.t,f=[];
+  if(t==="em")f.push({k:"min",l:"المدة الكلية (دقائق)",type:"number",v:bkMin(b)},{k:"iv",l:"كل كام ثانية تبدأ التمرين",type:"number",v:bkIv(b)});
+  else if(t==="am")f.push({k:"min",l:"المدة الكلية (دقائق)",type:"number",v:bkMin(b)});
+  else{
+    f.push({k:"rounds",l:"عدد الجولات",type:"number",v:bkRounds(b)});
+    if(t==="ci")f.push({k:"work",l:"وقت الشغل في كل محطة (ثانية) — 0 = بالتكرارات",type:"number",v:+b.work||0},{k:"restSt",l:"الراحة بين المحطات (ثانية)",type:"number",v:+b.restSt||0});
+    f.push({k:"rest",l:t==="ci"?"الراحة بين الجولات (ثانية)":"الراحة (ثانية، 0 = بدون)",type:"number",v:+b.rest||0});
+    if(t==="ds")f.push({k:"stages",l:"عدد مراحل النزول",type:"number",v:bkStages(b)},{k:"drop",l:"نسبة تنزيل الوزن في كل مرحلة (٪)",type:"number",v:bkDrop(b)});
+  }
   f.push({k:"note",l:"ملاحظة للعميل (اختياري)",type:"area",v:b.note||""});
-  modal("تعديل "+(BKT[b.t]||BKT.ss).l,f,async v=>{
-    b.rounds=Math.max(1,Math.min(10,Math.round(+v.rounds)||3));b.rest=Math.max(0,Math.round(+v.rest)||0);b.note=v.note.trim();
-    if(ds){b.stages=Math.max(2,Math.min(6,Math.round(+v.stages)||3));b.drop=bkDrop({drop:v.drop})}
+  modal("تعديل "+(BKT[t]||BKT.ss).l,f,async v=>{
+    b.note=v.note.trim();
+    if(t==="em"){b.min=bkClamp(v.min,1,90,10);b.iv=bkClamp(v.iv,15,300,60)}
+    else if(t==="am")b.min=bkClamp(v.min,1,90,12);
+    else{b.rounds=bkClamp(v.rounds,1,10,3);b.rest=Math.max(0,Math.round(+v.rest)||0);
+      if(t==="ci"){b.work=Math.max(0,Math.round(+v.work)||0);b.restSt=Math.max(0,Math.round(+v.restSt)||0)}
+      if(t==="ds"){b.stages=bkClamp(v.stages,2,6,3);b.drop=bkDrop({drop:v.drop})}}
     return savePD();
   },async()=>{const dead=b.id?["bk:"+b.id]:[];s.bk.splice(k,1);if(await savePD()!==false)qPurge(dead)});
 }
-/* نافذة تعديل تمرين داخل بلوك: نفس حقول تمرين النظام الهرمي (أوزان الأسبوع الأول + تعديل يدوي للأسابيع) */
+/* نافذة تعديل تمرين داخل بلوك: نفس حقول تمرين النظام الهرمي (أوزان الأسبوع الأول + تعديل يدوي للأسابيع). j = -1 = إضافة تمرين/محطة جديدة للبلوك */
 function editBkEx(i,k,j,chain){
-  const s=P.data.sessions[i],b=s.bk[k];if(!b||!b.ex[j])return;
-  const e=b.ex[j],ds=b.t==="ds",n=b.ex.length,w1=bkW1(e),wo=bkWo(e);
+  const s=P.data.sessions[i],b=s.bk[k];if(!b)return;
+  const T=BKT[b.t]||BKT.ss,isNew=j<0,e=isNew?{id:nid(),n:"",tag:"جهاز",cls:"t1",url:"",img:""}:b.ex[j];if(!e)return;
+  const ds=b.t==="ds",am=b.t==="am",n=b.ex.length,w1=bkW1(e),wo=bkWo(e),per=ds?"مرحلة":am?"":"جولة";
   const wkN=[2,3,4,5].filter(x=>x<=Math.max(4,(P.data.weeks||[]).length));
-  const f=[{k:"n",l:"اسم التمرين",v:e.n},{k:"tag",l:"الأداة",type:"sel",o:Object.keys(TAGS),v:e.tag||"جهاز"},{k:"url",l:"لينك فيديو يوتيوب",v:e.url||"",dir:"ltr"},{k:"img",l:"صورة (اختياري، وإلا تظهر صورة الفيديو)",type:"img",v:e.img||""},
-    {k:"reps",l:"تكرارات خاصة بالتمرين ده (اختياري) — فاضي = بيتبع جدول تدرّج التكرارات حسب الأسبوع زي الهرمي. أو اكتب رقم لكل جولة مثل: 12 10 8",v:e.reps||"",dir:"ltr"},
-    {k:"w1",l:ds?"وزن المرحلة الأولى في الأسبوع الأول (كجم) — والمراحل بعده بتنقص تلقائيًا. أو اكتب وزن كل مرحلة مثل: 80 62 48":"أوزان الأسبوع الأول (كجم) لكل جولة، مثل: 10 11 11 — والأسابيع الباقية بتتحسب تلقائيًا",v:w1.filter(x=>x>0).length?w1.join(" "):"",dir:"ltr"},
+  const f=[{k:"n",l:b.t==="ci"?"اسم المحطة":"اسم التمرين",v:e.n},{k:"tag",l:"الأداة",type:"sel",o:Object.keys(TAGS),v:e.tag||"جهاز"},{k:"url",l:"لينك فيديو يوتيوب",v:e.url||"",dir:"ltr"},{k:"img",l:"صورة (اختياري، وإلا تظهر صورة الفيديو)",type:"img",v:e.img||""},
+    {k:"reps",l:bkTimed(b)?"تكرارات خاصة بالمحطة (اختياري) — فاضي = بيشتغل بالوقت. اكتب رقم لو عايز تكرارات":"تكرارات خاصة بالتمرين ده (اختياري) — فاضي = بيتبع جدول تدرّج التكرارات حسب الأسبوع زي الهرمي. أو اكتب رقم لكل جولة مثل: 12 10 8",v:e.reps||"",dir:"ltr"},
+    {k:"w1",l:ds?"وزن المرحلة الأولى في الأسبوع الأول (كجم) — والمراحل بعده بتنقص تلقائيًا. أو اكتب وزن كل مرحلة مثل: 80 62 48":am?"وزن الأسبوع الأول (كجم) — والأسابيع الباقية بتتحسب تلقائيًا":"أوزان الأسبوع الأول (كجم) لكل جولة، مثل: 10 11 11 — والأسابيع الباقية بتتحسب تلقائيًا",v:w1.filter(x=>x>0).length?w1.join(" "):"",dir:"ltr"},
     ...wkN.map(x=>({k:"w"+x,l:ds?`تعديل يدوي لأوزان مراحل الأسبوع ${x} (فاضي = حساب تلقائي)`:`تعديل يدوي لأوزان الأسبوع ${x} (فاضي = حساب تلقائي)`,v:(wo[x]||[]).join(" "),dir:"ltr"}))];
-  modal((chain?`${(BKT[b.t]||BKT.ss).l} — الخطوة ٢: بيانات التمرين ${bkLet(k)}${ar(j+1)}${n>1?` من ${ar(n)}`:""}`:"تعديل التمرين"),f,async v=>{
-    if(!v.n.trim()){toast("اكتب اسم التمرين");return false}
+  modal(isNew?`إضافة ${b.t==="ci"?"محطة":"تمرين"} لـ ${T.l}`:(chain?`${T.l} — الخطوة ٢: بيانات ${b.t==="ci"?"المحطة":"التمرين"} ${bkLet(k)}${ar(j+1)}${n>1?` من ${ar(n)}`:""}`:"تعديل التمرين"),f,async v=>{
+    if(!v.n.trim()){toast("اكتب الاسم");return false}
     Object.assign(e,{n:v.n.trim(),tag:v.tag,cls:TAGS[v.tag]||"t1",url:v.url.trim(),img:v.img});
     const rp=v.reps.trim();if(rp)e.reps=rp;else delete e.reps;
     const a=numsD(v.w1);if(a.length)e.w1=a;else delete e.w1;
     const o={};wkN.forEach(x=>{const z=numsD(v["w"+x]);if(z.length)o[x]=z});
     if(Object.keys(o).length)e.wo=o;else delete e.wo;
     delete e.w;delete e.base;
+    if(isNew)b.ex.push(e);
     const ok=await savePD();
     if(ok!==false&&chain&&j+1<n)setTimeout(()=>editBkEx(i,k,j+1,true),80);
     return ok;
-  });
+  },(!isNew&&n>T.n)?async()=>{const dead=e.id?["ex:"+e.id]:[];b.ex.splice(j,1);await savePD()}:null);
 }
 function session(i){
   const s=P.data.sessions[i];if(!s)return train();
@@ -1784,9 +1864,9 @@ function rtmAudio(){
     if(window._ac&&window._ac.state==="suspended")window._ac.resume();
   }catch(e){}
 }
-function rtmBeep(){
+function rtmBeep(cnt){
   const ac=window._ac;if(!ac)return;
-  try{for(let k=0;k<6;k++){
+  try{for(let k=0;k<(cnt||6);k++){
     const o=ac.createOscillator(),g=ac.createGain(),t=ac.currentTime+k*.32;
     o.type="sine";o.frequency.value=k%2?988:784;o.connect(g);g.connect(ac.destination);
     g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(.6,t+.03);g.gain.exponentialRampToValueAtTime(.0001,t+.26);
@@ -1799,8 +1879,8 @@ function rtmPaint(left){
   const done=RTM.done,pct=done?100:Math.max(0,Math.min(100,100-left/RTM.total*100));
   e.className="rtm on"+(done?" fin":"");
   e.innerHTML=done
-    ?`<div class="rt1">✅ خلصت الراحة، كمّل تمرينك 💪</div><button type="button" class="rtb" onclick="restStop()">تمام</button>`
-    :`<div class="rt0"><span>⏱ راحة</span><b>${rtmFmt(left)}</b></div><div class="rtp"><i style="width:${pct}%"></i></div><div class="rtr"><button type="button" class="rtb" onclick="restAdd(30)">+٣٠ ث</button><button type="button" class="rtb" onclick="restStop()">إيقاف</button></div>`;
+    ?`<div class="rt1">${RTM.seq?"✅ خلص وقت البلوك، سجّل نتيجتك 💪":"✅ خلصت الراحة، كمّل تمرينك 💪"}</div><button type="button" class="rtb" onclick="restStop()">تمام</button>`
+    :`<div class="rt0"><span>${RTM.lab?esc(RTM.lab):"⏱ راحة"}</span><b>${rtmFmt(left)}</b></div><div class="rtp"><i style="width:${pct}%"></i></div><div class="rtr"><button type="button" class="rtb" onclick="restAdd(30)">+٣٠ ث</button><button type="button" class="rtb" onclick="restStop()">إيقاف</button></div>`;
 }
 function restStart(sec){
   sec=+sec||0;if(!sec)return;
@@ -1809,15 +1889,29 @@ function restStart(sec){
   try{if(navigator.wakeLock)navigator.wakeLock.request("screen").then(l=>{if(RTM)RTM.wl=l;else l.release()}).catch(()=>{})}catch(e){}
   rtmPaint(sec);RTM.iv=setInterval(restTick,250);
 }
+function restSeq(ph){
+  ph=(ph||[]).filter(p=>p&&p.sec>0);if(!ph.length)return;
+  rtmAudio();restStop(true);
+  RTM={seq:ph,si:0,end:Date.now()+ph[0].sec*1000,total:ph[0].sec,done:false,lab:ph[0].lab};
+  try{if(navigator.wakeLock)navigator.wakeLock.request("screen").then(l=>{if(RTM)RTM.wl=l;else l.release()}).catch(()=>{})}catch(e){}
+  rtmPaint(ph[0].sec);RTM.iv=setInterval(restTick,250);
+}
 function restAdd(n){if(!RTM||RTM.done)return;RTM.end+=n*1000;RTM.total+=n;restTick()}
 function restTick(){
-  if(!RTM||RTM.done)return;
-  const left=Math.max(0,Math.ceil((RTM.end-Date.now())/1000));
-  if(left>0){rtmPaint(left);return}
-  restDone();
+  let g=0;
+  while(RTM&&!RTM.done&&g++<300){
+    const left=Math.max(0,Math.ceil((RTM.end-Date.now())/1000));
+    if(left>0){rtmPaint(left);return}
+    restDone();
+  }
 }
 function restDone(){
   if(!RTM||RTM.done)return;
+  if(RTM.seq&&RTM.si<RTM.seq.length-1){   // مرحلة خلصت: ننقل للي بعدها (من وقت انتهاء اللي فاتت، فمفيش وقت بيضيع لو التطبيق كان في الخلفية)
+    RTM.si++;const p=RTM.seq[RTM.si];RTM.end+=p.sec*1000;RTM.total=p.sec;RTM.lab=p.lab;
+    if(!document.hidden){rtmBeep(2);try{if(navigator.vibrate)navigator.vibrate([200,100,200])}catch(e){}}
+    return;
+  }
   RTM.done=true;clearInterval(RTM.iv);
   rtmPaint(0);rtmBeep();
   try{if(navigator.vibrate)navigator.vibrate([300,150,300,150,600])}catch(e){}
