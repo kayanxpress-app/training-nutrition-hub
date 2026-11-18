@@ -621,3 +621,13 @@ body.av .dst input{pointer-events:none}
 .bx .tw{font-size:14px;gap:2px;padding:5px 2px;flex-wrap:wrap;line-height:1.3}
 .bx .tw small{font-size:9.5px}
 .bx .sets input{padding:0 4px}
+
+/* أساليب إضافية: جاينت ست · سيركت · EMOM · AMRAP */
+.blk.gs{--bc:#8b5cf6}.blk.ci{--bc:#1fa97a}.blk.em{--bc:#d99a00}.blk.am{--bc:#e0457b}
+.sh.exs.gs{--bc:#8b5cf6}.sh.exs.ci{--bc:#1fa97a}.sh.exs.em{--bc:#d99a00}.sh.exs.am{--bc:#e0457b}
+.amr{margin-top:12px;padding:12px;border-radius:16px;background:color-mix(in srgb,var(--bc) 10%,var(--card));border:1.5px solid color-mix(in srgb,var(--bc) 45%,transparent)}
+.amr label{display:block;font-weight:800;font-size:13.5px;margin-bottom:7px}
+.amr input{width:100%;height:46px;border:1.5px solid var(--line);border-radius:12px;background:var(--card);color:var(--ink);font:inherit;font-size:17px;font-weight:800;text-align:center}
+body.av .amr input{pointer-events:none}
+.rtm .rt0 span{flex:1;min-width:0;font-size:14px;line-height:1.5;overflow-wrap:anywhere}
+.rtm .rt0 b{flex:none;margin-inline-start:10px}
