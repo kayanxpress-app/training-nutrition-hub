@@ -35,36 +35,37 @@ const WK=()=>{const w=P.data.weeks;if(!w||!w.length)return null;if(EDIT()&&VW)re
 const numsD=t=>String(t||"").replace(/[٠-٩]/g,c=>"٠١٢٣٤٥٦٧٨٩".indexOf(c)).replace(/٫/g,".").split(/[^0-9.]+/).filter(x=>x&&x!==".").map(Number);
 const fmtW=n=>ar(String(n).replace(".","٫"));
 function planW(e,wk,n,ro){
-  /* الوزن مربوط بعدد التكرارات (منحنى عدات ↔ وزن) من أوزان الأسبوع الأول:
-     • نفس العدات = نفس الوزن في كل الأسابيع
-     • أقل من أقل عدات في الأسبوع الأول ← أثقل وزن عندها +5٪
-     • أكتر من أكتر عدات في الأسبوع الأول ← أخف وزن عندها −5٪
-     • عدات بين رقمين ← استيفاء بينهم، والكل بيتقرّب لأقرب 0.5 كجم */
-  const D=P.data;let w1=(e.w1||[]).map(Number);const ov=wk>1&&e.wo&&e.wo[wk]?e.wo[wk].map(Number):null;
+  /* الوزن بيتحسب أسبوع بأسبوع من الأسبوع اللي قبله، لكل جولة لوحدها:
+     • العدات قلّت ← الوزن يزيد (wstep كجم لكل خطوة عدات، الخطوة = rstep عدة، الافتراضي 2.5 كجم لكل 2 عدة)
+     • العدات ثابتة ← نفس وزن الأسبوع السابق
+     • العدات زادت ← الوزن ينقص بنفس الخطوة
+     • أي خانة يدوية (e.wo[أسبوع][جولة]) بتتحط زي ما هي، وبتبقى هي الأساس للأسابيع بعدها */
+  const D=P.data;let w1=(e.w1||[]).map(Number);const wo=(e.wo&&typeof e.wo==="object"&&!Array.isArray(e.wo))?e.wo:{};
   const W=D.weeks&&D.weeks.length?D.weeks:null;
-  let R1=(W?W[0]:D.reps)||[],Rw=(W?W[Math.min(wk,W.length)-1]:D.reps)||[];
-  if(ro){R1=ro;Rw=ro}
-  if(n){const fx=a=>a.length?Array.from({length:n},(_,i)=>a[Math.min(i,a.length-1)]):a;R1=fx(R1);Rw=fx(Rw);if(w1.length===1)w1=fx(w1)}
-  if(!w1.some(x=>x>0)&&!(ov&&ov.some(x=>x>0)))return null;
+  const fx=a=>a.length?Array.from({length:n},(_,i)=>a[Math.min(i,a.length-1)]):a;
+  const repsOf=k=>{let r=ro||((W?W[Math.min(k,W.length)-1]:D.reps)||[]);return n?fx(r):r};
+  if(n&&w1.length===1)w1=fx(w1);
+  const hasOv=k=>wo[k]&&wo[k].some(x=>+x>0);
+  let anyOv=false;for(let k=2;k<=wk;k++)if(hasOv(k))anyOv=true;
+  if(!w1.some(x=>x>0)&&!anyOv)return null;
   if(wk<=1)return w1.map(x=>x>0?x:0);
-  const pct=(D.wpct??5)/100,st=D.wsnap??0.5;
+  const wstep=Number(D.wstep)>0?Number(D.wstep):2.5,rstep=Number(D.rstep)>0?Number(D.rstep):2,st=D.wsnap??0.5;
   const snap=v=>Number((st>0?Math.round(v/st)*st:v).toFixed(2));
-  const move=(base,dir)=>{const v=snap(base*(1+dir*pct));return st>0&&v===base?Math.max(st,Number((base+dir*st).toFixed(2))):v};
-  const by={};R1.forEach((r,x)=>{if(w1[x]>0)(by[r]=by[r]||[]).push(w1[x])});
-  const keys=Object.keys(by).map(Number).sort((a,b)=>a-b);
-  const seen={},out=[];
-  Rw.forEach((r,x)=>{
-    const occ=seen[r]||0;seen[r]=occ+1;
-    if(ov&&ov[x]>0){out.push(ov[x]);return}
-    if(!keys.length){out.push(0);return}
-    let v;
-    if(by[r])v=by[r][Math.min(occ,by[r].length-1)];
-    else if(r<keys[0])v=move(Math.max(...by[keys[0]]),1);
-    else if(r>keys[keys.length-1])v=move(Math.min(...by[keys[keys.length-1]]),-1);
-    else{const lo=keys.filter(k=>k<r).pop(),hi=keys.find(k=>k>r);v=snap(by[hi][0]+(by[lo][by[lo].length-1]-by[hi][0])*(hi-r)/(hi-lo))}
-    out.push(v);
-  });
-  return out;
+  let cur=w1.map(x=>x>0?x:0);
+  for(let k=2;k<=wk;k++){
+    const rp=repsOf(k-1),rn=repsOf(k),ov=wo[k]?wo[k].map(Number):null;
+    const len=Math.max(cur.length,rn.length,ov?ov.length:0);
+    const nxt=[];
+    for(let x=0;x<len;x++){
+      const prev=cur[x]>0?cur[x]:0;
+      if(ov&&ov[x]>0){nxt.push(ov[x]);continue}
+      const a=Number(rp[x]),b=Number(rn[x]);
+      if(!prev||isNaN(a)||isNaN(b)||a===b){nxt.push(prev);continue}
+      nxt.push(Math.max(0,snap(prev+wstep*(a-b)/rstep)));
+    }
+    cur=nxt;
+  }
+  return cur;
 }
 const REPS=()=>{const w=WK();return w?P.data.weeks[w-1]:P.data.reps};
 function repsCard(){
@@ -410,7 +411,7 @@ function editInfo(){
   const d=P.data,f=d.info,e=d.energy;
   const wk=(d.weeks||[]).map(r=>r.join("-")).join("\n"),ex=(e.exch||[]).map(x=>x[0]+" "+x[1]).join(" | ");
   const T=(k,l,v,o)=>Object.assign({k,l,v:v??""},o||{});
-  modal("بيانات العميل والبرنامج",[T("brand","اسم البرنامج (يظهر كبيرًا)",d.brand),T("sub","وصف البرنامج",d.sub),T("sex","النوع",f.sex),T("age","العمر",f.age),T("weight","الوزن",f.weight),T("height","الطول",f.height),T("start","تاريخ البداية",f.start),T("end","تاريخ النهاية",f.end),T("days","مدة البرنامج (أيام)",f.days,{type:"number"}),T("minutes","التمرين أسبوعيًا",f.minutes),T("so2","الأكسجين",f.so2),T("rs","التنفس",f.rs),T("pulse","النبض",f.pulse),T("bp","الضغط",f.bp),T("bmr","معدل الحرق الأساسي",e.bmr),T("act","معامل النشاط",e.act),T("tdee","إجمالي الطاقة",e.tdee),T("plan","سعرات الخطة",e.plan),T("water","الماء",e.water),T("ptn","البروتين",e.ptn),T("cho","الكربوهيدرات",e.cho),T("exch","التبادلات الغذائية (افصل بـ | مثال: 9 بروتين | 4 نشويات)",ex,{type:"area"}),T("rest","الراحة بين المجموعات (ثانية)",d.rest,{type:"number"}),T("wk","تدرّج التكرارات: سطر لكل أسبوع مثل 10-10-10 (فاضي = تكرارات ثابتة)",wk,{type:"area"}),T("reps","التكرارات الثابتة مثل 12-10-10",(d.reps||[]).join("-")),T("wpct","زيادة الوزن (٪) كل ما تقل التكرارات عن الأسبوع السابق",d.wpct??5,{type:"number"}),T("wsnap","تقريب الأوزان لأقرب (كجم) — الافتراضي 0.5، و0 = حساب دقيق",d.wsnap??0.5,{type:"number"})],
+  modal("بيانات العميل والبرنامج",[T("brand","اسم البرنامج (يظهر كبيرًا)",d.brand),T("sub","وصف البرنامج",d.sub),T("sex","النوع",f.sex),T("age","العمر",f.age),T("weight","الوزن",f.weight),T("height","الطول",f.height),T("start","تاريخ البداية",f.start),T("end","تاريخ النهاية",f.end),T("days","مدة البرنامج (أيام)",f.days,{type:"number"}),T("minutes","التمرين أسبوعيًا",f.minutes),T("so2","الأكسجين",f.so2),T("rs","التنفس",f.rs),T("pulse","النبض",f.pulse),T("bp","الضغط",f.bp),T("bmr","معدل الحرق الأساسي",e.bmr),T("act","معامل النشاط",e.act),T("tdee","إجمالي الطاقة",e.tdee),T("plan","سعرات الخطة",e.plan),T("water","الماء",e.water),T("ptn","البروتين",e.ptn),T("cho","الكربوهيدرات",e.cho),T("exch","التبادلات الغذائية (افصل بـ | مثال: 9 بروتين | 4 نشويات)",ex,{type:"area"}),T("rest","الراحة بين المجموعات (ثانية)",d.rest,{type:"number"}),T("wk","تدرّج التكرارات: سطر لكل أسبوع مثل 10-10-10 (فاضي = تكرارات ثابتة)",wk,{type:"area"}),T("reps","التكرارات الثابتة مثل 12-10-10",(d.reps||[]).join("-")),T("wstep","زيادة الوزن (كجم) كل ما تقل التكرارات عن الأسبوع السابق بخطوة (٢ عدة)",d.wstep??2.5,{type:"number"}),T("wsnap","تقريب الأوزان لأقرب (كجم) — الافتراضي 0.5، و0 = حساب دقيق",d.wsnap??0.5,{type:"number"})],
     async v=>{
       const lat=t=>String(t).replace(/[٠-٩]/g,c=>"٠١٢٣٤٥٦٧٨٩".indexOf(c)),nums=t=>lat(t).split(/[^0-9]+/).filter(Boolean).map(Number);
       d.brand=v.brand.trim();d.sub=v.sub.trim();
@@ -421,7 +422,7 @@ function editInfo(){
       d.rest=+v.rest||null;
       const w=v.wk.split("\n").map(nums).filter(a=>a.length);if(w.length)d.weeks=w;else delete d.weeks;
       const r=nums(v.reps);if(r.length)d.reps=r;
-      d.wpct=v.wpct===""||isNaN(+v.wpct)?5:+v.wpct;delete d.wstep;delete d.wround;d.wsnap=v.wsnap===""||isNaN(+v.wsnap)?0.5:Math.max(0,+v.wsnap);
+      d.wstep=v.wstep===""||isNaN(+v.wstep)||+v.wstep<=0?2.5:+v.wstep;delete d.wpct;delete d.wround;d.wsnap=v.wsnap===""||isNaN(+v.wsnap)?0.5:Math.max(0,+v.wsnap);
       return savePD();
     });
 }
