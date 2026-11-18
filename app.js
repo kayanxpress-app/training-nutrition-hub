@@ -301,6 +301,8 @@ function setPass(id){
   });
 }
 function modal(title,fields,onSave,onDel,setup){
+  // مكان السكرول قبل فتح النافذة: بعد الحفظ/الحذف (اللي بيعيد رسم الصفحة وبيرجّعها لفوق) بنرجّع المستخدم لنفس المكان بالظبط
+  const y0=window.scrollY,h0=location.hash,back=()=>{if(location.hash===h0){window.scrollTo(0,y0);requestAnimationFrame(()=>window.scrollTo(0,y0))}};
   const m=document.createElement("div");m.className="md";
   m.innerHTML=`<div class="sh"><h3>${title}</h3>${fields.map(fld).join("")}<button class="btn" id="mk">حفظ</button>${onDel?'<button class="btn o dl" id="mx">حذف</button>':""}<button class="btn o" id="mc">إلغاء</button></div>`;
   document.body.appendChild(m);if(setup)setup(m);
@@ -322,8 +324,8 @@ function modal(title,fields,onSave,onDel,setup){
     try{const p=await uplMeas(f);m.querySelector(`[data-i="${i}"]`).value=p;m.querySelector("#fm"+i).textContent=f.name;toast("تم رفع الملف")}catch(e){toast("تعذر رفع الملف")}
   });
   m.querySelector("#mc").onclick=close;
-  m.querySelector("#mk").onclick=async()=>{const b=m.querySelector("#mk");b.disabled=true;b.textContent="جاري المعالجة...";const ok=await onSave(get());b.disabled=false;b.textContent="حفظ";if(ok!==false)close()};
-  if(onDel)m.querySelector("#mx").onclick=async()=>{if(confirm("متأكد من الحذف؟")){await onDel();close()}};
+  m.querySelector("#mk").onclick=async()=>{const b=m.querySelector("#mk");b.disabled=true;b.textContent="جاري المعالجة...";const ok=await onSave(get());b.disabled=false;b.textContent="حفظ";if(ok!==false){close();back()}};
+  if(onDel)m.querySelector("#mx").onclick=async()=>{if(confirm("متأكد من الحذف؟")){await onDel();close();back()}};
 }
 async function savePD(){
   PW=Date.now();
