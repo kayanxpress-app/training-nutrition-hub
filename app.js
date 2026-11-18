@@ -35,37 +35,36 @@ const WK=()=>{const w=P.data.weeks;if(!w||!w.length)return null;if(EDIT()&&VW)re
 const numsD=t=>String(t||"").replace(/[٠-٩]/g,c=>"٠١٢٣٤٥٦٧٨٩".indexOf(c)).replace(/٫/g,".").split(/[^0-9.]+/).filter(x=>x&&x!==".").map(Number);
 const fmtW=n=>ar(String(n).replace(".","٫"));
 function planW(e,wk,n,ro){
-  /* الوزن بيتحسب أسبوع بأسبوع من الأسبوع اللي قبله، لكل جولة لوحدها:
-     • العدات قلّت ← الوزن يزيد (wstep كجم لكل خطوة عدات، الخطوة = rstep عدة، الافتراضي 2.5 كجم لكل 2 عدة)
-     • العدات ثابتة ← نفس وزن الأسبوع السابق
-     • العدات زادت ← الوزن ينقص بنفس الخطوة
-     • أي خانة يدوية (e.wo[أسبوع][جولة]) بتتحط زي ما هي، وبتبقى هي الأساس للأسابيع بعدها */
-  const D=P.data;let w1=(e.w1||[]).map(Number);const wo=(e.wo&&typeof e.wo==="object"&&!Array.isArray(e.wo))?e.wo:{};
+  /* الوزن مربوط بقيمة العدات (مش بمكان الجولة)، من أوزان الأسبوع الأول:
+     • نفس العدات = نفس الوزن في كل الأسابيع وكل الجولات (لو نفس العدات ليها أكتر من وزن في الأسبوع الأول بيتاخد الأتقل)
+     • عدات أقل من أقل عدات في الأسبوع الأول ← الوزن يزيد wstep كجم (الافتراضي 2.5) لكل خطوة (rstep عدة، الافتراضي 2)
+     • عدات أكتر من أكتر عدات في الأسبوع الأول ← الوزن ينقص بنفس الخطوة
+     • عدات بين رقمين ← استيفاء بينهم
+     • الخانة اليدوية (e.wo[أسبوع][جولة]) بتتحط زي ما هي ومش بيتكتب فوقها */
+  const D=P.data;let w1=(e.w1||[]).map(Number);const ov=wk>1&&e.wo&&e.wo[wk]?e.wo[wk].map(Number):null;
   const W=D.weeks&&D.weeks.length?D.weeks:null;
-  const fx=a=>a.length?Array.from({length:n},(_,i)=>a[Math.min(i,a.length-1)]):a;
-  const repsOf=k=>{let r=ro||((W?W[Math.min(k,W.length)-1]:D.reps)||[]);return n?fx(r):r};
-  if(n&&w1.length===1)w1=fx(w1);
-  const hasOv=k=>wo[k]&&wo[k].some(x=>+x>0);
-  let anyOv=false;for(let k=2;k<=wk;k++)if(hasOv(k))anyOv=true;
-  if(!w1.some(x=>x>0)&&!anyOv)return null;
+  let R1=(W?W[0]:D.reps)||[],Rw=(W?W[Math.min(wk,W.length)-1]:D.reps)||[];
+  if(ro){R1=ro;Rw=ro}
+  if(n){const fx=a=>a.length?Array.from({length:n},(_,i)=>a[Math.min(i,a.length-1)]):a;R1=fx(R1);Rw=fx(Rw);if(w1.length===1)w1=fx(w1)}
+  if(!w1.some(x=>x>0)&&!(ov&&ov.some(x=>x>0)))return null;
   if(wk<=1)return w1.map(x=>x>0?x:0);
   const wstep=Number(D.wstep)>0?Number(D.wstep):2.5,rstep=Number(D.rstep)>0?Number(D.rstep):2,st=D.wsnap??0.5;
   const snap=v=>Number((st>0?Math.round(v/st)*st:v).toFixed(2));
-  let cur=w1.map(x=>x>0?x:0);
-  for(let k=2;k<=wk;k++){
-    const rp=repsOf(k-1),rn=repsOf(k),ov=wo[k]?wo[k].map(Number):null;
-    const len=Math.max(cur.length,rn.length,ov?ov.length:0);
-    const nxt=[];
-    for(let x=0;x<len;x++){
-      const prev=cur[x]>0?cur[x]:0;
-      if(ov&&ov[x]>0){nxt.push(ov[x]);continue}
-      const a=Number(rp[x]),b=Number(rn[x]);
-      if(!prev||isNaN(a)||isNaN(b)||a===b){nxt.push(prev);continue}
-      nxt.push(Math.max(0,snap(prev+wstep*(a-b)/rstep)));
-    }
-    cur=nxt;
-  }
-  return cur;
+  const by={};R1.forEach((r,x)=>{if(w1[x]>0)(by[r]=by[r]||[]).push(w1[x])});
+  const keys=Object.keys(by).map(Number).sort((a,b)=>a-b);
+  const seen={},out=[];
+  Rw.forEach((r,x)=>{
+    const occ=seen[r]||0;seen[r]=occ+1;
+    if(ov&&ov[x]>0){out.push(ov[x]);return}
+    if(!keys.length){out.push(0);return}
+    let v;
+    if(by[r])v=Math.max(...by[r]);
+    else if(r<keys[0])v=snap(Math.max(...by[keys[0]])+wstep*(keys[0]-r)/rstep);
+    else if(r>keys[keys.length-1]){const k=keys[keys.length-1];v=Math.max(st>0?st:0.5,snap(Math.min(...by[k])-wstep*(r-k)/rstep))}
+    else{const lo=keys.filter(k=>k<r).pop(),hi=keys.find(k=>k>r);v=snap(by[hi][0]+(by[lo][by[lo].length-1]-by[hi][0])*(hi-r)/(hi-lo))}
+    out.push(v);
+  });
+  return out;
 }
 const REPS=()=>{const w=WK();return w?P.data.weeks[w-1]:P.data.reps};
 function repsCard(){
