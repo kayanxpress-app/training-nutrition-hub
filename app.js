@@ -619,7 +619,10 @@ const BKT={
   ds:{l:"دروب ست",c:"ds",n:1,ic:"▼",col:"#d6425f",d:"تمرين واحد وتنزّل الوزن كل مرحلة لحد الفشل"},
   ci:{l:"سيركت",c:"ci",n:3,max:8,ic:"↻",col:"#1fa97a",d:"محطات متتالية بوقت شغل وراحة وجولات"},
   em:{l:"EMOM",c:"em",n:1,max:4,ic:"⏱",col:"#d99a00",d:"كل دقيقة تمرين: اشتغل وارتاح باقي الدقيقة"},
-  am:{l:"AMRAP",c:"am",n:2,max:6,ic:"∞",col:"#e0457b",d:"أكبر عدد جولات ممكن في وقت محدد"}};
+  am:{l:"AMRAP",c:"am",n:2,max:6,ic:"∞",col:"#e0457b",d:"أكبر عدد جولات ممكن في وقت محدد"},
+  rpz:{l:"ريست-بوز",c:"rpz",n:1,ic:"⏸",col:"#0891b2",d:"مجموعة لحد الفشل + راحة قصيرة + كمّل لحد الفشل تاني"},
+  clu:{l:"كلاستر",c:"clu",n:1,ic:"▦",col:"#6d4c41",d:"مجموعة تقيلة متقسمة لمجموعات صغيرة بينها راحة قصيرة"},
+  tab:{l:"تاباتا",c:"tab",n:1,max:4,ic:"⚡",col:"#c026d3",d:"٢٠ ثانية شغل و١٠ راحة × ٨ فترات (٤ دقايق)"}};
 const bkLet=k=>String.fromCharCode(65+k%26);
 const bkClamp=(v,a,b,d)=>{v=Math.round(+v);return v>=a&&v<=b?v:d};
 const bkRounds=b=>bkClamp(b.rounds,1,10,3);
@@ -627,10 +630,18 @@ const bkStages=b=>bkClamp(b.stages,2,6,3);
 const bkMin=b=>bkClamp(b.min,1,90,b.t==="am"?12:10);
 const bkIv=b=>bkClamp(b.iv,15,300,60);
 const bkDrop=b=>{const d=+b.drop;return d>=1&&d<=60?d:20};
+/* ريست-بوز · كلاستر · تاباتا */
+const bkPz=b=>bkClamp(b.pz,1,5,2);      // ريست-بوز: عدد مرات الراحة القصيرة بعد المجموعة الأولى
+const bkPr=b=>bkClamp(b.pr,5,60,15);    // الراحة القصيرة (ريست-بوز / كلاستر) بالثواني
+const bkCn=b=>bkClamp(b.cn,2,8,3);      // كلاستر: عدد المجموعات الصغيرة في المجموعة الواحدة
+const bkCr=b=>bkClamp(b.cr,1,12,4);     // كلاستر: تكرارات كل مجموعة صغيرة
+const bkTn=b=>bkClamp(b.tn,2,24,8);     // تاباتا: عدد الفترات
+const bkTw=b=>bkClamp(b.work,5,120,20); // تاباتا: وقت الشغل (ثانية)
+const bkTr=b=>{const v=Math.round(+b.restSt);return b.restSt!=null&&v>=0&&v<=120?v:10}; // تاباتا: الراحة (٠ مسموح)
 /* عدد جولات كل تمرين: EMOM بيتحسب من الوقت وعدد التمارين، AMRAP تمرين واحد (والعميل بيسجّل الجولات اللي خلصها) */
 function bkR(b){
   if(b.t==="em"){const tot=Math.floor(bkMin(b)*60/bkIv(b));return Math.max(1,Math.floor(tot/Math.max(1,(b.ex||[]).length)))}
-  if(b.t==="am")return 1;
+  if(b.t==="am"||b.t==="tab")return 1;
   return bkRounds(b);
 }
 const bkWord=n=>n===2?"تمرينين":n===3?"ثلاث تمارين":`${ar(n)} تمارين`;
@@ -640,18 +651,19 @@ const bkTimed=b=>b.t==="ci"&&(+b.work||0)>0;
 /* أوزان التمرين: w1 = أوزان الأسبوع الأول، wo = تعديل يدوي لكل أسبوع (نفس هيكل التمرين الهرمي). بيقرا كمان الحقول القديمة لو كانت اتحفظت */
 const bkW1=e=>Array.isArray(e.w1)?e.w1.map(Number):(e.base?[numsD(e.base)[0]||0].concat(typeof e.wo==="string"?numsD(e.wo).slice(1):[]):numsD(e.w||""));
 const bkWo=e=>(e.wo&&typeof e.wo==="object"&&!Array.isArray(e.wo))?e.wo:{};
-const bkOv=(e,n)=>{const t=String(e.reps||"").trim();if(!t)return null;const a=bkReps(t,n);return{txt:a,num:a.map(Number)}};
+const bkOv=(e,n,b)=>{const t=String(e.reps||"").trim();if(!t)return b&&b.t==="clu"?{txt:Array(n).fill(`${bkCn(b)}×${bkCr(b)}`),num:Array(n).fill(bkCn(b)*bkCr(b))}:null;const a=bkReps(t,n);return{txt:a,num:a.map(Number)}};
 /* تكرارات كل جولة في الأسبوع: تمرين ليه تكرارات خاصة = ثابتة، السيركت بالوقت = وقت الشغل، وغير كده = جدول تدرّج التكرارات بتاع البرنامج (زي الهرمي) */
 function bkRepsWk(b,e,n,wk){
-  const o=bkOv(e,n);if(o)return o.txt;
+  const o=bkOv(e,n,b);if(o)return o.txt;
   if(bkTimed(b))return Array(n).fill(`${+b.work}ث`);
+  if(b.t==="tab")return Array(n).fill(`${bkTw(b)}ث`);
   const D=P.data,W=D.weeks&&D.weeks.length?D.weeks:null,base=(W?W[Math.min(wk,W.length)-1]:D.reps)||[];
   return bkFit(base,n).map(String);
 }
 /* أوزان الجولات: نفس planW بتاع الهرمي (منحنى عدات↔وزن +٥٪ لما العدات تقل + التعديل اليدوي). تكرارات نصية أو سيركت بالوقت: مفيش منحنى، يدوي بس */
 function bkPlan(b,e,wk,n){
-  const o=bkOv(e,n),w1=bkW1(e),wo=bkWo(e);
-  if((o&&o.num.some(x=>isNaN(x)))||(!o&&bkTimed(b))){
+  const o=bkOv(e,n,b),w1=bkW1(e),wo=bkWo(e);
+  if((o&&o.num.some(x=>isNaN(x)))||(!o&&(bkTimed(b)||b.t==="tab"))){
     const man=wk>1?(wo[wk]||[]):w1,a=Array.from({length:n},(_,i)=>+man[i]||(man.length===1?+man[0]:0)||0);
     return a.some(x=>x>0)?a:null;
   }
@@ -687,6 +699,9 @@ function bkRule(b){
   }
   if(b.t==="em"){const iv=bkIv(b);return `كل <b>${iv===60?"دقيقة":ar(iv)+" ثانية"}</b> ابدأ التمرين المطلوب وارتاح باقي الوقت${n>1?"، وبدّل بين التمارين":""}، لمدة <b>${ar(bkMin(b))} دقيقة</b>.`}
   if(b.t==="am")return `اعمل أكبر عدد جولات ممكن من التمارين دي في <b>${ar(bkMin(b))} دقيقة</b>، وسجّل عدد الجولات اللي خلصتها.`;
+  if(b.t==="rpz"){const pz=bkPz(b);return `اعمل المجموعة <b>لحد الفشل</b>، ارتاح <b>${ar(bkPr(b))} ثانية</b> بس وكمّل لحد الفشل تاني، وكرّر الراحة القصيرة دي ${pz===1?"<b>مرة واحدة</b>":`<b>${ar(pz)} مرات</b>`}${rest?`، وبعدها ارتاح <b>${ar(rest)} ثانية</b>`:""}، وكرّر <b>${ar(R)} جولات</b>.`}
+  if(b.t==="clu")return `قسّم المجموعة لـ <b>${ar(bkCn(b))} مجموعات صغيرة × ${ar(bkCr(b))} تكرارات</b> بوزن تقيل، وارتاح <b>${ar(bkPr(b))} ثانية</b> بين كل مجموعة صغيرة${rest?`، وبعد المجموعة الكاملة ارتاح <b>${ar(rest)} ثانية</b>`:""}، وكرّر <b>${ar(R)} جولات</b>.`;
+  if(b.t==="tab")return `اشتغل <b>${ar(bkTw(b))} ثانية</b> بأقصى مجهود${bkTr(b)?` وارتاح <b>${ar(bkTr(b))} ثانية</b>`:""}، وكرّر <b>${ar(bkTn(b))} فترات</b> (${bkDur(bkTn(b)*(bkTw(b)+bkTr(b))-bkTr(b))})${n>1?"، وبدّل بين التمارين بالدور":""}.`;
   return `${bkWord(n)} ورا بعض <b>من غير راحة</b>${rest?`، وبعد آخر تمرين ارتاح <b>${ar(rest)} ثانية</b>`:""}، وكرّر <b>${ar(R)} جولات</b>.`;
 }
 const bkDur=s=>`${ar(Math.ceil(s/60))} دقيقة`;
@@ -697,7 +712,7 @@ function bkRender(i){
 function bkCard(i,k,b){
   const T=BKT[b.t]||BKT.ss,R=bkR(b),S=bkStages(b),lg=L(),key=`s${i}b${k}`,done=!!lg.d[key],ex=b.ex||[],wk=WK()||1,n=ex.length;
   const lab=ex.map(e=>e.n).filter(Boolean).join(" + ")||T.l;
-  const bn=b.t==="ds"?`تمرين واحد · ${ar(S)} مراحل${R>1?` × ${ar(R)} جولات`:""}`:b.t==="ci"?`${ar(R)} جولات · ${ar(n)} محطات`:b.t==="em"?`${ar(bkMin(b))} دقيقة · كل ${bkIv(b)===60?"دقيقة":ar(bkIv(b))+" ث"}`:b.t==="am"?`${ar(bkMin(b))} دقيقة`:`${ar(R)} جولات`;
+  const bn=b.t==="ds"?`تمرين واحد · ${ar(S)} مراحل${R>1?` × ${ar(R)} جولات`:""}`:b.t==="ci"?`${ar(R)} جولات · ${ar(n)} محطات`:b.t==="em"?`${ar(bkMin(b))} دقيقة · كل ${bkIv(b)===60?"دقيقة":ar(bkIv(b))+" ث"}`:b.t==="am"?`${ar(bkMin(b))} دقيقة`:b.t==="rpz"?`${ar(R)} جولات · ${ar(bkPz(b))} ريست-بوز`:b.t==="clu"?`${ar(R)} جولات · ${ar(bkCn(b))}×${ar(bkCr(b))}`:b.t==="tab"?`${ar(bkTn(b))} فترات · ${ar(bkTw(b))}/${ar(bkTr(b))} ث`:`${ar(R)} جولات`;
   let h=`<div class="card blk ${T.c} ${done?"done":""}" id="c-${key}"><div class="bh"><span class="bb">${T.l}</span><span class="bn">${bn}${WK()?` · الأسبوع ${ar(wk)}`:""}</span><button type="button" class="bq" onclick="bkExplain(${i},${k})"><i>؟</i> شرح أسلوب التمرين</button></div><div class="br">${bkRule(b)}</div>`;
   if(b.note)h+=`<div class="note"><span class="lbl">ملاحظة</span> ${esc(b.note)}</div>`;
   h+=ed(`editBk(${i},${k})`,"تعديل البلوك");
@@ -717,15 +732,17 @@ function bkCard(i,k,b){
       h+=`</div>`;
     }
   }else{
-    const nR=b.t==="am"?1:R;
+    const nR=b.t==="am"||b.t==="tab"?1:R;
     ex.forEach((e,j)=>{
       const wkey=`${key}x${j}`,w=lg.w[wkey]||[],rp=bkRepsWk(b,e,nR,wk),PW=bkPlan(b,e,wk,nR),PV=PW&&wk>1?bkPlan(b,e,wk-1,nR):null;
-      const rpt=b.t==="am"?(rp[0]?`${ar(rp[0])} عدة`:"—"):null;
-      h+=`${j?`<div class="bc">${b.t==="ci"&&+b.restSt?`⏱ راحة ${ar(+b.restSt)} ث`:"🔗 بدون راحة"}</div>`:""}<div class="bx"><div>${vid(e.url,e.n,"",e.img)}</div><div><div class="bxh"><span class="bl">${bkLet(k)}${ar(j+1)}</span><h3>${esc(e.n)}</h3><span class="pill ${e.cls||"t1"}">${esc(e.tag||"")}</span></div><div class="sets" style="grid-template-columns:repeat(${Math.min(nR,4)},minmax(0,1fr))">${rp.map((r,x)=>`<div><div class="rp">${rpt||(r?ar(r):"—")}</div>${PW?(PW[x]?`<div class="tw">${fmtW(PW[x])}<small>كجم</small>${PV&&PW[x]>PV[x]?"<em>▲</em>":""}</div>`:`<div class="tw em">—</div>`):""}<input type="text" inputmode="decimal" value="${esc(w[x]||"")}" placeholder="${PW&&PW[x]?"الفعلي":(lastW(wkey,x)?ar(lastW(wkey,x)):"كجم")}" onchange="setW('${wkey}',${x},this.value)"></div>`).join("")}</div>${ed(`editBkEx(${i},${k},${j})`)}</div></div>`;
+      const rpt=b.t==="am"?(rp[0]?`${ar(rp[0])} عدة`:"—"):b.t==="tab"?`شغل ${ar(bkTw(b))}ث · راحة ${ar(bkTr(b))}ث`:null;
+      h+=`${j?`<div class="bc">${b.t==="ci"&&+b.restSt?`⏱ راحة ${ar(+b.restSt)} ث`:b.t==="tab"?"🔁 بالتبادل":"🔗 بدون راحة"}</div>`:""}<div class="bx"><div>${vid(e.url,e.n,"",e.img)}</div><div><div class="bxh"><span class="bl">${bkLet(k)}${ar(j+1)}</span><h3>${esc(e.n)}</h3><span class="pill ${e.cls||"t1"}">${esc(e.tag||"")}</span></div><div class="sets" style="grid-template-columns:repeat(${Math.min(nR,4)},minmax(0,1fr))">${rp.map((r,x)=>`<div><div class="rp">${rpt||(r?ar(r):"—")}</div>${PW?(PW[x]?`<div class="tw">${fmtW(PW[x])}<small>كجم</small>${PV&&PW[x]>PV[x]?"<em>▲</em>":""}</div>`:`<div class="tw em">—</div>`):""}<input type="text" inputmode="decimal" value="${esc(w[x]||"")}" placeholder="${PW&&PW[x]?"الفعلي":(lastW(wkey,x)?ar(lastW(wkey,x)):"كجم")}" onchange="setW('${wkey}',${x},this.value)"></div>`).join("")}</div>${ed(`editBkEx(${i},${k},${j})`)}</div></div>`;
     });
     if(T.max&&n<T.max)h+=addb(`editBkEx(${i},${k},-1)`,b.t==="ci"?"إضافة محطة":"إضافة تمرين");
     if(b.t==="am"){const rk=`${key}xr`,rv=(lg.w[rk]||[])[0]||"";h+=`<div class="amr"><label>عدد الجولات اللي خلصتها في ${ar(bkMin(b))} دقيقة</label><input type="text" inputmode="numeric" value="${esc(rv)}" placeholder="${lastW(rk,0)?"آخر مرة: "+ar(lastW(rk,0)):"مثال: ٥"}" onchange="setW('${rk}',0,this.value)"></div>`}
   }
+  if(b.t==="tab"){const rk=`${key}xr`,rv=(lg.w[rk]||[])[0]||"";h+=`<div class="amr"><label>أقل عدد تكرارات عملتها في فترة واحدة</label><input type="text" inputmode="numeric" value="${esc(rv)}" placeholder="${lastW(rk,0)?"آخر مرة: "+ar(lastW(rk,0)):"مثال: ٨"}" onchange="setW('${rk}',0,this.value)"></div>`}
+  if(b.t==="rpz"||b.t==="clu")h+=`<button type="button" class="brest" onclick="restStart(${bkPr(b)})"><span>⏱ ${b.t==="rpz"?"راحة قصيرة (ريست-بوز)":"راحة بين المجموعات الصغيرة"} · اضغط لبدء العدّاد</span><b>${ar(bkPr(b))} ثانية</b></button>`;
   const ph=bkPhases(b,k);
   if(ph.length)h+=`<button type="button" class="brest" onclick="bkTimer(${i},${k})"><span>▶ ابدأ عدّاد ${T.l} · الراحة والمحطات تلقائيًا</span><b>${bkDur(ph.reduce((a,p)=>a+p.sec,0))}</b></button>`;
   else if(+b.rest&&b.t!=="em"&&b.t!=="am")h+=`<button type="button" class="brest" onclick="restStart(${+b.rest||0})"><span>⏱ ${b.t==="ds"?"راحة بعد الدروب ست":"راحة بعد كل جولة"} · اضغط لبدء العدّاد</span><b>${ar(+b.rest)} ثانية</b></button>`;
@@ -744,6 +761,9 @@ function bkPhases(b,k){
   }else if(b.t==="em"&&ex.length){
     const iv=bkIv(b),tot=Math.floor(bkMin(b)*60/iv);
     for(let t=0;t<tot;t++)ph.push({sec:iv,lab:`${iv===60?"الدقيقة":"الفترة"} ${ar(t+1)}/${ar(tot)} · ${nm(t%ex.length)}`});
+  }else if(b.t==="tab"&&ex.length){
+    const W=bkTw(b),RS=bkTr(b),tot=bkTn(b);
+    for(let t=0;t<tot;t++){ph.push({sec:W,lab:`🔥 الفترة ${ar(t+1)}/${ar(tot)} · ${nm(t%ex.length)}`});if(t<tot-1&&RS)ph.push({sec:RS,lab:`⏱ راحة · التالي الفترة ${ar(t+2)}/${ar(tot)}`})}
   }else if(b.t==="am")ph.push({sec:bkMin(b)*60,lab:"⏱ AMRAP · أكبر عدد جولات"});
   return ph.filter(p=>p.sec>0);
 }
@@ -774,6 +794,21 @@ function bkExplain(i,k){
     sum="أسلوب بيقيس قدرتك: كام جولة تقدر تعمل في وقت محدد.";
     steps=[`اعمل التمارين (${names.join(" ← ")}) بالتكرارات المكتوبة، وده يعتبر <b>جولة</b>.`,"ابدأ جولة جديدة على طول من غير ما توقف.",`كمّل لحد ما <b>${ar(bkMin(b))} دقيقة</b> تخلص.`,"اكتب عدد الجولات اللي خلصتها في الخانة الأخيرة."];
     tip="اضغط «ابدأ عدّاد AMRAP». حاول تكسر رقمك المرة الجاية. "+wkTip;
+  }else if(b.t==="rpz"){
+    const pr=bkPr(b),pz=bkPz(b);
+    sum="أسلوب بيرهق العضلة لآخرها بنفس الوزن من غير ما تنزّله.";
+    steps=[`اعمل المجموعة بالوزن المطلوب <b>لحد الفشل</b>.`,`ارتاح <b>${ar(pr)} ثانية</b> بس (اضغط زر الراحة القصيرة).`,`كمّل بنفس الوزن لحد الفشل تاني، وكرّر الراحة القصيرة دي ${pz===1?"<b>مرة واحدة</b>":`<b>${ar(pz)} مرات</b>`}.`,rest?`بعد آخر مجموعة ارتاح <b>${ar(rest)} ثانية</b>${R>1?` وابدأ الجولة اللي بعدها، المجموع ${ar(R)} جولات`:""}.`:(R>1?`ابدأ الجولة اللي بعدها، المجموع ${ar(R)} جولات.`:"")].filter(Boolean);
+    tip="اكتب وزنك في كل جولة. لو التكرارات قلّت جدًا في آخر مجموعة صغيرة ده طبيعي. "+wkTip;
+  }else if(b.t==="clu"){
+    const pr=bkPr(b),cn=bkCn(b),cr=bkCr(b);
+    sum="أسلوب بيخليك ترفع وزن تقيل بتكرارات أكتر عن طريق تقسيم المجموعة لمجموعات صغيرة.";
+    steps=[`اعمل <b>${ar(cr)} تكرارات</b> بالوزن التقيل.`,`ارتاح <b>${ar(pr)} ثانية</b> بس (اضغط زر الراحة القصيرة) وكرّر ${ar(cr)} تكرارات تانية.`,`كمّل لحد ما تخلّص <b>${ar(cn)} مجموعات صغيرة</b>، وده يعتبر جولة كاملة (${ar(cn*cr)} تكرار).`,rest?`ارتاح <b>${ar(rest)} ثانية</b> بعد الجولة.`:"",`كرّر لحد آخر جولة: <b>${ar(R)} جولات</b>.`].filter(Boolean);
+    tip="اكتب وزنك في كل جولة. "+wkTip;
+  }else if(b.t==="tab"){
+    const tw=bkTw(b),tr=bkTr(b),tn=bkTn(b);
+    sum="أسلوب كارديو عالي الشدة: فترات شغل قصيرة بأقصى مجهود وراحة أقل منها.";
+    steps=[`اشتغل <b>${ar(tw)} ثانية</b> بأقصى مجهود${n>1?` (${names.join(" ثم ")} بالتبادل)`:""}.`,tr?`ارتاح <b>${ar(tr)} ثانية</b>.`:"",`كرّر <b>${ar(tn)} فترات</b> (${bkDur(tn*(tw+tr)-tr)}).`,"اكتب أقل عدد تكرارات عملتها في فترة واحدة في الخانة الأخيرة."].filter(Boolean);
+    tip="اضغط «ابدأ عدّاد تاباتا» وهو يقولك امتى تشتغل وامتى ترتاح. حاول تحافظ على نفس عدد التكرارات في كل الفترات.";
   }else{
     sum=n>=4?"أسلوب بيرهق نفس العضلة أو أكتر من زاوية من غير راحة.":"أسلوب بيوفّر وقت وبيرفع شدة التمرين.";
     steps=[`اعمل <b>${names[0]}</b> مجموعة كاملة.`,`روح على طول <b>${names.slice(1).join(" ثم ")}</b> من غير راحة.`,rest?`ارتاح <b>${ar(rest)} ثانية</b> (اضغط زر الراحة).`:"",`كرّر لحد آخر جولة: <b>${ar(R)} جولات</b>.`].filter(Boolean);
@@ -788,7 +823,7 @@ function bkExplain(i,k){
 function addBlock(i){
   const m=document.createElement("div");m.className="md";
   const rows=[["ex","هرمي (تمرين عادي)","عدات بتقل ووزن بيزيد كل مجموعة","△","#7c5cff"]].concat(Object.keys(BKT).map(t=>[t,BKT[t].l,BKT[t].d,BKT[t].ic,BKT[t].col]));
-  m.innerHTML=`<div class="sh"><h3>اختر أسلوب التمرين</h3>${rows.map(r=>`<div class="tpl" style="--bc:${r[4]}" data-a="${r[0]}"><div class="ti">${r[3]}</div><div><b>${r[1]}</b><small>${r[2]}</small></div><div class="go">‹</div></div>`).join("")}<div class="tpl" style="--bc:#8a8f98;opacity:.6;cursor:default"><div class="ti">+</div><div><b>ريست-بوز · كلاستر · تاباتا</b><small>قريبًا: بنضيفهم بنفس الطريقة</small></div></div><button class="btn o" id="mc">إلغاء</button></div>`;
+  m.innerHTML=`<div class="sh"><h3>اختر أسلوب التمرين</h3>${rows.map(r=>`<div class="tpl" style="--bc:${r[4]}" data-a="${r[0]}"><div class="ti">${r[3]}</div><div><b>${r[1]}</b><small>${r[2]}</small></div><div class="go">‹</div></div>`).join("")}<button class="btn o" id="mc">إلغاء</button></div>`;
   document.body.appendChild(m);
   m.onclick=e=>{if(e.target===m)m.remove()};m.querySelector("#mc").onclick=()=>m.remove();
   m.querySelectorAll("[data-a]").forEach(x=>x.onclick=()=>{const a=x.dataset.a;m.remove();if(a==="ex")editEx(i,-1);else newBk(i,a)});
@@ -797,10 +832,13 @@ function newBk(i,t){
   const T=BKT[t],s=P.data.sessions[i],f=[],L0=bkLet((s.bk||[]).length),nmax=T.max||T.n;
   if(t==="em")f.push({k:"min",l:"المدة الكلية (دقائق)",type:"number",v:10},{k:"iv",l:"كل كام ثانية تبدأ التمرين (60 = كل دقيقة)",type:"number",v:60});
   else if(t==="am")f.push({k:"min",l:"المدة الكلية (دقائق)",type:"number",v:12});
+  else if(t==="tab")f.push({k:"tn",l:"عدد الفترات (٨ = تاباتا كلاسيك ٤ دقايق)",type:"number",v:8},{k:"work",l:"وقت الشغل في كل فترة (ثانية)",type:"number",v:20},{k:"restSt",l:"الراحة بين الفترات (ثانية)",type:"number",v:10});
   else{
     f.push({k:"rounds",l:"عدد الجولات (ممكن 2 أو 3 أو 4 أو 5 …)",type:"number",v:t==="ds"?1:3});
+    if(t==="rpz")f.push({k:"pz",l:"عدد مرات الراحة القصيرة بعد المجموعة الأولى (١ إلى ٥)",type:"number",v:2},{k:"pr",l:"مدة الراحة القصيرة (ثانية)",type:"number",v:15});
+    if(t==="clu")f.push({k:"cn",l:"عدد المجموعات الصغيرة في الجولة الواحدة",type:"number",v:3},{k:"cr",l:"تكرارات كل مجموعة صغيرة",type:"number",v:4},{k:"pr",l:"الراحة بين المجموعات الصغيرة (ثانية)",type:"number",v:15});
     if(t==="ci")f.push({k:"work",l:"وقت الشغل في كل محطة (ثانية) — 0 = بالتكرارات بدل الوقت",type:"number",v:40},{k:"restSt",l:"الراحة بين المحطات (ثانية)",type:"number",v:20});
-    f.push({k:"rest",l:t==="ci"?"الراحة بين الجولات (ثانية)":"الراحة بعد "+(t==="ds"?"الدروب ست":"كل جولة")+" (ثانية، 0 = بدون)",type:"number",v:t==="ds"?120:90});
+    f.push({k:"rest",l:t==="ci"?"الراحة بين الجولات (ثانية)":"الراحة بعد "+(t==="ds"?"الدروب ست":"كل جولة")+" (ثانية، 0 = بدون)",type:"number",v:t==="ds"||t==="rpz"||t==="clu"?120:90});
     if(t==="ds")f.push({k:"stages",l:"عدد مراحل النزول",type:"number",v:3},{k:"drop",l:"نسبة تنزيل الوزن في كل مرحلة (٪)",type:"number",v:20});
   }
   for(let j=0;j<nmax;j++)f.push({k:"n"+j,l:`${t==="ci"?"اسم المحطة":"اسم التمرين"} ${L0}${ar(j+1)}${j>=T.n?" (اختياري)":""}`,v:""});
@@ -809,7 +847,10 @@ function newBk(i,t){
     const b={id:nid(),t,note:v.note.trim(),ex:[]};
     if(t==="em"){b.min=bkClamp(v.min,1,90,10);b.iv=bkClamp(v.iv,15,300,60)}
     else if(t==="am")b.min=bkClamp(v.min,1,90,12);
+    else if(t==="tab"){b.tn=bkClamp(v.tn,2,24,8);b.work=bkClamp(v.work,5,120,20);const rs=Math.round(+v.restSt);b.restSt=rs>=0&&rs<=120?rs:10}
     else{b.rounds=bkClamp(v.rounds,1,10,3);b.rest=Math.max(0,Math.round(+v.rest)||0);
+      if(t==="rpz"){b.pz=bkClamp(v.pz,1,5,2);b.pr=bkClamp(v.pr,5,60,15)}
+      if(t==="clu"){b.cn=bkClamp(v.cn,2,8,3);b.cr=bkClamp(v.cr,1,12,4);b.pr=bkClamp(v.pr,5,60,15)}
       if(t==="ci"){b.work=Math.max(0,Math.round(+v.work)||0);b.restSt=Math.max(0,Math.round(+v.restSt)||0)}
       if(t==="ds"){b.stages=bkClamp(v.stages,2,6,3);b.drop=bkDrop({drop:v.drop})}}
     for(let j=0;j<nmax;j++){
@@ -828,8 +869,11 @@ function editBk(i,k){
   const s=P.data.sessions[i],b=s.bk[k],t=b.t,f=[];
   if(t==="em")f.push({k:"min",l:"المدة الكلية (دقائق)",type:"number",v:bkMin(b)},{k:"iv",l:"كل كام ثانية تبدأ التمرين",type:"number",v:bkIv(b)});
   else if(t==="am")f.push({k:"min",l:"المدة الكلية (دقائق)",type:"number",v:bkMin(b)});
+  else if(t==="tab")f.push({k:"tn",l:"عدد الفترات",type:"number",v:bkTn(b)},{k:"work",l:"وقت الشغل في كل فترة (ثانية)",type:"number",v:bkTw(b)},{k:"restSt",l:"الراحة بين الفترات (ثانية)",type:"number",v:bkTr(b)});
   else{
     f.push({k:"rounds",l:"عدد الجولات",type:"number",v:bkRounds(b)});
+    if(t==="rpz")f.push({k:"pz",l:"عدد مرات الراحة القصيرة بعد المجموعة الأولى (١ إلى ٥)",type:"number",v:bkPz(b)},{k:"pr",l:"مدة الراحة القصيرة (ثانية)",type:"number",v:bkPr(b)});
+    if(t==="clu")f.push({k:"cn",l:"عدد المجموعات الصغيرة في الجولة الواحدة",type:"number",v:bkCn(b)},{k:"cr",l:"تكرارات كل مجموعة صغيرة",type:"number",v:bkCr(b)},{k:"pr",l:"الراحة بين المجموعات الصغيرة (ثانية)",type:"number",v:bkPr(b)});
     if(t==="ci")f.push({k:"work",l:"وقت الشغل في كل محطة (ثانية) — 0 = بالتكرارات",type:"number",v:+b.work||0},{k:"restSt",l:"الراحة بين المحطات (ثانية)",type:"number",v:+b.restSt||0});
     f.push({k:"rest",l:t==="ci"?"الراحة بين الجولات (ثانية)":"الراحة (ثانية، 0 = بدون)",type:"number",v:+b.rest||0});
     if(t==="ds")f.push({k:"stages",l:"عدد مراحل النزول",type:"number",v:bkStages(b)},{k:"drop",l:"نسبة تنزيل الوزن في كل مرحلة (٪)",type:"number",v:bkDrop(b)});
@@ -839,7 +883,10 @@ function editBk(i,k){
     b.note=v.note.trim();
     if(t==="em"){b.min=bkClamp(v.min,1,90,10);b.iv=bkClamp(v.iv,15,300,60)}
     else if(t==="am")b.min=bkClamp(v.min,1,90,12);
+    else if(t==="tab"){b.tn=bkClamp(v.tn,2,24,8);b.work=bkClamp(v.work,5,120,20);const rs=Math.round(+v.restSt);b.restSt=rs>=0&&rs<=120?rs:10}
     else{b.rounds=bkClamp(v.rounds,1,10,3);b.rest=Math.max(0,Math.round(+v.rest)||0);
+      if(t==="rpz"){b.pz=bkClamp(v.pz,1,5,2);b.pr=bkClamp(v.pr,5,60,15)}
+      if(t==="clu"){b.cn=bkClamp(v.cn,2,8,3);b.cr=bkClamp(v.cr,1,12,4);b.pr=bkClamp(v.pr,5,60,15)}
       if(t==="ci"){b.work=Math.max(0,Math.round(+v.work)||0);b.restSt=Math.max(0,Math.round(+v.restSt)||0)}
       if(t==="ds"){b.stages=bkClamp(v.stages,2,6,3);b.drop=bkDrop({drop:v.drop})}}
     return savePD();
@@ -849,16 +896,17 @@ function editBk(i,k){
 function editBkEx(i,k,j,chain){
   const s=P.data.sessions[i],b=s.bk[k];if(!b)return;
   const T=BKT[b.t]||BKT.ss,isNew=j<0,e=isNew?{id:nid(),n:"",tag:"جهاز",cls:"t1",url:"",img:""}:b.ex[j];if(!e)return;
-  const ds=b.t==="ds",am=b.t==="am",n=b.ex.length,w1=bkW1(e),wo=bkWo(e),per=ds?"مرحلة":am?"":"جولة";
+  const ds=b.t==="ds",am=b.t==="am"||b.t==="tab",n=b.ex.length,w1=bkW1(e),wo=bkWo(e),per=ds?"مرحلة":am?"":"جولة";
   const wkN=[2,3,4,5].filter(x=>x<=Math.max(4,(P.data.weeks||[]).length));
   const f=[{k:"n",l:b.t==="ci"?"اسم المحطة":"اسم التمرين",v:e.n},{k:"tag",l:"الأداة",type:"sel",o:Object.keys(TAGS),v:e.tag||"جهاز"},{k:"url",l:"لينك فيديو يوتيوب",v:e.url||"",dir:"ltr"},{k:"img",l:"صورة (اختياري، وإلا تظهر صورة الفيديو)",type:"img",v:e.img||""},
     {k:"reps",l:bkTimed(b)?"تكرارات خاصة بالمحطة (اختياري) — فاضي = بيشتغل بالوقت. اكتب رقم لو عايز تكرارات":"تكرارات خاصة بالتمرين ده (اختياري) — فاضي = بيتبع جدول تدرّج التكرارات حسب الأسبوع زي الهرمي. أو اكتب رقم لكل جولة مثل: 12 10 8",v:e.reps||"",dir:"ltr"},
     {k:"w1",l:ds?"وزن المرحلة الأولى في الأسبوع الأول (كجم) — والمراحل بعده بتنقص تلقائيًا. أو اكتب وزن كل مرحلة مثل: 80 62 48":am?"وزن الأسبوع الأول (كجم) — والأسابيع الباقية بتتحسب تلقائيًا":"أوزان الأسبوع الأول (كجم) لكل جولة، مثل: 10 11 11 — والأسابيع الباقية بتتحسب تلقائيًا",v:w1.filter(x=>x>0).length?w1.join(" "):"",dir:"ltr"},
     ...wkN.map(x=>({k:"w"+x,l:ds?`تعديل يدوي لأوزان مراحل الأسبوع ${x} (فاضي = حساب تلقائي)`:`تعديل يدوي لأوزان الأسبوع ${x} (فاضي = حساب تلقائي)`,v:(wo[x]||[]).join(" "),dir:"ltr"}))];
+  if(b.t==="clu"||b.t==="tab"){const q=f.findIndex(x=>x.k==="reps");if(q>=0)f.splice(q,1)}   // تكراراتهم محددة من إعدادات البلوك نفسه
   modal(isNew?`إضافة ${b.t==="ci"?"محطة":"تمرين"} لـ ${T.l}`:(chain?`${T.l} — الخطوة ٢: بيانات ${b.t==="ci"?"المحطة":"التمرين"} ${bkLet(k)}${ar(j+1)}${n>1?` من ${ar(n)}`:""}`:"تعديل التمرين"),f,async v=>{
     if(!v.n.trim()){toast("اكتب الاسم");return false}
     Object.assign(e,{n:v.n.trim(),tag:v.tag,cls:TAGS[v.tag]||"t1",url:v.url.trim(),img:v.img});
-    const rp=v.reps.trim();if(rp)e.reps=rp;else delete e.reps;
+    const rp=(v.reps||"").trim();if(rp)e.reps=rp;else delete e.reps;
     const a=numsD(v.w1);if(a.length)e.w1=a;else delete e.w1;
     const o={};wkN.forEach(x=>{const z=numsD(v["w"+x]);if(z.length)o[x]=z});
     if(Object.keys(o).length)e.wo=o;else delete e.wo;
