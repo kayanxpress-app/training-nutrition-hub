@@ -631,3 +631,9 @@ body.av .dst input{pointer-events:none}
 body.av .amr input{pointer-events:none}
 .rtm .rt0 span{flex:1;min-width:0;font-size:14px;line-height:1.5;overflow-wrap:anywhere}
 .rtm .rt0 b{flex:none;margin-inline-start:10px}
+
+/* أساليب إضافية: ريست-بوز · كلاستر · تاباتا */
+.blk.rpz{--bc:#0891b2}
+.blk.clu{--bc:#6d4c41}
+.blk.tab{--bc:#c026d3}
+.sh.exs.rpz{--bc:#0891b2}.sh.exs.clu{--bc:#6d4c41}.sh.exs.tab{--bc:#c026d3}
