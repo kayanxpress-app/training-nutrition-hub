@@ -37,7 +37,7 @@ function msgFor(kind, nm, d, rk) {
     : d <= 4 ? "مرّ " + AR(d) + " أيام على آخر تمرين. ارجع لخطتك النهارده وأنا معاك."
     : d <= 7 ? "أسبوع من غير تمرين. لو في عائق قولي نحله مع بعض."
     : "مرّ " + AR(d) + " يوم من غير تمرين. ابعتلي عشان نرجّعك للمسار.";
-  return { title: "وحشتنا يا " + nm + " 💪", body, url: "./", tag: "rem-abs" };
+  return { title: (nm === "بطل" ? "" : nm + "، ") + "جلستك في انتظارك 💪", body, url: "./", tag: "rem-abs" };
 }
 
 async function plan(admin, today) {
