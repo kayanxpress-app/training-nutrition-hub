@@ -258,7 +258,7 @@ function importProg(){
       const r=await fetch("/api/import",{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+session.access_token},body:JSON.stringify({path:v.path})});
       const j=await r.json().catch(()=>({}));
       if(!r.ok||!j.data)throw new Error(j.error||("خطأ "+r.status));
-      const {data,error}=await sb.from("programs").insert({client_id:CID(),title:v.t.trim()||j.data.brand||("برنامج "+v.d),month_start:v.d,data:j.data}).select().single();
+      const {data,error}=await sb.from("programs").insert({client_id:CID(),title:v.t.trim()||j.data.brand||("برنامج "+v.d),month_start:v.d,data:(syncDates(j.data,v.d),j.data)}).select().single();
       if(error)throw error;
       PROGS.unshift(data);PROGS.sort((a,b)=>b.month_start.localeCompare(a.month_start));PI=PROGS.findIndex(p=>p.id===data.id);P=PROGS[PI];
       toast("تم الاستيراد. راجع البيانات وعدّل لو لزم");location.hash="home";route();
@@ -329,7 +329,7 @@ function modal(title,fields,onSave,onDel,setup){
 }
 async function savePD(){
   PW=Date.now();
-  const {error}=await sb.from("programs").update({data:P.data}).eq("id",P.id);
+  const {error}=await sb.from("programs").update({data:P.data,month_start:P.month_start}).eq("id",P.id);
   if(error){toast("تعذر الحفظ");return false}
   toast("تم الحفظ");route();return true;
 }
@@ -413,12 +413,15 @@ function editInfo(){
   const d=P.data,f=d.info,e=d.energy;
   const wk=(d.weeks||[]).map(r=>r.join("-")).join("\n"),ex=(e.exch||[]).map(x=>x[0]+" "+x[1]).join(" | ");
   const T=(k,l,v,o)=>Object.assign({k,l,v:v??""},o||{});
-  modal("بيانات العميل والبرنامج",[T("brand","اسم البرنامج (يظهر كبيرًا)",d.brand),T("sub","وصف البرنامج",d.sub),T("sex","النوع",f.sex),T("age","العمر",f.age),T("weight","الوزن",f.weight),T("height","الطول",f.height),T("start","تاريخ البداية",f.start),T("end","تاريخ النهاية",f.end),T("days","مدة البرنامج (أيام)",f.days,{type:"number"}),T("minutes","التمرين أسبوعيًا",f.minutes),T("so2","الأكسجين",f.so2),T("rs","التنفس",f.rs),T("pulse","النبض",f.pulse),T("bp","الضغط",f.bp),T("bmr","معدل الحرق الأساسي",e.bmr),T("act","معامل النشاط",e.act),T("tdee","إجمالي الطاقة",e.tdee),T("plan","سعرات الخطة",e.plan),T("water","الماء",e.water),T("ptn","البروتين",e.ptn),T("cho","الكربوهيدرات",e.cho),T("exch","التبادلات الغذائية (افصل بـ | مثال: 9 بروتين | 4 نشويات)",ex,{type:"area"}),T("rest","الراحة بين المجموعات (ثانية)",d.rest,{type:"number"}),T("wk","تدرّج التكرارات: سطر لكل أسبوع مثل 10-10-10 (فاضي = تكرارات ثابتة)",wk,{type:"area"}),T("reps","التكرارات الثابتة مثل 12-10-10",(d.reps||[]).join("-")),T("wstep","زيادة الوزن (كجم) كل ما تقل التكرارات عن الأسبوع السابق بخطوة (٢ عدة)",d.wstep??2.5,{type:"number"}),T("wsnap","تقريب الأوزان لأقرب (كجم) — الافتراضي 0.5، و0 = حساب دقيق",d.wsnap??0.5,{type:"number"})],
+  modal("بيانات العميل والبرنامج",[T("brand","اسم البرنامج (يظهر كبيرًا)",d.brand),T("sub","وصف البرنامج",d.sub),T("sex","النوع",f.sex),T("age","العمر",f.age),T("weight","الوزن",f.weight),T("height","الطول",f.height),{k:"start",l:"تاريخ البداية (منه بيتحسب «اليوم كذا من كذا» عند العميل)",type:"date",v:parseDmy(f.start)||P.month_start},T("end","تاريخ النهاية",f.end),T("days","مدة البرنامج (أيام)",f.days,{type:"number"}),T("minutes","التمرين أسبوعيًا",f.minutes),T("so2","الأكسجين",f.so2),T("rs","التنفس",f.rs),T("pulse","النبض",f.pulse),T("bp","الضغط",f.bp),T("bmr","معدل الحرق الأساسي",e.bmr),T("act","معامل النشاط",e.act),T("tdee","إجمالي الطاقة",e.tdee),T("plan","سعرات الخطة",e.plan),T("water","الماء",e.water),T("ptn","البروتين",e.ptn),T("cho","الكربوهيدرات",e.cho),T("exch","التبادلات الغذائية (افصل بـ | مثال: 9 بروتين | 4 نشويات)",ex,{type:"area"}),T("rest","الراحة بين المجموعات (ثانية)",d.rest,{type:"number"}),T("wk","تدرّج التكرارات: سطر لكل أسبوع مثل 10-10-10 (فاضي = تكرارات ثابتة)",wk,{type:"area"}),T("reps","التكرارات الثابتة مثل 12-10-10",(d.reps||[]).join("-")),T("wstep","زيادة الوزن (كجم) كل ما تقل التكرارات عن الأسبوع السابق بخطوة (٢ عدة)",d.wstep??2.5,{type:"number"}),T("wsnap","تقريب الأوزان لأقرب (كجم) — الافتراضي 0.5، و0 = حساب دقيق",d.wsnap??0.5,{type:"number"})],
     async v=>{
       const lat=t=>String(t).replace(/[٠-٩]/g,c=>"٠١٢٣٤٥٦٧٨٩".indexOf(c)),nums=t=>lat(t).split(/[^0-9]+/).filter(Boolean).map(Number);
       d.brand=v.brand.trim();d.sub=v.sub.trim();
-      ["sex","age","weight","height","start","end","minutes","so2","rs","pulse","bp"].forEach(k=>f[k]=ar(v[k].trim()));
-      f.days=+v.days||30;
+      if(!v.start){toast("حدد تاريخ البداية");return false}
+      ["sex","age","weight","height","end","minutes","so2","rs","pulse","bp"].forEach(k=>f[k]=ar(v[k].trim()));
+      const oldDays=+f.days||30,oldMs=P.month_start;f.days=+v.days||30;
+      P.month_start=v.start;PROGS.sort((a,b)=>b.month_start.localeCompare(a.month_start));PI=PROGS.findIndex(x=>x.id===P.id);
+      if(v.start!==oldMs||f.days!==oldDays||!f.end)syncDates(d,v.start);else f.start=fmtDmy(v.start);
       ["bmr","act","tdee","plan","water","ptn","cho"].forEach(k=>e[k]=ar(v[k].trim()));
       e.exch=v.exch.split("|").map(x=>x.trim()).filter(Boolean).map(x=>{const m=/^(\S+)\s+(.+)$/.exec(x);return m?[ar(m[1]),m[2]]:["",x]});
       d.rest=+v.rest||null;
@@ -432,7 +435,7 @@ function newMonth(){
   const nx=new Date(D.getFullYear(),D.getMonth()+1,1);
   modal("برنامج شهر جديد (نسخة من البرنامج الحالي)",[{k:"d",l:"تاريخ البداية",type:"date",v:iso(nx)},{k:"t",l:"عنوان البرنامج",v:""}],async v=>{
     if(!v.d)return false;
-    const {data,error}=await sb.from("programs").insert({client_id:CID(),title:v.t.trim()||("برنامج "+v.d),month_start:v.d,data:Object.assign(JSON.parse(JSON.stringify(P.data)),{files:{}})}).select().single();
+    const {data,error}=await sb.from("programs").insert({client_id:CID(),title:v.t.trim()||("برنامج "+v.d),month_start:v.d,data:(()=>{const nd=Object.assign(JSON.parse(JSON.stringify(P.data)),{files:{}});syncDates(nd,v.d);return nd})()}).select().single();
     if(error){toast("تعذر الإنشاء");return false}
     PROGS.unshift(data);PROGS.sort((a,b)=>b.month_start.localeCompare(a.month_start));PI=PROGS.findIndex(p=>p.id===data.id);P=PROGS[PI];toast("تم إنشاء البرنامج، عدّل عليه");route();
   });
@@ -440,7 +443,7 @@ function newMonth(){
 function newProgram(){
   const base=BASE();
   modal("إنشاء أول برنامج للعميل",[{k:"d",l:"تاريخ البداية",type:"date",v:TODAY},{k:"t",l:"عنوان البرنامج",v:""}],async v=>{
-    const {data,error}=await sb.from("programs").insert({client_id:CID(),title:v.t.trim()||("برنامج "+v.d),month_start:v.d,data:base}).select().single();
+    const {data,error}=await sb.from("programs").insert({client_id:CID(),title:v.t.trim()||("برنامج "+v.d),month_start:v.d,data:(syncDates(base,v.d),base)}).select().single();
     if(error){toast("تعذر الإنشاء");return false}
     PROGS=[data];PI=0;P=data;route();
   });
@@ -449,6 +452,12 @@ function newProgram(){
 
 /* ===== نسخ وتصدير الأقسام بين العملاء ===== */
 const clone=x=>JSON.parse(JSON.stringify(x));
+/* مصدر واحد للتواريخ: month_start (الصيغة ISO) هو الأساس لعدّاد الأيام والأسابيع، وinfo.start/end نص للعرض بيتولّد منه */
+const fmtDmy=iso=>{const m=/^(\d{4})-(\d{2})-(\d{2})/.exec(iso||"");return m?ar(`${+m[3]}/${+m[2]}/${m[1]}`):""};
+const addDaysIso=(iso,n)=>{const d=new Date(iso+"T00:00:00");d.setDate(d.getDate()+n);return iso_(d)};
+const iso_=d=>d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+const parseDmy=t=>{const a=String(t||"").replace(/[٠-٩]/g,c=>"٠١٢٣٤٥٦٧٨٩".indexOf(c)),m=/(\d{1,2})\D+(\d{1,2})\D+(\d{4})/.exec(a);if(!m)return "";const d=new Date(+m[3],+m[2]-1,+m[1]);return d.getFullYear()==+m[3]&&d.getMonth()==+m[2]-1&&d.getDate()==+m[1]?iso_(d):""};
+const syncDates=(data,startIso)=>{const inf=data.info=data.info||{};inf.start=fmtDmy(startIso);inf.end=fmtDmy(addDaysIso(startIso,(+inf.days||30)-1))};
 const BASE=()=>({info:{age:"",weight:"",height:"",start:"",end:"",days:30,minutes:""},reps:[12,10,10],energy:{bmr:"",act:"",tdee:"",plan:"",water:"",exch:[]},sessions:[],meals:{b:{t:"الفطار",note:"",opts:[]},l:{t:"الغداء",note:"",opts:[]},d:{t:"العشاء",note:"",opts:[]}},supp:[]});
 const putBlocks=(s,d,sec)=>{d.blocks=d.blocks||{};const b=(s.blocks||{})[sec];if(b&&b.length)d.blocks[sec]=clone(b);else delete d.blocks[sec]};
 const SEC={
@@ -568,7 +577,7 @@ function home(){
   h+=payBtn();
   h+=`<div class="card pg"><div class="sub">${esc(dt.sub||"")}</div><div class="big">${esc(dt.brand||P.title||"")}</div><div class="mem">${[["الاسم",NAME()||"—"],["العمر",inf.age],["الوزن",inf.weight],["الطول",inf.height],["البداية",inf.start],["النهاية",inf.end],["المدة",inf.days?ar(inf.days)+" يومًا":""],["التمرين",inf.minutes]].map(x=>`<div><span>${x[0]}</span><b>${esc(x[1])||"—"}</b></div>`).join("")}</div>${ed("editInfo()","تعديل بيانات العميل والبرنامج")}</div>`;
   const dn=dayNo(),T=inf.days||30;
-  h+=`<div class="card"><div class="hi"><b>أهلاً ${esc(NAME())}</b><span style="color:var(--mut);font-size:13px">${esc(P.title||"")}</span></div><div style="margin-top:8px;font-weight:700">${dn?`اليوم ${ar(dn)} من ${ar(T)}`:"البرنامج لسه ما بدأش"}</div><div class="bar"><i style="width:${dn/T*100}%"></i></div></div>`;
+  h+=`<div class="card"><div class="hi"><b>أهلاً ${esc(NAME())}</b><span style="color:var(--mut);font-size:13px">${esc(P.title||"")}</span></div><div style="margin-top:8px;font-weight:700">${dn?`اليوم ${ar(dn)} من ${ar(T)}`:`البرنامج لسه ما بدأش · يبدأ ${fmtDmy(P.month_start)}`}</div><div class="bar"><i style="width:${dn/T*100}%"></i></div></div>`;
   if(PROGS.length>1)h+=`<select onchange="setProg(this.value)">${PROGS.map((p,i)=>`<option value="${i}" ${i==PI?"selected":""}>${esc(p.title||p.month_start)}${EDIT()&&!p.published?" (مسودة)":""}</option>`).join("")}</select>`;
   h+=gymCard();
   h+=payBanner();
