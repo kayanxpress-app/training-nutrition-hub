@@ -454,10 +454,10 @@ function newProgram(){
 /* ===== نسخ وتصدير الأقسام بين العملاء ===== */
 const clone=x=>JSON.parse(JSON.stringify(x));
 /* مصدر واحد للتواريخ: month_start (الصيغة ISO) هو الأساس لعدّاد الأيام والأسابيع، وinfo.start/end نص للعرض بيتولّد منه */
-const fmtDmy=iso=>{const m=/^(\d{4})-(\d{2})-(\d{2})/.exec(iso||"");return m?ar(`${+m[3]}/${+m[2]}/${m[1]}`):""};
+const fmtDmy=iso=>{const m=/^(\d{4})-(\d{2})-(\d{2})/.exec(iso||"");return m?ar(`${m[1]}/${+m[2]}/${+m[3]}`):""};   // سنة/شهر/يوم
 const addDaysIso=(iso,n)=>{const d=new Date(iso+"T00:00:00");d.setDate(d.getDate()+n);return iso_(d)};
 const iso_=d=>d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
-const parseDmy=t=>{const a=String(t||"").replace(/[٠-٩]/g,c=>"٠١٢٣٤٥٦٧٨٩".indexOf(c)),m=/(\d{1,2})\D+(\d{1,2})\D+(\d{4})/.exec(a);if(!m)return "";const d=new Date(+m[3],+m[2]-1,+m[1]);return d.getFullYear()==+m[3]&&d.getMonth()==+m[2]-1&&d.getDate()==+m[1]?iso_(d):""};
+const parseDmy=t=>{const a=String(t||"").replace(/[٠-٩]/g,c=>"٠١٢٣٤٥٦٧٨٩".indexOf(c)),m=/(\d{1,4})\D+(\d{1,2})\D+(\d{1,4})/.exec(a);if(!m)return "";const yf=m[1].length===4,y=+(yf?m[1]:m[3]),dd=+(yf?m[3]:m[1]),d=new Date(y,+m[2]-1,dd);return y>999&&d.getFullYear()==y&&d.getMonth()==+m[2]-1&&d.getDate()==dd?iso_(d):""};
 const syncDates=(data,startIso)=>{const inf=data.info=data.info||{};inf.start=fmtDmy(startIso);inf.end=fmtDmy(addDaysIso(startIso,(+inf.days||30)-1))};
 const BASE=()=>({info:{age:"",weight:"",height:"",start:"",end:"",days:30,minutes:""},reps:[12,10,10],energy:{bmr:"",act:"",tdee:"",plan:"",water:"",exch:[]},sessions:[],meals:{b:{t:"الفطار",note:"",opts:[]},l:{t:"الغداء",note:"",opts:[]},d:{t:"العشاء",note:"",opts:[]}},supp:[]});
 const putBlocks=(s,d,sec)=>{d.blocks=d.blocks||{};const b=(s.blocks||{})[sec];if(b&&b.length)d.blocks[sec]=clone(b);else delete d.blocks[sec]};
@@ -956,7 +956,7 @@ function food(){
   const dt=P.data,E=dt.energy||{},fi=dt.info||{};hd("التغذية","القسم الثاني");
   const IC=(l,v)=>`<div class="ic"><span>${l}</span><b class="${v?"":"em"}">${esc(v)||"—"}</b></div>`;
   const sx=(n,t)=>`<div class="sx"><b>${n}</b><span>${t}</span><i></i></div>`;
-  const vit=[["الاسم",NAME()],["التاريخ",ltr(fi.start)],["النوع",fi.sex],["العمر",fi.age],["الطول",fi.height],["الوزن",fi.weight],["الأكسجين",fi.so2],["التنفس",fi.rs],["النبض",fi.pulse],["الضغط",fi.bp]];
+  const vit=[["الاسم",NAME()],["التاريخ",ltr(fmtDmy(P.month_start)||fi.start)],["النوع",fi.sex],["العمر",fi.age],["الطول",fi.height],["الوزن",fi.weight],["الأكسجين",fi.so2],["التنفس",fi.rs],["النبض",fi.pulse],["الضغط",fi.bp]];
   let h=`<div class="icg">${(EDIT()?vit:vit.filter(x=>x[1])).map(x=>IC(x[0],x[1])).join("")}</div>`;
   h+=sx("٠١","الطاقة اليومية");
   h+=`<div class="egy"><div><span>معدل الحرق</span><b>${esc(E.bmr)||"—"}</b><em>سعرة</em></div><u>×</u><div><span>النشاط</span><b>${esc(E.act)||"—"}</b><em>معامل</em></div><u>=</u><div><span>الإجمالي</span><b>${esc(E.tdee)||"—"}</b><em>سعرة</em></div><u>←</u><div class="p"><span>سعرات الخطة</span><b>${esc(E.plan)||"—"}</b><em>سعرة / يوم</em></div></div>`;
@@ -1002,7 +1002,7 @@ async function loadMeas(cid){
   MURL={};
 }
 const MK=k=>k==="inbody"?"InBody":"وزن";
-const dmy=d=>ltr(ar(String(d||"").split("-").reverse().join("/")));
+const dmy=d=>ltr(fmtDmy(d)||ar(String(d||"")));
 const dlt=(c,p,good)=>{if(c==null||p==null)return"";const d=Math.round((c-p)*10)/10;if(!d)return'<small class="nt">—</small>';const cls=good==null?"nt":((d>0)===(good==="up")?"up":"dn");return`<small class="${cls}">${d>0?"▲":"▼"} ${fmtW(Math.abs(d))}</small>`};
 function mchart(pts,unit,title){
   pts=pts.slice(-12);if(pts.length<2)return"";
