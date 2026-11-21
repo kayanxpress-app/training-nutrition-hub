@@ -103,7 +103,7 @@ async function loadData(cid){
   const [b,c,d]=await Promise.all([
     sb.from("programs").select("*").eq("client_id",cid).order("month_start",{ascending:false}),
     sb.from("logs").select("log_date,data").eq("client_id",cid),
-    sb.from("notifications").select("*").eq("client_id",cid).order("created_at",{ascending:false}).limit(30),loadMeas(cid),loadPay(cid)]);
+    sb.from("notifications").select("*").eq("client_id",cid).order("created_at",{ascending:false}).limit(30),loadMeas(cid),loadPay(cid),loadLab(cid)]);
   if(b.error)throw b.error;
   PROGS=b.data||[];LOGS={};(c.data||[]).forEach(r=>LOGS[r.log_date]=r.data);NOTIFS=d.data||[];
   const i=PROGS.findIndex(p=>p.month_start<=TODAY);PI=i<0?PROGS.length-1:i;P=PROGS[PI];
@@ -135,7 +135,7 @@ async function clients(silent){
     $("#app").innerHTML='<p class="ld">جاري التحميل...</p>';
   }
   const since=new Date(D.getTime()-14*864e5);
-  const [a,b,c,mq,ml,gq,rcq,rqq]=await Promise.all([
+  const [a,b,c,mq,ml,gq,rcq,rqq,lq]=await Promise.all([
     sb.from("profiles").select("id,full_name,phone").eq("role","client").order("full_name"),
     sb.from("logs").select("client_id,log_date,data").gte("log_date",iso(since)),
     sb.from("programs").select("id,published,client_id,title,month_start,data").order("month_start",{ascending:false}),
@@ -143,7 +143,8 @@ async function clients(silent){
     sb.from("measurements").select("client_id,taken_on,weight,created_at").order("created_at",{ascending:false}).limit(300),
     sb.from("gym_checkins").select("client_id,created_at").is("left_at",null).gte("created_at",new Date(Date.now()-GYM_H*36e5).toISOString()).order("created_at",{ascending:false}),
     sb.from("payment_receipts").select("client_id,program_id").order("created_at",{ascending:false}).limit(1000),
-    sb.from("payment_requests").select("client_id,program_id").eq("status","pending")]);
+    sb.from("payment_requests").select("client_id,program_id").eq("status","pending"),
+    sb.from("lab_requests").select("client_id,title").eq("status","pending")]);
   if(silent&&(a.error||b.error||c.error))return;   // فشل مؤقت في الشبكة: سيب القائمة زي ما هي
   const cl=a.data||[],lg=b.data||[],pr=c.data||[];
   cl.forEach(x=>{GNAME[x.id]=x.full_name||""});
@@ -163,8 +164,8 @@ async function clients(silent){
     const left=p?Math.round((new Date(p.month_start)-new Date(TODAY))/864e5)+((p.data&&p.data.info&&p.data.info.days)||30)-1:null;
     const pcur=(()=>{const pl=pr.filter(z=>z.client_id===x.id&&z.published);if(!pl.length)return null;const i=pl.findIndex(z=>z.month_start<=TODAY);return i<0?pl[pl.length-1]:pl[i]})();
     const ptag=pcur&&rcq&&!rcq.error&&rcq.data?(rcq.data.some(z=>z.client_id===x.id&&z.program_id===pcur.id)?'<p class="ok">💳 سدّد الرسوم</p>':`<p class="no2">💳 لم يسدد${((rqq&&rqq.data)||[]).some(z=>z.client_id===x.id&&z.program_id===pcur.id)?" · تم إرسال طلب":""}</p>`):"";
-    const pq=(mq.data||[]).filter(z=>z.client_id===x.id),lm=(ml.data||[]).find(z=>z.client_id===x.id);
-    h+=`<div class="card cl"><div style="flex:1;cursor:pointer" onclick="openClient('${x.id}','${esc(x.full_name||"عميل").replace(/'/g,"")}')"><h3>${gmap.has(x.id)?"🏋️ ":""}${esc(x.full_name||"بدون اسم")}</h3><p class="${notYet?"":bad?"no2":"ok"}"${notYet?' style="color:var(--mut);font-weight:700"':""}>${act}</p><p>اليوم: ${ar(cnt)} تمارين · ${ar(mel)} وجبات · ${ar(sup)} مكملات</p>${notYet?"":left!==null?`<p>${left>=0?`باقي ${ar(left)} يوم على نهاية البرنامج`:"البرنامج انتهى"}</p>`:'<p>لا يوجد برنامج</p>'}${ptag}${pq.length?`<p style="color:#d23b5f;font-weight:700">⏳ مطلوب منه: ${pq.map(z=>MK(z.kind)).join(" + ")}</p>`:""}${lm?`<p>آخر قياس: ${dmy(lm.taken_on)}${lm.weight!=null?" · "+fmtW(lm.weight)+" كجم":""}</p>`:""}</div><div style="display:grid;gap:6px"><button class="ed" style="display:inline-block;margin:0" onclick="sendNote('${x.id}')">✉ إشعار</button><button class="ed" style="display:inline-block;margin:0" onclick="setPass('${x.id}')">كلمة المرور</button></div></div>`;
+    const lpq=((lq&&!lq.error&&lq.data)||[]).filter(z=>z.client_id===x.id),pq=(mq.data||[]).filter(z=>z.client_id===x.id),lm=(ml.data||[]).find(z=>z.client_id===x.id);
+    h+=`<div class="card cl"><div style="flex:1;cursor:pointer" onclick="openClient('${x.id}','${esc(x.full_name||"عميل").replace(/'/g,"")}')"><h3>${gmap.has(x.id)?"🏋️ ":""}${esc(x.full_name||"بدون اسم")}</h3><p class="${notYet?"":bad?"no2":"ok"}"${notYet?' style="color:var(--mut);font-weight:700"':""}>${act}</p><p>اليوم: ${ar(cnt)} تمارين · ${ar(mel)} وجبات · ${ar(sup)} مكملات</p>${notYet?"":left!==null?`<p>${left>=0?`باقي ${ar(left)} يوم على نهاية البرنامج`:"البرنامج انتهى"}</p>`:'<p>لا يوجد برنامج</p>'}${ptag}${pq.length?`<p style="color:#d23b5f;font-weight:700">⏳ مطلوب منه: ${pq.map(z=>MK(z.kind)).join(" + ")}</p>`:""}${lpq.length?`<p style="color:#d23b5f;font-weight:700">🧪 فحص مطلوب: ${lpq.map(z=>esc(z.title)).join(" + ")}</p>`:""}${lm?`<p>آخر قياس: ${dmy(lm.taken_on)}${lm.weight!=null?" · "+fmtW(lm.weight)+" كجم":""}</p>`:""}</div><div style="display:grid;gap:6px"><button class="ed" style="display:inline-block;margin:0" onclick="sendNote('${x.id}')">✉ إشعار</button><button class="ed" style="display:inline-block;margin:0" onclick="setPass('${x.id}')">كلمة المرور</button></div></div>`;
   });
   h+=`<button class="btn o" onclick="remindNow()">🔔 التذكيرات التلقائية (معاينة / إرسال)</button><button class="btn o" onclick="out()">تسجيل الخروج</button>`;
   if(silent){
@@ -196,6 +197,7 @@ function fld(f,i){
   if(f.type==="sel")return `<label>${f.l}<select data-i="${i}">${f.o.map(o=>`<option ${o==f.v?"selected":""}>${o}</option>`).join("")}</select></label>`;
   if(f.type==="img")return `<label>${f.l}</label><div class="im"><img id="pv${i}" src="${v}" alt=""><input type="file" accept="image/*" data-up="${i}"></div><input type="hidden" data-i="${i}" value="${v}">`;
   if(f.type==="mf")return `<label>${f.l}</label><div class="im"><input type="file" accept="image/*,application/pdf" data-upm="${i}"><span id="fm${i}" style="font-size:13px;color:var(--mut)">${v?"تم رفع ملف سابقًا":""}</span></div><input type="hidden" data-i="${i}" value="${v}">`;
+  if(f.type==="lf")return `<label>${f.l}</label><div class="im"><input type="file" accept="image/*,application/pdf" data-upl="${i}"><span id="fl${i}" style="font-size:13px;color:var(--mut)">${v?"تم رفع ملف سابقًا":""}</span></div><input type="hidden" data-i="${i}" value="${v}">`;
   if(f.type==="file")return `<label>${f.l}</label><div class="im"><input type="file" accept="application/pdf" data-upf="${i}"><span id="fn${i}" style="font-size:13px;color:var(--mut)">${v?"تم رفع ملف سابقًا":""}</span></div><input type="hidden" data-i="${i}" value="${v}">`;
   return `<label>${f.l}<input data-i="${i}" type="${f.type||"text"}" value="${v}" ${f.dir?`dir="${f.dir}"`:""}></label>`;
 }
@@ -326,6 +328,11 @@ function modal(title,fields,onSave,onDel,setup){
     const i=inp.dataset.upm,f=inp.files[0];if(!f)return;
     toast("جاري رفع الملف...");
     try{const p=await uplMeas(f);m.querySelector(`[data-i="${i}"]`).value=p;m.querySelector("#fm"+i).textContent=f.name;toast("تم رفع الملف")}catch(e){toast("تعذر رفع الملف")}
+  });
+  m.querySelectorAll("[data-upl]").forEach(inp=>inp.onchange=async()=>{
+    const i=inp.dataset.upl,f=inp.files[0];if(!f)return;
+    toast("جاري رفع الملف...");
+    try{const p=await uplLab(f);m.querySelector(`[data-i="${i}"]`).value=p;m.querySelector("#fl"+i).textContent=f.name;toast("تم رفع الملف")}catch(e){toast("تعذر رفع الملف")}
   });
   m.querySelector("#mc").onclick=close;
   m.querySelector("#mk").onclick=async()=>{const b=m.querySelector("#mk");b.disabled=true;b.textContent="جاري المعالجة...";const ok=await onSave(get());b.disabled=false;b.textContent="حفظ";if(ok!==false){close();back()}};
@@ -586,15 +593,17 @@ function home(){
   h+=gymCard();
   h+=payBanner();
   h+=pendBanner();
+  h+=labBanner();
   h+=pushCard();
   h+=`<a class="card sec" href="#train"><div class="no">٠١</div><div><h3>التدريب${qBadgeT(qTopics(dt,"ex").concat(qTopics(dt,"se")).concat(qTopics(dt,"bk")))}</h3><p>${ar(dt.sessions.length)} جلسات · ${ar(n)} تمرين بفيديوهات الشرح</p></div><div class="go">‹</div></a>`;
   h+=`<a class="card sec" href="#food"><div class="no">٠٢</div><div><h3>التغذية${qBadgeT(qTopics(dt,"ml"))}</h3><p>خطة الوجبات والتبادلات الغذائية</p></div><div class="go">‹</div></a>`;
   h+=`<a class="card sec" href="#supp"><div class="no">٠٣</div><div><h3>التوصيات والمكملات الغذائية${qBadgeT(qTopics(dt,"sp"))}</h3><p>${ar(dt.supp.length)} توصيات</p></div><div class="go">‹</div></a>`;
   h+=measCard();
+  h+=labCard();
   if(EDIT()){
     h+=cheerCard();
-    const days=Object.keys(LOGS).sort().reverse().slice(0,7);
-    h+=`<div class="card"><b>نشاط العميل (آخر ٧ أيام)</b>${days.length?days.map(d=>{const g=LOGS[d];return `<div class="act"><span>${ar(d.slice(5).replace("-","/"))}</span><span>${ar(Object.keys(g.d||{}).length)} تمارين · ${ar(Object.keys(g.m||{}).length)} وجبات · ${ar(Object.keys(g.s||{}).length)} مكملات</span></div>`}).join(""):'<p style="color:var(--mut);margin:6px 0 0">لا يوجد نشاط مسجل بعد</p>'}</div>${addb("newMonth()","برنامج شهر جديد (نسخ من الحالي)")}${addb("shareSec('train','food','supp')","نسخ هذا البرنامج لعملاء آخرين")}${addb("pullProg()","سحب برنامج من عميل آخر")}${addb("importProg()","استيراد برنامج من ملف PDF")}<button class="btn o" onclick="sendNote('${VIEW.id}')">✉ إرسال إشعار للعميل</button>`;
+    const days=dn?Object.keys(LOGS).filter(d=>{const g=LOGS[d];return g&&d>=P.month_start&&d<=TODAY&&(Object.keys(g.d||{}).length+Object.keys(g.m||{}).length+Object.keys(g.s||{}).length)>0}).sort().reverse().slice(0,7):[];
+    h+=`<div class="card"><b>نشاط العميل (آخر ٧ أيام)</b>${days.length?days.map(d=>{const g=LOGS[d];return `<div class="act"><span>${ar(d.slice(5).replace("-","/"))}</span><span>${ar(Object.keys(g.d||{}).length)} تمارين · ${ar(Object.keys(g.m||{}).length)} وجبات · ${ar(Object.keys(g.s||{}).length)} مكملات</span></div>`}).join(""):`<p style="color:var(--mut);margin:6px 0 0">${dn?"لا يوجد نشاط مسجل بعد":"البرنامج لسه ما بدأش · لا يوجد نشاط"}</p>`}</div>${addb("newMonth()","برنامج شهر جديد (نسخ من الحالي)")}${addb("shareSec('train','food','supp')","نسخ هذا البرنامج لعملاء آخرين")}${addb("pullProg()","سحب برنامج من عميل آخر")}${addb("importProg()","استيراد برنامج من ملف PDF")}<button class="btn o" onclick="sendNote('${VIEW.id}')">✉ إرسال إشعار للعميل</button>`;
   }
   h+=`<div class="card" style="background:linear-gradient(180deg,#10261a,#0b0f0b);color:#fff;border:0;margin-top:12px"><div class="lbl">المؤهلات</div>${["أخصائي الإعداد البدني قبل وبعد جراحة الإصابات وعلاج الانحرافات القوامية","أخصائي تغذية عام","دبلومة الطب الرياضي","دبلومة وماجستير ودكتوراه التغذية العلاجية"].map(x=>`<div class="q" style="background:rgba(255,255,255,.07)">${x}</div>`).join("")}<div class="lbl" style="margin-top:12px">في تغذية</div><div class="cp">${["مرضى السمنة والنحافة","مرضى الجهاز الهضمي","التهابات وحساسية المرارة","مرضى الكلى","الضغط","السكر","الأورام","الأطفال","فترة الحمل والرضاعة","مرضى الإسهال","تقرحات والتهابات القولون المناعية المزمنة","مرضى الغدة الدرقية","الرياضيين"].map(x=>`<i style="color:#cfd8c8;border-color:rgba(255,255,255,.2)">${x}</i>`).join("")}</div><div class="qr"><a href="https://wa.me/201006130790" target="_blank" rel="noopener"><img src="img/qr-wa.png" alt=""></a><div><div class="lbl" style="color:var(--or)">التواصل</div><b>تواصل معي على واتساب</b><br><a class="ih" style="border:1px solid rgba(255,255,255,.3);margin:6px 0 0" href="https://wa.me/201006130790" target="_blank" rel="noopener">فتح واتساب ↗</a></div></div><div class="qr"><a href="https://docs.google.com/forms/d/e/1FAIpQLScabXfmxUsT3gaL7NJZjdyBedf0UIx-x2YAtlo8A_rJnBEIuA/viewform" target="_blank" rel="noopener"><img src="img/qr-form.png" alt=""></a><div><div class="lbl" style="color:var(--or)">المتابعة</div><b>استمارة المتابعة</b><br><a class="ih" style="border:1px solid rgba(255,255,255,.3);margin:6px 0 0" href="https://docs.google.com/forms/d/e/1FAIpQLScabXfmxUsT3gaL7NJZjdyBedf0UIx-x2YAtlo8A_rJnBEIuA/viewform" target="_blank" rel="noopener">فتح الاستمارة ↗</a></div></div></div>`;
   h+=`<button class="btn o" onclick="out()">تسجيل الخروج</button>`;
@@ -1142,6 +1151,129 @@ async function cancelReq(id){
   if(error)return toast("تعذر الإلغاء");
   await loadMeas(CID());route();
 }
+/* ===== الفحوصات الصحية والمختبر (طلب فحص من المدرب · نتيجة PDF/صورة · ملاحظة ومحادثة على كل نتيجة) =====
+   نفس منطق القياسات بالظبط، بجداول وتخزين منفصلين (supabase/labs.sql) فمبيلمسش أي حاجة موجودة. */
+let LABS=[],LREQS=[],LOK=true,LURL={};
+async function loadLab(cid){
+  try{
+    const [a,b]=await Promise.all([
+      sb.from("lab_results").select("*").eq("client_id",cid).order("taken_on",{ascending:false}).order("created_at",{ascending:false}),
+      sb.from("lab_requests").select("*").eq("client_id",cid).order("created_at",{ascending:false}).limit(30)]);
+    LOK=!a.error&&!b.error;LABS=LOK?(a.data||[]):[];LREQS=LOK?(b.data||[]):[];
+  }catch(e){LOK=false;LABS=[];LREQS=[]}
+  LURL={};
+}
+const labNorm=s=>String(s||"").trim().toLowerCase();
+async function signLab(){
+  const ps=[...new Set(LABS.map(m=>m.file_path).filter(p=>p&&!/\.pdf$/i.test(p)&&!LURL[p]))];
+  if(!ps.length)return false;
+  try{const {data}=await sb.storage.from("labs").createSignedUrls(ps,3600);let n=0;(data||[]).forEach(x=>{if(x&&x.signedUrl&&x.path){LURL[x.path]=x.signedUrl;n++}});return n>0}catch(e){return false}
+}
+async function openLab(p){
+  const w=window.open("","_blank");
+  const {data,error}=await sb.storage.from("labs").createSignedUrl(p,3600);
+  if(error||!data){if(w)w.close();return toast("تعذر فتح الملف")}
+  if(w)w.location.href=data.signedUrl;else location.href=data.signedUrl;
+}
+async function uplLab(file){
+  let blob=file,ext="pdf",ct="application/pdf";
+  if(file.type!=="application/pdf"){
+    const bm=await createImageBitmap(file),sc=Math.min(1,1800/Math.max(bm.width,bm.height));
+    const cv=document.createElement("canvas");cv.width=Math.round(bm.width*sc);cv.height=Math.round(bm.height*sc);
+    cv.getContext("2d").drawImage(bm,0,0,cv.width,cv.height);
+    blob=await new Promise(r=>cv.toBlob(r,"image/jpeg",.86));ext="jpg";ct="image/jpeg";
+  }
+  const path=`${CID()}/${Date.now()}.${ext}`;
+  const {error}=await sb.storage.from("labs").upload(path,blob,{contentType:ct});
+  if(error)throw error;return path;
+}
+function labBanner(){
+  if(EDIT()||!LOK)return"";
+  return LREQS.filter(r=>r.status==="pending").map(r=>`<div class="card rq"><b>🧪 مطلوب منك: ${esc(r.title)}</b>${r.note?`<p>${esc(r.note)}</p>`:'<p>الدكتور بانتظار النتيجة عشان يتابع حالتك.</p>'}<button class="btn" onclick="editLab(null,'${r.id}')">ارفع النتيجة</button></div>`).join("");
+}
+function labCard(){
+  if(!LOK&&!EDIT())return"";
+  const last=LABS[0],pend=LREQS.filter(r=>r.status==="pending").length;
+  const sub=!LOK?"محتاجة تفعيل (ملف labs.sql)":last?`آخر نتيجة: ${esc(last.title)} · ${dmy(last.taken_on)}${EDIT()&&pend?" · ⏳ طلب منتظر":""}`:(EDIT()&&pend?"⏳ طلب منتظر":"ارفع نتائج تحاليلك وفحوصاتك وتابعها مع الدكتور");
+  return`<a class="card sec" href="#labs"><div class="no">🧪</div><div><h3>الفحوصات الصحية والمختبر${qBadge("lb:")}</h3><p>${sub}</p></div><div class="go">‹</div></a>`;
+}
+function labPage(){
+  hd("الفحوصات الصحية والمختبر",EDIT()?"متابعة فحوصات العميل":"تابع فحوصاتك","home");
+  labRender();
+  signLab().then(ok=>{if(ok&&location.hash==="#labs")labRender()});
+}
+function labRender(){
+  const A=$("#app");
+  if(!LOK){A.innerHTML=`<div class="card" style="text-align:center"><b>الميزة محتاجة تفعيل</b><p style="color:var(--mut)">${EDIT()?"شغّل ملف supabase/labs.sql مرة واحدة في Supabase ← SQL Editor، ثم أعد تحميل الصفحة.":"هتتفعل قريبًا."}</p></div>`;return}
+  const pend=LREQS.filter(r=>r.status==="pending");
+  let h=labBanner();
+  if(EDIT()){
+    h+=`<div class="card"><b>طلب فحص من العميل</b><div style="margin-top:8px"><button class="btn" onclick="askLab()">🧪 اطلب فحص / تحليل</button></div>${pend.map(r=>`<div class="act"><span>⏳ ${esc(r.title)} · ${dmy(String(r.created_at).slice(0,10))}</span><button class="mb" onclick="cancelLabReq('${r.id}')">إلغاء الطلب</button></div>`).join("")}</div>`;
+  }
+  if(!LABS.length)h+=`<div class="card" style="text-align:center;color:var(--mut)">لسه مفيش نتائج فحوصات مسجلة</div>`;
+  h+=`<button class="btn" onclick="editLab()">+ ${EDIT()?"تسجيل نتيجة فحص للعميل":"رفع نتيجة فحص"}</button>`;
+  if(LABS.length){
+    h+=`<h2>السجل</h2><div class="card" style="padding:4px 14px">`+LABS.map(m=>{
+      const pdf=m.file_path&&/\.pdf$/i.test(m.file_path),u=m.file_path&&LURL[m.file_path];
+      const th=m.file_path?`<a class="mth" href="#" onclick="openLab('${m.file_path}');return false">${pdf?"<span>PDF</span>":(u?`<img src="${esc(u)}" alt="">`:"<span>صورة</span>")}</a>`:"";
+      return`<div class="mrow">${th}<div style="flex:1;min-width:0"><div><b>${esc(m.title)}</b></div><div class="mv">${dmy(m.taken_on)}</div>${m.note?`<div class="mn2">${esc(m.note)}</div>`:""}${qBtn("lb:"+m.id,m.title+" · "+dmy(m.taken_on))}</div><button class="mb" onclick="editLab('${m.id}')">تعديل</button></div>`;
+    }).join("")+`</div>`;
+  }
+  A.innerHTML=h;
+}
+function editLab(id,reqId){
+  const e=id?LABS.find(x=>x.id===id):null;if(id&&!e)return;
+  const rq=!e&&reqId?LREQS.find(r=>r.id===reqId&&r.status==="pending"):null;
+  const T=(k,l,v,o)=>Object.assign({k,l,v:v??""},o||{});
+  const f=[T("t","اسم الفحص / التحليل",e?e.title:(rq?rq.title:"")),T("d","التاريخ",e?e.taken_on:TODAY,{type:"date"}),T("n","ملاحظة (اختياري)",e?e.note||"":""),T("file","صورة أو PDF نتيجة الفحص",e?e.file_path||"":"",{type:"lf"})];
+  modal(e?"تعديل نتيجة الفحص":"رفع نتيجة فحص",f,
+    async v=>{
+      const t=(v.t||"").trim();
+      if(!t){toast("اكتب اسم الفحص");return false}
+      if(t.length>120){toast("اسم الفحص طويل (الحد ١٢٠ حرف)");return false}
+      if(!/^\d{4}-\d{2}-\d{2}$/.test(v.d||"")){toast("اختر التاريخ");return false}
+      if(!v.file&&!(v.n||"").trim()){toast("ارفع صورة أو PDF النتيجة أو اكتب ملاحظة");return false}
+      const row={title:t,taken_on:v.d,note:(v.n||"").trim()||null,file_path:v.file||null};
+      if(e){
+        const {error}=await sb.from("lab_results").update(row).eq("id",e.id);
+        if(error){toast("تعذر الحفظ");return false}
+        if(e.file_path&&e.file_path!==row.file_path)sb.storage.from("labs").remove([e.file_path]);
+      }else{
+        const {data,error}=await sb.from("lab_results").insert({client_id:CID(),...row}).select("id").single();
+        if(error||!data){toast("تعذر الحفظ");return false}
+        const ids=LREQS.filter(r=>r.status==="pending"&&(r.id===reqId||labNorm(r.title)===labNorm(t))).map(r=>r.id);
+        if(ids.length)await sb.from("lab_requests").update({status:"done",done_at:new Date().toISOString(),result_id:data.id}).in("id",ids);
+        if(!ADMIN)pushAdmin("lab",t);
+      }
+      await loadLab(CID());route();setTimeout(()=>toast("تم حفظ النتيجة"),60);return true;
+    },
+    e?async()=>{
+      const {error}=await sb.from("lab_results").delete().eq("id",e.id);
+      if(error){toast("تعذر الحذف");return}
+      if(e.file_path)sb.storage.from("labs").remove([e.file_path]);
+      await loadLab(CID());route();
+    }:null);
+}
+function askLab(){
+  if(!EDIT())return;
+  modal("طلب فحص / تحليل من العميل",[{k:"t",l:"اسم الفحص أو التحليل (مثال: صورة دم كاملة CBC)",v:""},{k:"n",l:"رسالة للعميل (اختياري)",type:"area",v:""}],async v=>{
+    const t=(v.t||"").trim(),note=(v.n||"").trim();
+    if(!t){toast("اكتب اسم الفحص");return false}
+    if(t.length>120){toast("اسم الفحص طويل (الحد ١٢٠ حرف)");return false}
+    if(LREQS.some(r=>r.status==="pending"&&labNorm(r.title)===labNorm(t))){toast("فيه طلب لنفس الفحص لسه منتظر من العميل");return false}
+    const {error}=await sb.from("lab_requests").insert({client_id:VIEW.id,title:t,note:note||null});
+    if(error){toast("تعذر إرسال الطلب");return false}
+    const nt={client_id:VIEW.id,title:"مطلوب منك: فحص "+t,body:note||"ارفع نتيجة الفحص من صفحة «الفحوصات الصحية والمختبر» في التطبيق."};
+    await sb.from("notifications").insert(nt);pushTo(VIEW.id,nt.title,nt.body,"./#labs");
+    await loadLab(VIEW.id);route();setTimeout(()=>toast("تم إرسال الطلب للعميل"),60);return true;
+  });
+}
+async function cancelLabReq(id){
+  if(!confirm("إلغاء هذا الطلب؟"))return;
+  const {error}=await sb.from("lab_requests").update({status:"cancelled"}).eq("id",id);
+  if(error)return toast("تعذر الإلغاء");
+  await loadLab(CID());route();
+}
 /* ===== سداد رسوم البرنامج ===== */
 let PAYS={},RECS=[],PREQS=[],POK=true,RURL={},PAYCHG=false,PQD=null,PQ={amt:"",msg:"",sel:new Set(),flt:"unpaid",q:""};
 const PAY_MSG="فضلاً سداد رسوم البرنامج وإرفاق إيصال العملية في المكان المخصص";
@@ -1512,6 +1644,7 @@ const busyUI=()=>{const a=document.activeElement;return !!document.querySelector
 function liveRender(){
   const y=window.scrollY,r=location.hash.slice(1)||"home",m=/^s([1-9]\d?)$/.exec(r);
   if(r==="body"){measRender();signMeas().then(ok=>{if(ok&&location.hash==="#body")measRender()});return}
+  if(r==="labs"){labRender();signLab().then(ok=>{if(ok&&location.hash==="#labs")labRender()});return}
   if(!P){route();return}
   if(r==="pay"){if(PAYCHG){payPage();window.scrollTo(0,y)}return}
   if(r==="paybank"){if(PAYCHG){payBank();window.scrollTo(0,y)}return}
@@ -1531,19 +1664,19 @@ async function liveRefresh(force){
   LIVE_T=t;LIVE_BUSY=true;
   try{
     const cid=CID(),adm=EDIT(),t0=Date.now();
-    const sig=()=>JSON.stringify([NOTIFS.map(x=>x.id+(x.read?1:0)),REQS.map(x=>x.id+x.status),MEAS.map(x=>x.id),RECS.map(x=>x.id),PREQS.map(x=>x.id+x.status+(x.remind_count||0)),PROGS,adm?LOGS:0]);
+    const sig=()=>JSON.stringify([NOTIFS.map(x=>x.id+(x.read?1:0)),REQS.map(x=>x.id+x.status),MEAS.map(x=>x.id),LABS.map(x=>x.id+(x.file_path||"")),LREQS.map(x=>x.id+x.status),RECS.map(x=>x.id),PREQS.map(x=>x.id+x.status+(x.remind_count||0)),PROGS,adm?LOGS:0]);
     const before=sig(),pb=psig(),known=new Set(NOTIFS.map(x=>x.id));
-    const m0=MEAS,r0=REQS,ok0=MOK,pw0=[PAYS,RECS,PREQS,POK];
+    const lb0=[LABS,LREQS,LOK],m0=MEAS,r0=REQS,ok0=MOK,pw0=[PAYS,RECS,PREQS,POK];
     const q=[
       sb.from("notifications").select("*").eq("client_id",cid).order("created_at",{ascending:false}).limit(30),
       loadMeas(cid),
       sb.from("programs").select("*").eq("client_id",cid).order("month_start",{ascending:false})];
     // سجلات التمرين: الأدمن يحتاجها (يشوف وزن وملاحظات العميل). العميل هو اللي بيكتبها فمش بنعمل لها refetch عشان منكتبش فوق شغله.
     if(adm)q.push(sb.from("logs").select("log_date,data").eq("client_id",cid));
-    const pp=loadPay(cid,true);
-    const [n,,pg,lg]=await Promise.all(q);await pp;
+    const pp=loadPay(cid,true),lp=loadLab(cid);
+    const [n,,pg,lg]=await Promise.all(q);await pp;await lp;
     // أثناء الجلب: ممكن النافذة تتفتح أو يتحفظ تعديل. لو حصل كده نرجّع القديم ونتجاهل النتيجة (البيانات الأحدث موجودة عندنا).
-    if(busyUI()||PW>=t0||cid!==CID()){MEAS=m0;REQS=r0;MOK=ok0;[PAYS,RECS,PREQS,POK]=pw0;LIVE_DIRTY=true;return}
+    if(busyUI()||PW>=t0||cid!==CID()){MEAS=m0;REQS=r0;MOK=ok0;[LABS,LREQS,LOK]=lb0;[PAYS,RECS,PREQS,POK]=pw0;LIVE_DIRTY=true;return}
     if(n&&!n.error&&n.data)NOTIFS=n.data;
     if(pg&&!pg.error&&pg.data){
       // نستبدل بيانات البرنامج بس لو اتغيرت فعلًا على السيرفر (عشان منبدّلش الكائنات من غير داعي)
@@ -1586,7 +1719,7 @@ function rtSync(){
   if(RT_KEY===key&&RT)return;
   rtStop();RT_KEY=key;
   const ch=sb.channel("live-"+key+"-"+Date.now()),list=key==="admin-list",f=list?null:"client_id=eq."+key;
-  ["notifications","logs","programs","measurements","measure_requests","item_chat"].forEach(t=>{
+  ["notifications","logs","programs","measurements","measure_requests","item_chat"].concat(!list&&LOK?["lab_results","lab_requests"]:[]).forEach(t=>{
     if(list&&t==="item_chat")return;
     const o={event:"*",schema:"public",table:t};if(f)o.filter=f;
     ch.on("postgres_changes",o,()=>{if(t==="item_chat")qRefresh(true);else list?setTimeout(listRefresh,1200):liveRefresh(true)});
@@ -1708,7 +1841,7 @@ function qBubblesOf(ms,emptyTxt){
 }
 function qUrl(t){
   const [k,id]=t.split(":");
-  if(k==="ml")return "./#food";if(k==="sp")return "./#supp";if(k==="ms")return "./#body";
+  if(k==="ml")return "./#food";if(k==="sp")return "./#supp";if(k==="ms")return "./#body";if(k==="lb")return "./#labs";
   const ss=P?P.data.sessions:[];
   const i=ss.findIndex(s=>k==="se"?s.id===id:k==="bk"?(s.bk||[]).some(b=>b.id===id):(s.ex||[]).some(e=>e.id===id));
   return i>=0?"./#s"+(i+1):"./#train";
@@ -2004,6 +2137,7 @@ function route(){
   if(!ME||(ADMIN&&!VIEW))return;
   const r=location.hash.slice(1)||"home",m=/^s([1-9]\d?)$/.exec(r);
   if(r=="body"){measPage();["home","train","food","supp","notes"].forEach(x=>$("#n-"+x).classList.toggle("on",x=="home"));window.scrollTo(0,0);return}
+  if(r=="labs"){labPage();["home","train","food","supp","notes"].forEach(x=>$("#n-"+x).classList.toggle("on",x=="home"));window.scrollTo(0,0);return}
   if(!P){empty();return}
   if(m)session(+m[1]-1);else if(r=="train")train();else if(r=="food")food();else if(r=="supp")supp();else if(r=="notes")notes();else if(r=="pay")payPage();else if(r=="paybank")payBank();else if(r=="payrec")payRec();else if(r=="payreq"&&EDIT())payReq();else home();
   const cur=m?"train":(["train","food","supp","notes"].includes(r)?r:"home");
