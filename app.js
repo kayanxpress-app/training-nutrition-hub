@@ -1,5 +1,6 @@
 const $=s=>document.querySelector(s);
 const ar=n=>String(n).replace(/\d/g,d=>"٠١٢٣٤٥٦٧٨٩"[d]);
+const ltr=t=>t?"\u2066"+t+"\u2069":t;   // يثبّت ترتيب التاريخ (يوم/شهر/سنة من الشمال لليمين) جوه النص العربي فمايتقلبش
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const pad=n=>String(n).padStart(2,"0");
 const iso=d=>d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());
@@ -413,15 +414,15 @@ function editInfo(){
   const d=P.data,f=d.info,e=d.energy;
   const wk=(d.weeks||[]).map(r=>r.join("-")).join("\n"),ex=(e.exch||[]).map(x=>x[0]+" "+x[1]).join(" | ");
   const T=(k,l,v,o)=>Object.assign({k,l,v:v??""},o||{});
-  modal("بيانات العميل والبرنامج",[T("brand","اسم البرنامج (يظهر كبيرًا)",d.brand),T("sub","وصف البرنامج",d.sub),T("sex","النوع",f.sex),T("age","العمر",f.age),T("weight","الوزن",f.weight),T("height","الطول",f.height),{k:"start",l:"تاريخ البداية (منه بيتحسب «اليوم كذا من كذا» عند العميل)",type:"date",v:parseDmy(f.start)||P.month_start},T("end","تاريخ النهاية",f.end),T("days","مدة البرنامج (أيام)",f.days,{type:"number"}),T("minutes","التمرين أسبوعيًا",f.minutes),T("so2","الأكسجين",f.so2),T("rs","التنفس",f.rs),T("pulse","النبض",f.pulse),T("bp","الضغط",f.bp),T("bmr","معدل الحرق الأساسي",e.bmr),T("act","معامل النشاط",e.act),T("tdee","إجمالي الطاقة",e.tdee),T("plan","سعرات الخطة",e.plan),T("water","الماء",e.water),T("ptn","البروتين",e.ptn),T("cho","الكربوهيدرات",e.cho),T("exch","التبادلات الغذائية (افصل بـ | مثال: 9 بروتين | 4 نشويات)",ex,{type:"area"}),T("rest","الراحة بين المجموعات (ثانية)",d.rest,{type:"number"}),T("wk","تدرّج التكرارات: سطر لكل أسبوع مثل 10-10-10 (فاضي = تكرارات ثابتة)",wk,{type:"area"}),T("reps","التكرارات الثابتة مثل 12-10-10",(d.reps||[]).join("-")),T("wstep","زيادة الوزن (كجم) كل ما تقل التكرارات عن الأسبوع السابق بخطوة (٢ عدة)",d.wstep??2.5,{type:"number"}),T("wsnap","تقريب الأوزان لأقرب (كجم) — الافتراضي 0.5، و0 = حساب دقيق",d.wsnap??0.5,{type:"number"})],
+  modal("بيانات العميل والبرنامج",[T("brand","اسم البرنامج (يظهر كبيرًا)",d.brand),T("sub","وصف البرنامج",d.sub),T("sex","النوع",f.sex),T("age","العمر",f.age),T("weight","الوزن",f.weight),T("height","الطول",f.height),{k:"start",l:"تاريخ البداية (منه بيتحسب «اليوم كذا من كذا» عند العميل)",type:"date",v:parseDmy(f.start)||P.month_start},T("days","مدة البرنامج (أيام)",f.days,{type:"number"}),T("minutes","التمرين أسبوعيًا",f.minutes),T("so2","الأكسجين",f.so2),T("rs","التنفس",f.rs),T("pulse","النبض",f.pulse),T("bp","الضغط",f.bp),T("bmr","معدل الحرق الأساسي",e.bmr),T("act","معامل النشاط",e.act),T("tdee","إجمالي الطاقة",e.tdee),T("plan","سعرات الخطة",e.plan),T("water","الماء",e.water),T("ptn","البروتين",e.ptn),T("cho","الكربوهيدرات",e.cho),T("exch","التبادلات الغذائية (افصل بـ | مثال: 9 بروتين | 4 نشويات)",ex,{type:"area"}),T("rest","الراحة بين المجموعات (ثانية)",d.rest,{type:"number"}),T("wk","تدرّج التكرارات: سطر لكل أسبوع مثل 10-10-10 (فاضي = تكرارات ثابتة)",wk,{type:"area"}),T("reps","التكرارات الثابتة مثل 12-10-10",(d.reps||[]).join("-")),T("wstep","زيادة الوزن (كجم) كل ما تقل التكرارات عن الأسبوع السابق بخطوة (٢ عدة)",d.wstep??2.5,{type:"number"}),T("wsnap","تقريب الأوزان لأقرب (كجم) — الافتراضي 0.5، و0 = حساب دقيق",d.wsnap??0.5,{type:"number"})],
     async v=>{
       const lat=t=>String(t).replace(/[٠-٩]/g,c=>"٠١٢٣٤٥٦٧٨٩".indexOf(c)),nums=t=>lat(t).split(/[^0-9]+/).filter(Boolean).map(Number);
       d.brand=v.brand.trim();d.sub=v.sub.trim();
       if(!v.start){toast("حدد تاريخ البداية");return false}
-      ["sex","age","weight","height","end","minutes","so2","rs","pulse","bp"].forEach(k=>f[k]=ar(v[k].trim()));
-      const oldDays=+f.days||30,oldMs=P.month_start;f.days=+v.days||30;
+      ["sex","age","weight","height","minutes","so2","rs","pulse","bp"].forEach(k=>f[k]=ar(v[k].trim()));
+      f.days=+v.days||30;
       P.month_start=v.start;PROGS.sort((a,b)=>b.month_start.localeCompare(a.month_start));PI=PROGS.findIndex(x=>x.id===P.id);
-      if(v.start!==oldMs||f.days!==oldDays||!f.end)syncDates(d,v.start);else f.start=fmtDmy(v.start);
+      syncDates(d,v.start);   // البداية والنهاية دايمًا من تاريخ البداية + المدة
       ["bmr","act","tdee","plan","water","ptn","cho"].forEach(k=>e[k]=ar(v[k].trim()));
       e.exch=v.exch.split("|").map(x=>x.trim()).filter(Boolean).map(x=>{const m=/^(\S+)\s+(.+)$/.exec(x);return m?[ar(m[1]),m[2]]:["",x]});
       d.rest=+v.rest||null;
@@ -575,9 +576,9 @@ function home(){
   let h=`<div class="card brand"><img src="img/logo.png" alt=""><small>مدربك وأخصائي التغذية</small><h1>الدكتور محمود جمال قطب</h1><div class="en">DR. MAHMOUD GAMAL</div><div class="tg">تخلّص من أمراضك</div></div>`;
   if(EDIT())h+=pubCard();
   h+=payBtn();
-  h+=`<div class="card pg"><div class="sub">${esc(dt.sub||"")}</div><div class="big">${esc(dt.brand||P.title||"")}</div><div class="mem">${[["الاسم",NAME()||"—"],["العمر",inf.age],["الوزن",inf.weight],["الطول",inf.height],["البداية",inf.start],["النهاية",inf.end],["المدة",inf.days?ar(inf.days)+" يومًا":""],["التمرين",inf.minutes]].map(x=>`<div><span>${x[0]}</span><b>${esc(x[1])||"—"}</b></div>`).join("")}</div>${ed("editInfo()","تعديل بيانات العميل والبرنامج")}</div>`;
+  h+=`<div class="card pg"><div class="sub">${esc(dt.sub||"")}</div><div class="big">${esc(dt.brand||P.title||"")}</div><div class="mem">${[["الاسم",NAME()||"—"],["العمر",inf.age],["الوزن",inf.weight],["الطول",inf.height],["البداية",ltr(fmtDmy(P.month_start))||ltr(inf.start)],["النهاية",P.month_start?ltr(fmtDmy(addDaysIso(P.month_start,(+inf.days||30)-1))):ltr(inf.end)],["المدة",inf.days?ar(inf.days)+" يومًا":""],["التمرين",inf.minutes]].map(x=>`<div><span>${x[0]}</span><b>${esc(x[1])||"—"}</b></div>`).join("")}</div>${ed("editInfo()","تعديل بيانات العميل والبرنامج")}</div>`;
   const dn=dayNo(),T=inf.days||30;
-  h+=`<div class="card"><div class="hi"><b>أهلاً ${esc(NAME())}</b><span style="color:var(--mut);font-size:13px">${esc(P.title||"")}</span></div><div style="margin-top:8px;font-weight:700">${dn?`اليوم ${ar(dn)} من ${ar(T)}`:`البرنامج لسه ما بدأش · يبدأ ${fmtDmy(P.month_start)}`}</div><div class="bar"><i style="width:${dn/T*100}%"></i></div></div>`;
+  h+=`<div class="card"><div class="hi"><b>أهلاً ${esc(NAME())}</b><span style="color:var(--mut);font-size:13px">${esc(P.title||"")}</span></div><div style="margin-top:8px;font-weight:700">${dn?`اليوم ${ar(dn)} من ${ar(T)}`:`البرنامج لسه ما بدأش · يبدأ ${ltr(fmtDmy(P.month_start))}`}</div><div class="bar"><i style="width:${dn/T*100}%"></i></div></div>`;
   if(PROGS.length>1)h+=`<select onchange="setProg(this.value)">${PROGS.map((p,i)=>`<option value="${i}" ${i==PI?"selected":""}>${esc(p.title||p.month_start)}${EDIT()&&!p.published?" (مسودة)":""}</option>`).join("")}</select>`;
   h+=gymCard();
   h+=payBanner();
@@ -955,7 +956,7 @@ function food(){
   const dt=P.data,E=dt.energy||{},fi=dt.info||{};hd("التغذية","القسم الثاني");
   const IC=(l,v)=>`<div class="ic"><span>${l}</span><b class="${v?"":"em"}">${esc(v)||"—"}</b></div>`;
   const sx=(n,t)=>`<div class="sx"><b>${n}</b><span>${t}</span><i></i></div>`;
-  const vit=[["الاسم",NAME()],["التاريخ",fi.start],["النوع",fi.sex],["العمر",fi.age],["الطول",fi.height],["الوزن",fi.weight],["الأكسجين",fi.so2],["التنفس",fi.rs],["النبض",fi.pulse],["الضغط",fi.bp]];
+  const vit=[["الاسم",NAME()],["التاريخ",ltr(fi.start)],["النوع",fi.sex],["العمر",fi.age],["الطول",fi.height],["الوزن",fi.weight],["الأكسجين",fi.so2],["التنفس",fi.rs],["النبض",fi.pulse],["الضغط",fi.bp]];
   let h=`<div class="icg">${(EDIT()?vit:vit.filter(x=>x[1])).map(x=>IC(x[0],x[1])).join("")}</div>`;
   h+=sx("٠١","الطاقة اليومية");
   h+=`<div class="egy"><div><span>معدل الحرق</span><b>${esc(E.bmr)||"—"}</b><em>سعرة</em></div><u>×</u><div><span>النشاط</span><b>${esc(E.act)||"—"}</b><em>معامل</em></div><u>=</u><div><span>الإجمالي</span><b>${esc(E.tdee)||"—"}</b><em>سعرة</em></div><u>←</u><div class="p"><span>سعرات الخطة</span><b>${esc(E.plan)||"—"}</b><em>سعرة / يوم</em></div></div>`;
@@ -1001,7 +1002,7 @@ async function loadMeas(cid){
   MURL={};
 }
 const MK=k=>k==="inbody"?"InBody":"وزن";
-const dmy=d=>ar(String(d||"").split("-").reverse().join("/"));
+const dmy=d=>ltr(ar(String(d||"").split("-").reverse().join("/")));
 const dlt=(c,p,good)=>{if(c==null||p==null)return"";const d=Math.round((c-p)*10)/10;if(!d)return'<small class="nt">—</small>';const cls=good==null?"nt":((d>0)===(good==="up")?"up":"dn");return`<small class="${cls}">${d>0?"▲":"▼"} ${fmtW(Math.abs(d))}</small>`};
 function mchart(pts,unit,title){
   pts=pts.slice(-12);if(pts.length<2)return"";
