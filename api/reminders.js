@@ -110,6 +110,50 @@ async function plan(admin, today) {
   return { items, digest };
 }
 
+// الأقساط المستحقة: يوم الميعاد (أو بعده لو فاتت) نبلّغ العميل ونبلّغ الأدمن «تم تذكير فلان». notified_at بيمنع التكرار.
+// بتشتغل في مسارها المستقل: أي خطأ فيها (أو لو installments.sql لسه ما اتشغلش) مبيأثرش على باقي التذكيرات.
+async function instJob(admin, today) {
+  try {
+    const pub = process.env.VAPID_PUBLIC_KEY, priv = process.env.VAPID_PRIVATE_KEY;
+    const q = await admin.from("installments").select("id,client_id,amount,due_on").eq("status", "pending").is("notified_at", null).lte("due_on", today).order("due_on");
+    if (q.error) return { skipped: true };
+    const rows = q.data || [];
+    if (!rows.length) return { n: 0 };
+    webpush.setVapidDetails(process.env.VAPID_SUBJECT || "https://training-nutrition-hub.vercel.app", pub, priv);
+    const uids = [...new Set(rows.map(r => r.client_id))];
+    const pf = await admin.from("profiles").select("id,full_name").in("id", uids);
+    const ad = await admin.from("profiles").select("id").eq("role", "admin");
+    const nm = new Map((pf.data || []).map(x => [x.id, String(x.full_name || "").trim() || "عميل"]));
+    const adminIds = (ad.data || []).map(x => x.id);
+    const sb = await admin.from("push_subscriptions").select("user_id,endpoint,p256dh,auth").in("user_id", uids.concat(adminIds));
+    const subs = sb.data || [], dead = [];
+    const push = async (ids, m) => {
+      const mine = subs.filter(s => ids.includes(s.user_id));
+      const payload = JSON.stringify({ title: String(m.title).slice(0, 80), body: String(m.body).slice(0, 240), url: m.url, tag: m.tag });
+      const rs = await Promise.allSettled(mine.map(s => webpush.sendNotification({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, payload, { TTL: 43200, urgency: "high" })));
+      let ok = 0;
+      rs.forEach((x, i) => { if (x.status === "fulfilled") ok++; else if (x.reason && (x.reason.statusCode === 404 || x.reason.statusCode === 410)) dead.push(mine[i].endpoint); });
+      return ok;
+    };
+    const out = [];
+    for (const r of rows) {
+      // نحجز القسط الأول (لو حد تاني بلّغ عنه في نفس اللحظة نتخطاه) عشان مفيش إشعار يتكرر
+      const c = await admin.from("installments").update({ notified_at: new Date().toISOString() }).eq("id", r.id).is("notified_at", null).select("id");
+      if (c.error || !c.data || !c.data.length) continue;
+      const name = nm.get(r.client_id) || "عميل";
+      const m = { title: "مطلوب منك: سداد القسط الشهري", body: "مطلوب سداد قسطك الشهري بمبلغ " + r.amount + ". سدّد وارفع إيصال العملية من صفحة «سداد رسوم البرنامج».", url: "./#pay", tag: "inst-" + r.id };
+      await admin.from("notifications").insert({ client_id: r.client_id, title: m.title, body: m.body });
+      const pushed = await push([r.client_id], m);
+      await push(adminIds, { title: "🔔 تم تذكير " + name + " بميعاد قسطه", body: (r.due_on === today ? "بتاريخ اليوم" : "ميعاده كان " + r.due_on) + " · المبلغ: " + r.amount, url: "./?c=" + r.client_id + "&n=" + encodeURIComponent(name), tag: "inst-adm-" + r.id });
+      out.push({ name, amount: r.amount, pushed });
+    }
+    if (dead.length) await admin.from("push_subscriptions").delete().in("endpoint", [...new Set(dead)]);
+    return { n: out.length, items: out };
+  } catch (e) {
+    return { error: String((e && e.message) || e).slice(0, 200) };
+  }
+}
+
 const NUDGE_AFTER_MIN = 60, NUDGE_UNTIL_H = 3;
 async function nudge(admin, send, webpush) {
   const now = Date.now(), today = ymd(new Date());
@@ -180,6 +224,7 @@ module.exports = async (req, res) => {
     const jq = (() => { try { return new URL(req.url, "http://x").searchParams.get("job"); } catch (e) { return null; } })();
     const job = jq || (req.body && req.body.job) || "all";
     const doClients = job !== "digest", doDigest = job !== "clients";
+    const INST = send && job !== "nudge" ? await instJob(admin, ymd(new Date())) : null;   // الأقساط المستحقة (مسار مستقل)
     if (job === "nudge") {
       if (send) webpush.setVapidDetails(process.env.VAPID_SUBJECT || "https://training-nutrition-hub.vercel.app", pub, priv);
       const N = await nudge(admin, send, webpush);
@@ -224,7 +269,7 @@ module.exports = async (req, res) => {
       dg = { n: P.digest.n, names: P.digest.names, noLog: P.digest.nl, pushed };
     }
     if (dead.length) await admin.from("push_subscriptions").delete().in("endpoint", dead);
-    return res.status(200).json({ ok: true, mode: "send", date: today, items: out, digest: dg });
+    return res.status(200).json({ ok: true, mode: "send", date: today, items: out, digest: dg, installments: INST });
   } catch (e) {
     return res.status(500).json({ error: String((e && e.message) || e).slice(0, 300) });
   }
