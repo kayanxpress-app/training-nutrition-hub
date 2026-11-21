@@ -103,7 +103,7 @@ async function loadData(cid){
   const [b,c,d]=await Promise.all([
     sb.from("programs").select("*").eq("client_id",cid).order("month_start",{ascending:false}),
     sb.from("logs").select("log_date,data").eq("client_id",cid),
-    sb.from("notifications").select("*").eq("client_id",cid).order("created_at",{ascending:false}).limit(30),loadMeas(cid),loadPay(cid),loadLab(cid)]);
+    sb.from("notifications").select("*").eq("client_id",cid).order("created_at",{ascending:false}).limit(30),loadMeas(cid),loadPay(cid),loadLab(cid),loadInst(cid)]);
   if(b.error)throw b.error;
   PROGS=b.data||[];LOGS={};(c.data||[]).forEach(r=>LOGS[r.log_date]=r.data);NOTIFS=d.data||[];
   const i=PROGS.findIndex(p=>p.month_start<=TODAY);PI=i<0?PROGS.length-1:i;P=PROGS[PI];
@@ -592,6 +592,7 @@ function home(){
   if(PROGS.length>1)h+=`<select onchange="setProg(this.value)">${PROGS.map((p,i)=>`<option value="${i}" ${i==PI?"selected":""}>${esc(p.title||p.month_start)}${EDIT()&&!p.published?" (مسودة)":""}</option>`).join("")}</select>`;
   h+=gymCard();
   h+=payBanner();
+  h+=instBanner();
   h+=pendBanner();
   h+=labBanner();
   h+=pushCard();
@@ -1334,9 +1335,11 @@ function payPage(){
   h+=paySlide("payrec","🧾","إرفاق إيصال السداد",EDIT()?(rc.length?`${ar(rc.length)} إيصال مرفق`:"صورة أو PDF للإيصال"):(paid?"✓ تم الرفع للقسم المختص":"صورة أو PDF للإيصال"));
   if(EDIT()){
     h+=paySlide("payreq","📣","إرسال إشعار سداد للعملاء","اكتب القيمة · اختر العملاء · تذكير المتأخرين");
+    h+=paySlide("payinst","📅","الأقساط المستحقة",instSub());
     const pr=PREQS.filter(r=>r.status==="pending"&&r.program_id===p.id);
     if(pr.length)h+=`<div class="card"><b>طلب سداد منتظر</b>${pr.map(r=>`<div class="act"><span>${ar(esc(r.amount))} · ${payDate(r.created_at)}${r.remind_count?` · ${ar(r.remind_count)} تذكير`:""}</span><button class="mb" onclick="payCancel('${r.id}')">إلغاء الطلب</button></div>`).join("")}</div>`;
   }
+  h=instBanner(false)+h;
   A.innerHTML=h;
 }
 async function payCancel(id){
@@ -1437,13 +1440,14 @@ function payUp(){
     if(!(f.type==="application/pdf"||/^image\//.test(f.type)))return toast("اختر صورة أو ملف PDF");
     if(f.size>12*1024*1024)return toast("الملف كبير، الحد الأقصى ١٢ ميجا");
     toast("جاري رفع الإيصال...");
+    const di=!ADMIN&&IOK?INSTS.find(x=>x.status==="pending"):null;   // قسط مستحق: الإيصال ده بيقفله (من السيرفر) ونبلّغ المدرب إنه دفع قسطه
     let path="";
     try{
       path=await uplRec(f);
       const {error}=await sb.from("payment_receipts").insert({client_id:CID(),program_id:p.id,file_path:path,file_name:(f.name||"").slice(0,120)||null});
       if(error)throw error;
-      if(!ADMIN)pushAdmin("pay");
-      await loadPay(CID());route();setTimeout(()=>toast(ADMIN?"تم رفع الإيصال ✓":"تم رفع الإيصال للقسم المختص ✓"),60);
+      if(!ADMIN)pushAdmin(di?"inst":"pay",di?di.amount:"");
+      await loadPay(CID());await loadInst(CID());route();setTimeout(()=>toast(ADMIN?"تم رفع الإيصال ✓":"تم رفع الإيصال للقسم المختص ✓"),60);
     }catch(e){if(path)sb.storage.from("receipts").remove([path]);toast("تعذر رفع الإيصال، حاول مرة أخرى")}
   };
   i.click();
@@ -1552,6 +1556,82 @@ async function paySend(){
   }
 }
 
+/* ===== الأقساط المستحقة (الأدمن يحدد قيمة القسط وتاريخه → يوم الميعاد يوصل العميل إشعار وبانر لحد ما يرفع إيصال السداد) ===== */
+let INSTS=[],IOK=true,INSTQ={amt:"",due:""};
+async function loadInst(cid){
+  try{
+    const r=await sb.from("installments").select("*").eq("client_id",cid).order("due_on",{ascending:true}).limit(60);
+    IOK=!r.error;INSTS=IOK?(r.data||[]):[];
+  }catch(e){IOK=false;INSTS=[]}
+}
+/* العميل: السيرفر (RLS) بيرجّعله بس الأقساط اللي ميعادها جه ولسه ما اتسددتش، فمفيش قسط جاي بيبان قبل ميعاده */
+function instBanner(btn){
+  if(EDIT()||!IOK)return"";
+  return INSTS.filter(x=>x.status==="pending").map(x=>`<div class="card rq payb"><b>🔔 مطلوب منك: سداد القسط الشهري</b><div class="payamt">${ar(esc(x.amount))}</div><p>مطلوب سداد قسطك الشهري بمبلغ ${ar(esc(x.amount))} · ميعاد القسط ${dmy(x.due_on)}. سدّد وارفع إيصال العملية عشان يختفي الإشعار.</p>${btn===false?"":'<a class="btn" href="#pay">سدّد وأرفق الإيصال</a>'}</div>`).join("");
+}
+function instSub(){
+  if(!IOK)return"محتاجة تفعيل (ملف installments.sql)";
+  const p=INSTS.filter(x=>x.status==="pending");
+  return p.length?`${ar(p.length)} قسط منتظر · أقرب ميعاد ${dmy(p[0].due_on)}`:"اكتب قيمة القسط وتاريخ ميعاده";
+}
+function instPage(){
+  hd("الأقساط المستحقة","إدارة السداد","pay");
+  instRender();
+}
+function instRender(){
+  const A=$("#app");
+  if(!IOK){A.innerHTML=`<div class="card" style="text-align:center"><b>الميزة محتاجة تفعيل</b><p style="color:var(--mut)">شغّل ملف supabase/installments.sql مرة واحدة في Supabase ← SQL Editor، ثم أعد تحميل الصفحة.</p></div>`;return}
+  let h=`<div class="card"><div class="lbl" style="color:var(--or)">قسط جديد</div>
+    <label class="pql">قيمة القسط المستحق (اكتب الرقم والعملة)<input id="iqa" value="${esc(INSTQ.amt)}" placeholder="مثال: ٢٠٠٠ جنيه · 150 USD" oninput="INSTQ.amt=this.value"></label>
+    <label class="pql">تاريخ ميعاد القسط<input id="iqd" type="date" value="${esc(INSTQ.due)}" oninput="INSTQ.due=this.value" onchange="INSTQ.due=this.value"></label></div>
+    <button class="btn" id="iqs" onclick="instSave()">حفظ</button>
+    <p class="payhint">في ميعاد القسط بيوصل العميل إشعار بالمبلغ ويفضل ظاهر له لحد ما يرفع إيصال السداد. وبيوصلك إشعار يوم التذكير، وإشعار لما العميل يدفع.</p>`;
+  if(INSTS.length){
+    const chip=x=>x.status==="paid"?'<i class="stc ok">✓ سدّد</i>':x.status==="cancelled"?'<i class="stc nn">ملغي</i>':(x.due_on<=TODAY?'<i class="stc late">مستحق</i>':'<i class="stc no">قادم</i>');
+    const srt=INSTS.slice().sort((a,b)=>(a.status==="pending"?0:1)-(b.status==="pending"?0:1)||(a.status==="pending"?a.due_on.localeCompare(b.due_on):b.due_on.localeCompare(a.due_on)));
+    h+=`<h2>الأقساط</h2><div class="card" style="padding:4px 14px">${srt.map(x=>`<div class="act"><span>${ar(esc(x.amount))} · ${dmy(x.due_on)} ${chip(x)}</span>${x.status==="pending"?`<button class="mb" onclick="instCancel('${x.id}')">إلغاء</button>`:`<button class="mb" onclick="instDel('${x.id}')">حذف</button>`}</div>`).join("")}</div>`;
+  }
+  A.innerHTML=h;
+}
+async function instNotify(x){
+  try{
+    const c=await sb.from("installments").update({notified_at:new Date().toISOString()}).eq("id",x.id).is("notified_at",null).select("id");
+    if(c.error||!c.data||!c.data.length)return;
+    const nt={client_id:VIEW.id,title:"مطلوب منك: سداد القسط الشهري",body:"مطلوب سداد قسطك الشهري بمبلغ "+x.amount+". سدّد وارفع إيصال العملية من صفحة «سداد رسوم البرنامج»."};
+    await sb.from("notifications").insert(nt);pushTo(VIEW.id,nt.title,nt.body,"./#pay");
+  }catch(e){}
+}
+async function instSave(){
+  if(!EDIT()||!IOK)return;
+  const amt=(INSTQ.amt||"").trim(),due=INSTQ.due||"";
+  if(!amt)return toast("اكتب قيمة القسط");
+  if(amt.length>60)return toast("قيمة القسط طويلة (الحد ٦٠ حرف)");
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(due))return toast("اختر تاريخ ميعاد القسط");
+  if(INSTS.some(x=>x.status==="pending"&&x.due_on===due))return toast("فيه قسط منتظر بنفس التاريخ");
+  const b=$("#iqs");if(b)b.disabled=true;
+  try{
+    const {data,error}=await sb.from("installments").insert({client_id:VIEW.id,amount:amt,due_on:due}).select("*").single();
+    if(error||!data)throw error||new Error("x");
+    // لو الميعاد النهارده أو فات: نبلّغ العميل فورًا (غير كده السيرفر هيبلّغه يوم الميعاد الصبح)
+    if(due<=TODAY)await instNotify(data);
+    INSTQ={amt:"",due:""};
+    await loadInst(VIEW.id);instRender();
+    toast(due<=TODAY?"تم الحفظ وإرسال الإشعار للعميل":"تم حفظ القسط · هيوصل للعميل يوم الميعاد");
+  }catch(e){const b2=$("#iqs");if(b2)b2.disabled=false;toast("تعذر الحفظ")}
+}
+async function instCancel(id){
+  if(!EDIT()||!confirm("إلغاء هذا القسط؟"))return;
+  const {error}=await sb.from("installments").update({status:"cancelled"}).eq("id",id);
+  if(error)return toast("تعذر الإلغاء");
+  await loadInst(CID());instRender();
+}
+async function instDel(id){
+  if(!EDIT()||!confirm("حذف هذا القسط من السجل؟"))return;
+  const {error}=await sb.from("installments").delete().eq("id",id);
+  if(error)return toast("تعذر الحذف");
+  await loadInst(CID());instRender();
+}
+
 /* ===== إشعارات الموبايل (Web Push) ===== */
 const PUSH_OK=()=>"serviceWorker" in navigator&&"PushManager" in window&&"Notification" in window;
 const STANDALONE=()=>window.navigator.standalone===true||(window.matchMedia&&matchMedia("(display-mode: standalone)").matches);
@@ -1649,6 +1729,7 @@ function liveRender(){
   if(r==="pay"){if(PAYCHG){payPage();window.scrollTo(0,y)}return}
   if(r==="paybank"){if(PAYCHG){payBank();window.scrollTo(0,y)}return}
   if(r==="payrec"){if(!PAYCHG)return;payRecRender();if(EDIT())signRec().then(ok=>{if(ok&&location.hash==="#payrec")payRecRender()});window.scrollTo(0,y);return}
+  if(r==="payinst"){if(EDIT()){instRender();window.scrollTo(0,y)}return}
   if(r==="payreq")return;   // صفحة إرسال الإشعارات ليها بياناتها وحالتها (اختيارات/كتابة) فمنلمسهاش في التحديث التلقائي
   if(m)session(+m[1]-1);else if(r==="train")train();else if(r==="food")food();else if(r==="supp")supp();else if(r==="notes")notes();else home();
   window.scrollTo(0,y);
@@ -1664,19 +1745,19 @@ async function liveRefresh(force){
   LIVE_T=t;LIVE_BUSY=true;
   try{
     const cid=CID(),adm=EDIT(),t0=Date.now();
-    const sig=()=>JSON.stringify([NOTIFS.map(x=>x.id+(x.read?1:0)),REQS.map(x=>x.id+x.status),MEAS.map(x=>x.id),LABS.map(x=>x.id+(x.file_path||"")),LREQS.map(x=>x.id+x.status),RECS.map(x=>x.id),PREQS.map(x=>x.id+x.status+(x.remind_count||0)),PROGS,adm?LOGS:0]);
+    const sig=()=>JSON.stringify([NOTIFS.map(x=>x.id+(x.read?1:0)),REQS.map(x=>x.id+x.status),MEAS.map(x=>x.id),LABS.map(x=>x.id+(x.file_path||"")),LREQS.map(x=>x.id+x.status),INSTS.map(x=>x.id+x.status),RECS.map(x=>x.id),PREQS.map(x=>x.id+x.status+(x.remind_count||0)),PROGS,adm?LOGS:0]);
     const before=sig(),pb=psig(),known=new Set(NOTIFS.map(x=>x.id));
-    const lb0=[LABS,LREQS,LOK],m0=MEAS,r0=REQS,ok0=MOK,pw0=[PAYS,RECS,PREQS,POK];
+    const ib0=[INSTS,IOK],lb0=[LABS,LREQS,LOK],m0=MEAS,r0=REQS,ok0=MOK,pw0=[PAYS,RECS,PREQS,POK];
     const q=[
       sb.from("notifications").select("*").eq("client_id",cid).order("created_at",{ascending:false}).limit(30),
       loadMeas(cid),
       sb.from("programs").select("*").eq("client_id",cid).order("month_start",{ascending:false})];
     // سجلات التمرين: الأدمن يحتاجها (يشوف وزن وملاحظات العميل). العميل هو اللي بيكتبها فمش بنعمل لها refetch عشان منكتبش فوق شغله.
     if(adm)q.push(sb.from("logs").select("log_date,data").eq("client_id",cid));
-    const pp=loadPay(cid,true),lp=loadLab(cid);
-    const [n,,pg,lg]=await Promise.all(q);await pp;await lp;
+    const pp=loadPay(cid,true),lp=loadLab(cid),ip=loadInst(cid);
+    const [n,,pg,lg]=await Promise.all(q);await pp;await lp;await ip;
     // أثناء الجلب: ممكن النافذة تتفتح أو يتحفظ تعديل. لو حصل كده نرجّع القديم ونتجاهل النتيجة (البيانات الأحدث موجودة عندنا).
-    if(busyUI()||PW>=t0||cid!==CID()){MEAS=m0;REQS=r0;MOK=ok0;[LABS,LREQS,LOK]=lb0;[PAYS,RECS,PREQS,POK]=pw0;LIVE_DIRTY=true;return}
+    if(busyUI()||PW>=t0||cid!==CID()){MEAS=m0;REQS=r0;MOK=ok0;[LABS,LREQS,LOK]=lb0;[INSTS,IOK]=ib0;[PAYS,RECS,PREQS,POK]=pw0;LIVE_DIRTY=true;return}
     if(n&&!n.error&&n.data)NOTIFS=n.data;
     if(pg&&!pg.error&&pg.data){
       // نستبدل بيانات البرنامج بس لو اتغيرت فعلًا على السيرفر (عشان منبدّلش الكائنات من غير داعي)
@@ -1719,7 +1800,7 @@ function rtSync(){
   if(RT_KEY===key&&RT)return;
   rtStop();RT_KEY=key;
   const ch=sb.channel("live-"+key+"-"+Date.now()),list=key==="admin-list",f=list?null:"client_id=eq."+key;
-  ["notifications","logs","programs","measurements","measure_requests","item_chat"].concat(!list&&LOK?["lab_results","lab_requests"]:[]).forEach(t=>{
+  ["notifications","logs","programs","measurements","measure_requests","item_chat"].concat(!list&&LOK?["lab_results","lab_requests"]:[]).concat(!list&&IOK?["installments"]:[]).forEach(t=>{
     if(list&&t==="item_chat")return;
     const o={event:"*",schema:"public",table:t};if(f)o.filter=f;
     ch.on("postgres_changes",o,()=>{if(t==="item_chat")qRefresh(true);else list?setTimeout(listRefresh,1200):liveRefresh(true)});
@@ -2139,7 +2220,7 @@ function route(){
   if(r=="body"){measPage();["home","train","food","supp","notes"].forEach(x=>$("#n-"+x).classList.toggle("on",x=="home"));window.scrollTo(0,0);return}
   if(r=="labs"){labPage();["home","train","food","supp","notes"].forEach(x=>$("#n-"+x).classList.toggle("on",x=="home"));window.scrollTo(0,0);return}
   if(!P){empty();return}
-  if(m)session(+m[1]-1);else if(r=="train")train();else if(r=="food")food();else if(r=="supp")supp();else if(r=="notes")notes();else if(r=="pay")payPage();else if(r=="paybank")payBank();else if(r=="payrec")payRec();else if(r=="payreq"&&EDIT())payReq();else home();
+  if(m)session(+m[1]-1);else if(r=="train")train();else if(r=="food")food();else if(r=="supp")supp();else if(r=="notes")notes();else if(r=="pay")payPage();else if(r=="paybank")payBank();else if(r=="payrec")payRec();else if(r=="payreq"&&EDIT())payReq();else if(r=="payinst"&&EDIT())instPage();else home();
   const cur=m?"train":(["train","food","supp","notes"].includes(r)?r:"home");
   ["home","train","food","supp","notes"].forEach(x=>$("#n-"+x).classList.toggle("on",x==cur));
   window.scrollTo(0,0);
