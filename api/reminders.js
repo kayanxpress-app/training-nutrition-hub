@@ -1,4 +1,10 @@
-// التذكيرات التلقائية (بتشتغل مرة يوميًا من Vercel Cron، أو يدويًا من حساب الأدمن).
+// التذكيرات التلقائية. بتشتغل من مهمتين في Vercel Cron (أو يدويًا من حساب الأدمن):
+//   /api/reminders?job=clients  → رسائل العملاء (العصر قبل ميعاد التمرين)
+//   /api/reminders?job=digest   → ملخص الغياب للمدرب (الصبح)
+//   /api/reminders?job=nudge    → «ابدأ جلستك» لمن سجّل دخول الجيم من ساعة ولسه ما بدأش تمرين
+//                                  (محتاج استدعاء كل ~١٥ دقيقة من خارج Vercel — راجع gym_nudge.sql والشرح)
+// من غير job (زر الأدمن اليدوي) بيشتغل الاتنين.
+// الحضور = أحدث تاريخ بين آخر تمرين مسجّل وآخر «تسجيل دخول الجيم».
 // متغيرات Vercel المطلوبة: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY (موجودين)
 // + CRON_SECRET (جديد: أي نص عشوائي طويل، وVercel بيبعته تلقائيًا مع المهمة المجدولة)
 const { createClient } = require("@supabase/supabase-js");
@@ -56,6 +62,10 @@ async function plan(admin, today) {
     if (r.data && r.data.d && Object.keys(r.data.d).length && (!lastTrain.has(r.client_id) || r.log_date > lastTrain.get(r.client_id))) lastTrain.set(r.client_id, r.log_date);
   }
 
+  const gm = await all(() => admin.from("gym_checkins").select("client_id,created_at").gte("created_at", new Date(Date.now() - 50 * 864e5).toISOString()).order("created_at", { ascending: false }));
+  const lastGym = new Map();
+  if (!gm.error) for (const r of gm.data) { const g = ymd(new Date(r.created_at)); if (!lastGym.has(r.client_id) || g > lastGym.get(r.client_id)) lastGym.set(r.client_id, g); }
+
   const dl = await admin.from("reminder_log").select("client_id").eq("sent_on", today);
   if (dl.error) return { error: "شغّل ملف supabase/reminders.sql في Supabase أولًا" };
   const done = new Set((dl.data || []).map(x => x.client_id));
@@ -67,12 +77,15 @@ async function plan(admin, today) {
   const lastW = new Map();
   if (!ms.error) for (const r of ms.data) if (!lastW.has(r.client_id)) lastW.set(r.client_id, r.taken_on);
 
-  const items = [], dig = [];
+  const items = [], dig = [], nolog = [];
   for (const c of clients) {
     const a = active.get(c.id);
     if (!a) continue;
-    const nm = first(c.full_name), lt = lastTrain.get(c.id), d = Math.max(0, diff(today, lt || a.start));
+    const nm = first(c.full_name), tr = lastTrain.get(c.id), gy = lastGym.get(c.id);
+    const lt = tr && gy ? (tr > gy ? tr : gy) : (tr || gy);   // آخر حضور: تمرين مسجّل أو دخول جيم
+    const d = Math.max(0, diff(today, lt || a.start));
     if (d >= 3) dig.push({ name: nm, d, never: !lt });
+    else if (gy && diff(today, tr || a.start) >= 3) nolog.push({ name: nm, d: diff(today, tr || a.start) });   // بيحضر بس مش بيسجّل تمرينه
     if (done.has(c.id)) continue;
     const pq = pend.get(c.id);
     const age = pq ? diff(today, ymd(new Date(pq.created_at))) : -1;
@@ -86,12 +99,61 @@ async function plan(admin, today) {
     if (kind) items.push({ id: c.id, name: nm, kind, days: kind === "req" ? age : kind === "wt" ? diff(today, lastW.get(c.id) || a.start) : d, ...msgFor(kind, nm, kind === "req" ? age : d, pq && pq.kind) });
   }
   dig.sort((x, y) => y.d - x.d);
+  nolog.sort((x, y) => y.d - x.d);
   let digest = null;
-  if (dig.length && admins.length) {
-    const names = dig.slice(0, 6).map(x => x.name + " (" + AR(x.d) + ")").join("، ") + (dig.length > 6 ? " و" + AR(dig.length - 6) + " آخرين" : "");
-    digest = { n: dig.length, names, key: admins[0].id, adminIds: admins.map(x => x.id), done: done.has(admins[0].id) };
+  if ((dig.length || nolog.length) && admins.length) {
+    const lst = (a) => a.slice(0, 6).map(x => x.name + " (" + AR(x.d) + ")").join("، ") + (a.length > 6 ? " و" + AR(a.length - 6) + " آخرين" : "");
+    const names = dig.length ? lst(dig) : "";
+    const nolNames = nolog.length ? lst(nolog) : "";
+    digest = { n: dig.length, names, nl: nolog.length, nolNames, key: admins[0].id, adminIds: admins.map(x => x.id), done: done.has(admins[0].id) };
   }
   return { items, digest };
+}
+
+const NUDGE_AFTER_MIN = 60, NUDGE_UNTIL_H = 3;
+async function nudge(admin, send, webpush) {
+  const now = Date.now(), today = ymd(new Date());
+  const from = new Date(now - NUDGE_UNTIL_H * 36e5).toISOString(), to = new Date(now - NUDGE_AFTER_MIN * 6e4).toISOString();
+  const g = await admin.from("gym_checkins").select("id,client_id,created_at").is("left_at", null).is("nudged_at", null).gte("created_at", from).lte("created_at", to);
+  if (g.error) return { error: "شغّل ملف supabase/gym_nudge.sql في Supabase أولًا" };
+  const rows = g.data || [];
+  if (!rows.length) return { items: [] };
+  const ids = [...new Set(rows.map(r => r.client_id))];
+
+  const lg = await admin.from("logs").select("client_id,log_date,data").in("client_id", ids).gte("log_date", ymd(new Date(from)));
+  if (lg.error) return { error: "تعذر قراءة السجلات" };
+  const trained = new Set((lg.data || []).filter(r => r.data && r.data.d && Object.keys(r.data.d).length).map(r => r.client_id));
+
+  const pr = await admin.from("programs").select("client_id,month_start,published,info:data->info").in("client_id", ids);
+  if (pr.error) return { error: "تعذر قراءة البرامج" };
+  const active = new Set();
+  for (const p of pr.data || []) {
+    if (!p.published || !p.month_start) continue;
+    const days = Number(p.info && p.info.days) || 30, d = diff(today, p.month_start);
+    if (d >= 0 && d <= days - 1) active.add(p.client_id);
+  }
+  const nm = new Map(((await admin.from("profiles").select("id,full_name").in("id", ids)).data || []).map(x => [x.id, first(x.full_name)]));
+
+  const todo = ids.filter(id => !trained.has(id) && active.has(id));
+  const items = todo.map(id => ({ id, name: nm.get(id) || "بطل" }));
+  if (!send) return { items: items.map(x => ({ name: x.name })) };
+
+  let subs = [];
+  if (todo.length) subs = ((await admin.from("push_subscriptions").select("user_id,endpoint,p256dh,auth").in("user_id", todo)).data) || [];
+  const dead = [], out = [];
+  for (const it of items) {
+    const m = { title: it.name + "، ابدأ جلستك 💪", body: "عدّت ساعة على دخولك الجيم. افتح تمرينك وسجّل أول تمرين عشان الدكتور يتابعك.", url: "./#train", tag: "gym-nudge" };
+    await admin.from("notifications").insert({ client_id: it.id, title: m.title, body: m.body });
+    const mine = subs.filter(s => s.user_id === it.id);
+    const rs = await Promise.allSettled(mine.map(s => webpush.sendNotification({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, JSON.stringify(m), { TTL: 3600, urgency: "normal" })));
+    let ok = 0;
+    rs.forEach((r, i) => { if (r.status === "fulfilled") ok++; else if (r.reason && (r.reason.statusCode === 404 || r.reason.statusCode === 410)) dead.push(mine[i].endpoint); });
+    out.push({ name: it.name, pushed: ok });
+  }
+  // نعلّم كل الدخولات اللي اتفحصت (حتى اللي بدأ تمرينه أو برنامجه مش شغّال) عشان متتفحصش تاني
+  await admin.from("gym_checkins").update({ nudged_at: new Date().toISOString() }).in("id", rows.map(r => r.id));
+  if (dead.length) await admin.from("push_subscriptions").delete().in("endpoint", dead);
+  return { items: out };
 }
 
 module.exports = async (req, res) => {
@@ -115,12 +177,21 @@ module.exports = async (req, res) => {
       send = !!(req.body && req.body.send === true);
     }
 
+    const jq = (() => { try { return new URL(req.url, "http://x").searchParams.get("job"); } catch (e) { return null; } })();
+    const job = jq || (req.body && req.body.job) || "all";
+    const doClients = job !== "digest", doDigest = job !== "clients";
+    if (job === "nudge") {
+      if (send) webpush.setVapidDetails(process.env.VAPID_SUBJECT || "https://training-nutrition-hub.vercel.app", pub, priv);
+      const N = await nudge(admin, send, webpush);
+      if (N.error) return res.status(500).json({ error: N.error });
+      return res.status(200).json({ ok: true, mode: send ? "send" : "preview", job, items: N.items });
+    }
     const today = ymd(new Date());
     const P = await plan(admin, today);
     if (P.error) return res.status(500).json({ error: P.error });
     const view = x => ({ name: x.name, kind: x.kind, days: x.days, title: x.title });
-    const dview = P.digest && !P.digest.done ? { n: P.digest.n, names: P.digest.names } : null;
-    if (!send) return res.status(200).json({ ok: true, mode: "preview", date: today, items: P.items.map(view), digest: dview });
+    const dview = doDigest && P.digest && !P.digest.done ? { n: P.digest.n, names: P.digest.names, noLog: P.digest.nl, noLogNames: P.digest.nolNames } : null;
+    if (!send) return res.status(200).json({ ok: true, mode: "preview", job, date: today, items: doClients ? P.items.map(view) : [], digest: dview });
 
     webpush.setVapidDetails(process.env.VAPID_SUBJECT || "https://training-nutrition-hub.vercel.app", pub, priv);
     const sb = await all(() => admin.from("push_subscriptions").select("user_id,endpoint,p256dh,auth").order("created_at", { ascending: false }));
@@ -137,17 +208,20 @@ module.exports = async (req, res) => {
     };
 
     const out = [];
-    for (const it of P.items) {
+    for (const it of (doClients ? P.items : [])) {
       await admin.from("notifications").insert({ client_id: it.id, title: it.title, body: it.body });
       const pushed = await push([it.id], it);
       await admin.from("reminder_log").upsert({ client_id: it.id, sent_on: today, kind: it.kind }, { onConflict: "client_id,sent_on", ignoreDuplicates: true });
       out.push({ ...view(it), pushed });
     }
     let dg = null;
-    if (P.digest && !P.digest.done) {
-      const pushed = await push(P.digest.adminIds, { title: "📋 غياب يحتاج متابعة", body: P.digest.n + " عميل غايبين ٣ أيام أو أكتر: " + P.digest.names, url: "./", tag: "digest" });
+    if (doDigest && P.digest && !P.digest.done) {
+      const parts = [];
+      if (P.digest.n) parts.push(AR(P.digest.n) + " عميل غايبين ٣ أيام أو أكتر: " + P.digest.names);
+      if (P.digest.nl) parts.push("حضروا الجيم بس ما سجّلوش تمرين: " + P.digest.nolNames);
+      const pushed = await push(P.digest.adminIds, { title: "📋 غياب يحتاج متابعة", body: parts.join(" • "), url: "./", tag: "digest" });
       await admin.from("reminder_log").upsert({ client_id: P.digest.key, sent_on: today, kind: "digest" }, { onConflict: "client_id,sent_on", ignoreDuplicates: true });
-      dg = { n: P.digest.n, names: P.digest.names, pushed };
+      dg = { n: P.digest.n, names: P.digest.names, noLog: P.digest.nl, pushed };
     }
     if (dead.length) await admin.from("push_subscriptions").delete().in("endpoint", dead);
     return res.status(200).json({ ok: true, mode: "send", date: today, items: out, digest: dg });
