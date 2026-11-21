@@ -63,7 +63,8 @@ module.exports = async (req, res) => {
           chat: { title: name + " 💬" + (label ? " · " + label : ""), body: clip(b.text, 120) || "رسالة جديدة في المحادثة", tag: "chat-" + uid },
           gym: { title: name + " وصل الجيم الآن 🏋️", body: "تابعه وركّز معاه أثناء تمرينه 💪", tag: "gym-" + uid },
           pay: { title: name + " أرفق إيصال السداد 💳", body: "افتح ملفه وراجع الإيصال", tag: "pay-" + uid },
-          lab: { title: name + " رفع نتيجة فحص 🧪" + (label ? " · " + label : ""), body: "افتح ملفه وراجع النتيجة", tag: "lab-" + uid + "-" + label }
+          lab: { title: name + " رفع نتيجة فحص 🧪" + (label ? " · " + label : ""), body: "افتح ملفه وراجع النتيجة", tag: "lab-" + uid + "-" + label },
+          inst: { title: name + " قام بدفع قسطه 💳", body: (label ? "المبلغ: " + label + " · " : "") + "افتح ملفه وراجع الإيصال", tag: "inst-" + uid }
         };
         const m = kinds[b.kind];
         if (!m) return res.status(400).json({ error: "نوع غير معروف" });
