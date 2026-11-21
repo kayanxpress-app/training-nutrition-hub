@@ -154,14 +154,17 @@ async function clients(silent){
     const last=mine[0],t=mine.find(l=>l.log_date===TODAY);
     const cnt=t?Object.keys(t.data.d||{}).length:0,sup=t?Object.keys(t.data.s||{}).length:0,mel=t?Object.keys(t.data.m||{}).length:0;
     const days=last?Math.round((new Date(TODAY)-new Date(last.log_date))/864e5):null;
-    const act=last?(days===0?"نشط اليوم":days===1?"آخر نشاط أمس":`غائب منذ ${ar(days)} أيام`):"لم يبدأ بعد";
-    const bad=days===null||days>=3;
-    const p=pr.find(z=>z.client_id===x.id);
+    /* الغياب بيتحسب بس لو برنامج العميل بدأ فعلًا (month_start <= النهارده). لو لسه ما بدأش، مفيش غياب */
+    const mp=pr.filter(z=>z.client_id===x.id),started=mp.filter(z=>z.month_start<=TODAY),upc=mp.filter(z=>z.month_start>TODAY).sort((a,b)=>a.month_start.localeCompare(b.month_start))[0];
+    const notYet=!started.length&&!!upc;
+    const act=notYet?`البرنامج يبدأ ${dmy(upc.month_start)} · بعد ${ar(Math.round((new Date(upc.month_start)-new Date(TODAY))/864e5))} يوم`:last?(days===0?"نشط اليوم":days===1?"آخر نشاط أمس":`غائب منذ ${ar(days)} أيام`):"لم يبدأ بعد";
+    const bad=!notYet&&(days===null||days>=3);
+    const p=started[0]||mp[0];
     const left=p?Math.round((new Date(p.month_start)-new Date(TODAY))/864e5)+((p.data&&p.data.info&&p.data.info.days)||30)-1:null;
     const pcur=(()=>{const pl=pr.filter(z=>z.client_id===x.id&&z.published);if(!pl.length)return null;const i=pl.findIndex(z=>z.month_start<=TODAY);return i<0?pl[pl.length-1]:pl[i]})();
     const ptag=pcur&&rcq&&!rcq.error&&rcq.data?(rcq.data.some(z=>z.client_id===x.id&&z.program_id===pcur.id)?'<p class="ok">💳 سدّد الرسوم</p>':`<p class="no2">💳 لم يسدد${((rqq&&rqq.data)||[]).some(z=>z.client_id===x.id&&z.program_id===pcur.id)?" · تم إرسال طلب":""}</p>`):"";
     const pq=(mq.data||[]).filter(z=>z.client_id===x.id),lm=(ml.data||[]).find(z=>z.client_id===x.id);
-    h+=`<div class="card cl"><div style="flex:1;cursor:pointer" onclick="openClient('${x.id}','${esc(x.full_name||"عميل").replace(/'/g,"")}')"><h3>${gmap.has(x.id)?"🏋️ ":""}${esc(x.full_name||"بدون اسم")}</h3><p class="${bad?"no2":"ok"}">${act}</p><p>اليوم: ${ar(cnt)} تمارين · ${ar(mel)} وجبات · ${ar(sup)} مكملات</p>${left!==null?`<p>${left>=0?`باقي ${ar(left)} يوم على نهاية البرنامج`:"البرنامج انتهى"}</p>`:'<p>لا يوجد برنامج</p>'}${ptag}${pq.length?`<p style="color:#d23b5f;font-weight:700">⏳ مطلوب منه: ${pq.map(z=>MK(z.kind)).join(" + ")}</p>`:""}${lm?`<p>آخر قياس: ${dmy(lm.taken_on)}${lm.weight!=null?" · "+fmtW(lm.weight)+" كجم":""}</p>`:""}</div><div style="display:grid;gap:6px"><button class="ed" style="display:inline-block;margin:0" onclick="sendNote('${x.id}')">✉ إشعار</button><button class="ed" style="display:inline-block;margin:0" onclick="setPass('${x.id}')">كلمة المرور</button></div></div>`;
+    h+=`<div class="card cl"><div style="flex:1;cursor:pointer" onclick="openClient('${x.id}','${esc(x.full_name||"عميل").replace(/'/g,"")}')"><h3>${gmap.has(x.id)?"🏋️ ":""}${esc(x.full_name||"بدون اسم")}</h3><p class="${notYet?"":bad?"no2":"ok"}"${notYet?' style="color:var(--mut);font-weight:700"':""}>${act}</p><p>اليوم: ${ar(cnt)} تمارين · ${ar(mel)} وجبات · ${ar(sup)} مكملات</p>${notYet?"":left!==null?`<p>${left>=0?`باقي ${ar(left)} يوم على نهاية البرنامج`:"البرنامج انتهى"}</p>`:'<p>لا يوجد برنامج</p>'}${ptag}${pq.length?`<p style="color:#d23b5f;font-weight:700">⏳ مطلوب منه: ${pq.map(z=>MK(z.kind)).join(" + ")}</p>`:""}${lm?`<p>آخر قياس: ${dmy(lm.taken_on)}${lm.weight!=null?" · "+fmtW(lm.weight)+" كجم":""}</p>`:""}</div><div style="display:grid;gap:6px"><button class="ed" style="display:inline-block;margin:0" onclick="sendNote('${x.id}')">✉ إشعار</button><button class="ed" style="display:inline-block;margin:0" onclick="setPass('${x.id}')">كلمة المرور</button></div></div>`;
   });
   h+=`<button class="btn o" onclick="remindNow()">🔔 التذكيرات التلقائية (معاينة / إرسال)</button><button class="btn o" onclick="out()">تسجيل الخروج</button>`;
   if(silent){
