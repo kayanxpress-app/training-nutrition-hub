@@ -659,4 +659,8 @@ body.av .amr input{pointer-events:none}
 .rhp-c{display:grid;grid-template-columns:repeat(11,1fr);gap:3px;margin-top:6px;direction:ltr}
 .rhp-c button{height:36px;border-radius:9px;border:1.5px solid var(--pc);background:transparent;color:var(--ink);font:inherit;font-size:12.5px;font-weight:800;padding:0;cursor:pointer}
 .rhp-c button.on{background:var(--pc);color:#fff}
-body.av .rhp-c button,body.av .rhk{pointer-events:none}
+.rhps{display:block;width:100%;margin-top:8px;height:42px;border-radius:12px;border:1.5px solid var(--line);background:var(--chip);color:var(--mut);font:inherit;font-weight:800;font-size:14px;cursor:pointer;transition:transform .15s var(--fs),background .2s}
+.rhps.go{background:var(--ok);border-color:var(--ok);color:#fff}
+.rhps:active:not(:disabled){transform:scale(.97)}
+.rhps:disabled{cursor:default}
+body.av .rhp-c button,body.av .rhk,body.av .rhps{pointer-events:none}
