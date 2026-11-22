@@ -472,13 +472,14 @@ const syncDates=(data,startIso)=>{const inf=data.info=data.info||{};inf.start=fm
 const BASE=()=>({info:{age:"",weight:"",height:"",start:"",end:"",days:30,minutes:""},reps:[12,10,10],energy:{bmr:"",act:"",tdee:"",plan:"",water:"",exch:[]},sessions:[],meals:{b:{t:"الفطار",note:"",opts:[]},l:{t:"الغداء",note:"",opts:[]},d:{t:"العشاء",note:"",opts:[]}},supp:[]});
 const putBlocks=(s,d,sec)=>{d.blocks=d.blocks||{};const b=(s.blocks||{})[sec];if(b&&b.length)d.blocks[sec]=clone(b);else delete d.blocks[sec]};
 const SEC={
-  train:{l:"التدريب: الجلسات والتمارين وتدرّج التكرارات",cp(s,d){d.sessions=clone(s.sessions||[]);["reps","weeks","rest"].forEach(k=>{if(s[k]!==undefined&&s[k]!==null)d[k]=clone(s[k]);else delete d[k]});if(!d.weeks&&!d.reps)d.reps=[12,10,10];putBlocks(s,d,"train")}},
+  train:{l:"التدريب: الجلسات والتمارين وتدرّج التكرارات",cp(s,d){d.sessions=clone(s.sessions||[]);if(s.rehab&&s.rehab.length)d.rehab=clone(s.rehab);else delete d.rehab;["reps","weeks","rest"].forEach(k=>{if(s[k]!==undefined&&s[k]!==null)d[k]=clone(s[k]);else delete d[k]});if(!d.weeks&&!d.reps)d.reps=[12,10,10];putBlocks(s,d,"train")}},
   food:{l:"التغذية: الوجبات والخيارات",cp(s,d){d.meals=clone(s.meals||{});putBlocks(s,d,"food")}},
   energy:{l:"السعرات والتبادلات الغذائية (بدون بيانات العميل الشخصية)",cp(s,d){d.energy=d.energy||{};const e=s.energy||{};["plan","ptn","cho"].forEach(k=>d.energy[k]=e[k]??"");d.energy.exch=clone(e.exch||[])}},
   supp:{l:"المكملات والتوصيات",cp(s,d){d.supp=clone(s.supp||[]);putBlocks(s,d,"supp")}}
 };
 const ITEM={
   sess:(it,d)=>{d.sessions=d.sessions||[];d.sessions.push(clone(it))},
+  rehab:(it,d)=>{d.rehab=d.rehab||[];d.rehab.push(clone(it))},
   meal:(it,d)=>{d.meals=d.meals||{};let k=Object.keys(d.meals).find(x=>d.meals[x].t===it.t);if(!k)k="m"+Date.now().toString(36)+Math.random().toString(36).slice(2,5);d.meals[k]=clone(it)},
   supp:(it,d)=>{d.supp=d.supp||[];d.supp.push(clone(it))}
 };
@@ -536,6 +537,7 @@ async function clientDlg(o){
 const shareSec=(...on)=>clientDlg({title:"نسخ لعملاء آخرين",on,mode:"push"});
 const pullProg=()=>clientDlg({title:"سحب برنامج من عميل آخر",on:["train","food","supp"],mode:"pull"});
 const shareSess=i=>clientDlg({title:"نسخ هذه الجلسة لعملاء آخرين",item:{type:"sess",obj:P.data.sessions[i]},mode:"push"});
+const shareRehab=i=>clientDlg({title:"نسخ بطاقة التأهيل لعملاء آخرين",item:{type:"rehab",obj:P.data.rehab[i]},mode:"push"});
 const shareMeal=k=>clientDlg({title:"نسخ هذه الوجبة لعملاء آخرين",item:{type:"meal",obj:P.data.meals[k]},mode:"push"});
 const shareSupp=i=>clientDlg({title:"نسخ هذا المكمل لعملاء آخرين",item:{type:"supp",obj:P.data.supp[i]},mode:"push"});
 
@@ -615,6 +617,7 @@ function train(){
   let h=`<p style="margin:0 2px 10px;color:var(--mut);font-size:14px">اختر الجلسة لعرض التمارين وفيديوهات الشرح.</p>`;
   dt.sessions.forEach((s,i)=>{const u=chUnread(i)+qUnreadT(qTopics(dt,"ex",i))+qUnreadT(qTopics(dt,"bk",i));h+=`<a class="card ses" href="#s${i+1}"><div class="no">${ar(i+1)}</div><div><h3>${esc(s.t)}</h3><p>${esc(s.s)}</p><p style="color:var(--or);font-weight:700">كارديو ${ar(s.cm||15)} د · ${esc(s.c)||"—"}</p><p>اليوم: ${ar(doneCount(i))} / ${ar(sessTotal(s))} تمارين</p>${u?`<p><span class="wun">💬 ${ar(u)} رسالة جديدة</span></p>`:""}</div><div class="go">‹</div></a>`});
   h+=addb("editSess(-1)","إضافة جلسة");
+  h+=rhList();
   h+=blocksBlock("train");
   h+=filesBlock("train");
   h+=repsCard();
@@ -1556,6 +1559,172 @@ async function paySend(){
   }
 }
 
+/* ===== بطاقة التأهيل (قسم التدريب) =====
+   بطاقة واحدة فيها: إحماء · تمارين (عدّات أو ثبات، بوزن أو من غيره) · كارديو، بقيم لكل أسبوع (١–٤).
+   العميل يشوف بس اللي المدرب كتبه لأسبوعه الحالي. أي أسبوع من غير قيم بيعرض قيم آخر أسبوع قبله.
+   بتتخزن جوه بيانات البرنامج (P.data.rehab) فبتتنسخ وتتنشر مع البرنامج، ومفيش أي تغيير في الجلسات العادية. */
+const RH_SECS=[["wu","الإحماء","جهّز مفاصلك وعضلاتك قبل التمرين"],["ex","تمارين التأهيل والتقوية",""],["cd","الكارديو",""]];
+let RHW=0;
+const rhWkAuto=()=>Math.min(4,Math.max(1,Math.ceil((dayNo()||1)/7)));
+const rhWeek=()=>EDIT()&&RHW?RHW:rhWkAuto();
+const rhVal=(it,w)=>{const v=it.v||{};for(let k=w;k>=1;k--)if(v[k])return{x:v[k],from:k};return null};
+const rhShow=(it,w)=>{const r=rhVal(it,w);return r&&!r.x.hide?r:null};
+const rhNum=t=>/^[\d.٠-٩٫]+$/.test(String(t).trim());
+function rhChips(it,x,sec){
+  const c=[];
+  if(sec==="cd"){if(x.mn)c.push(`${ar(x.mn)} دقيقة`);return c}
+  if(it.m==="hold"){if(x.s)c.push(`${ar(x.s)} مرات`);if(x.h)c.push(`ثبات ${ar(x.h)} ثانية`)}
+  else{if(x.s)c.push(`${ar(x.s)} مجموعات`);if(x.r)c.push(`${ar(esc(x.r))} عدة`)}
+  if(it.kg&&x.kg)c.push(rhNum(x.kg)?`${fmtW(x.kg)} كجم`:esc(x.kg));
+  return c;
+}
+function rhList(){
+  const a=P.data.rehab||[];let h="";
+  if(a.length)h+=`<p style="margin:14px 2px 8px;color:var(--mut);font-size:14px">بطاقات التأهيل</p>`;
+  const w=rhWeek();
+  a.forEach((c,i)=>{
+    const tot=(c.ex||[]).filter(it=>rhShow(it,w)).length,dn=Object.keys(L().d||{}).filter(k=>k.startsWith("r"+c.id+"_")).length,u=qUnreadT(qTopics(P.data,"rx",i));
+    h+=`<a class="card ses" href="#rh${i+1}"><div class="no">🩺</div><div><h3>${esc(c.t)}</h3>${c.s?`<p>${esc(c.s)}</p>`:""}<p style="color:var(--or);font-weight:700">الأسبوع ${ar(w)} من ٤</p><p>اليوم: ${ar(dn)} / ${ar(tot)} تمارين</p>${u?`<p><span class="wun">💬 ${ar(u)} رسالة جديدة</span></p>`:""}</div><div class="go">‹</div></a>`;
+  });
+  return h+addb("rhEditCard(-1)","إضافة بطاقة تأهيل");
+}
+function rhPainHtml(c){
+  const p=((L().p||{})[c.id])||{};
+  const row=(f,lab)=>`<div class="rhp-r"><span>${lab}</span><div class="rhp-c">${Array.from({length:11},(_,n)=>`<button type="button" class="${p[f]===n?"on":""}" style="--pc:hsl(${120-12*n},62%,42%)" onclick="rhPainSet('${c.id}','${f}',${n})">${ar(n)}</button>`).join("")}</div></div>`;
+  return `<div class="lbl" style="color:var(--or)">مقياس الألم · ٠ لا ألم ... ١٠ أشد ألم</div>${row("b","قبل التمرين")}${row("a","بعد التمرين")}${EDIT()?"":'<p class="payhint" style="margin:8px 0 0">سجّل مستوى ألمك قبل وبعد التمرين، وده بيوصل لدكتورك.</p>'}`;
+}
+function rhPainSet(cid,f,n){
+  if(EDIT())return;
+  const l=L();l.p=l.p||{};const cur=l.p[cid]=l.p[cid]||{};
+  if(cur[f]===n)delete cur[f];else cur[f]=n;
+  if(!Object.keys(cur).length)delete l.p[cid];
+  save();
+  const c=(P.data.rehab||[]).find(x=>x.id===cid),el=$("#rhpain");
+  if(el&&c)el.innerHTML=rhPainHtml(c);
+  try{if(cur[f]>=7&&once("pain"+cid+f))pushAdmin("pain",n+"/10 "+(f==="b"?"قبل":"بعد")+" التمرين")}catch(e){}
+}
+function rhPainHist(c){
+  const rows=Object.keys(LOGS).filter(d=>LOGS[d]&&LOGS[d].p&&LOGS[d].p[c.id]).sort().reverse().slice(0,14);
+  const chip=n=>n==null?'<i class="stc nn">—</i>':`<i class="stc" style="background:hsl(${120-12*n},62%,42%);color:#fff">${ar(n)}</i>`;
+  return `<div class="card"><b>سجل مستوى الألم</b>${rows.length?rows.map(d=>{const p=LOGS[d].p[c.id];return `<div class="act"><span>${ar(d.slice(5).replace("-","/"))}</span><span>قبل ${chip(p.b)} · بعد ${chip(p.a)}</span></div>`}).join(""):'<p style="color:var(--mut);margin:6px 0 0">العميل لسه ما سجّلش مستوى الألم</p>'}</div>`;
+}
+function rhRow(ci,c,sec,it,j,w,lg,u){
+  const r=rhVal(it,w),shown=!!(r&&!r.x.hide);
+  if(!shown&&!EDIT())return"";
+  const k="r"+c.id+"_"+it.id,done=sec==="ex"?!!(lg.d||{})[k]:!!u[k];
+  const chips=shown?rhChips(it,r.x,sec):[];
+  let st="";
+  if(EDIT())st=!r?"⚠ بدون قيم · مخفي عن العميل":r.x.hide?"⚠ مخفي عن العميل في هذا الأسبوع":r.from<w?`قيم الأسبوع ${ar(r.from)} (بتتكرر)`:"";
+  const hold=shown&&it.m==="hold"&&r.x.h?`<button type="button" class="brest" style="--bc:var(--or)" onclick="rhHold(${+r.x.h})"><span>⏱ ابدأ عدّاد الثبات</span><b>${ar(r.x.h)} ث</b></button>`:"";
+  return `<div class="wur ${done?"done":""}" id="rh-${k}" style="${shown?"":"opacity:.55"}">${it.url||it.img?`<div class="wuv">${vid(it.url,it.n,"sm",it.img)}</div>`:""}<div class="wub"><h3>${esc(it.n)}</h3>${chips.length?`<div class="wuc">${chips.map(x=>`<i>${x}</i>`).join("")}</div>`:""}${it.note?`<div class="rhn">${esc(it.note).replace(/\n/g,"<br>")}</div>`:""}${hold}${st?`<div class="rhs">${st}</div>`:""}${ed(`rhEditItem(${ci},'${sec}',${j})`)}${qBtn("rx:"+it.id,it.n)}</div>${shown?`<button type="button" class="wuk rhk" onclick="rhTick('${k}','${sec}','${c.id}')" aria-label="تم">${done?"✓":""}</button>`:""}</div>`;
+}
+function rehab(ci){
+  const c=(P.data.rehab||[])[ci];if(!c)return train();
+  const w=rhWeek(),lg=L(),u=lg.u||{};
+  hd(esc(c.t),`بطاقة تأهيل · الأسبوع ${ar(w)} من ٤`,true);
+  let h="";
+  if(EDIT())h+=`<div class="card"><div class="lbl" style="color:var(--or)">الأسبوع اللي بتعدّل قيمه</div><div class="rhwk">${[1,2,3,4].map(n=>`<button type="button" class="${n===w?"on":""}" onclick="rhSetW(${ci},${n})">${ar(n)}${n===rhWkAuto()?" ●":""}</button>`).join("")}</div><p class="payhint" style="margin:6px 0 0">● الأسبوع الحالي عند العميل · العميل بيشوف قيم أسبوعه فقط. أي أسبوع من غير قيم بيعرض قيم آخر أسبوع قبله.</p>${w>1?`<button type="button" class="mb" style="margin-top:10px;width:100%;padding:9px" onclick="rhCopyPrev(${ci})">⧉ نسخ قيم الأسبوع ${ar(w-1)} إلى الأسبوع ${ar(w)}</button>`:""}</div>`;
+  if(c.warn)h+=`<div class="card rhw"><b>⚠ تنبيهات مهمة</b><p>${esc(c.warn).replace(/\n/g,"<br>")}</p></div>`;
+  if(c.s)h+=`<div class="card"><p style="margin:0;line-height:1.8">${esc(c.s).replace(/\n/g,"<br>")}</p></div>`;
+  h+=`<div class="card rhp" id="rhpain">${rhPainHtml(c)}</div>`;
+  let any=false;
+  RH_SECS.forEach(([sec,t,sub])=>{
+    const rows=(c[sec]||[]).map((it,j)=>rhRow(ci,c,sec,it,j,w,lg,u)).join("");
+    if(rows)any=true;
+    if(!rows&&!EDIT())return;
+    h+=`<div class="card wu"><div class="lbl" style="color:var(--or)">${t}</div>${sub?`<div class="wus">${sub}</div>`:""}${rows||`<div class="wue">لسه مفيش ${sec==="cd"?"كارديو":"تمارين"} في هذا القسم</div>`}${addb(`rhEditItem(${ci},'${sec}',-1)`,sec==="wu"?"إضافة تمرين إحماء":sec==="cd"?"إضافة كارديو":"إضافة تمرين")}</div>`;
+  });
+  if(!any&&!EDIT())h+=`<div class="card"><div class="wue">لسه الدكتور ما كتبش تمارين الأسبوع ${ar(w)} في بطاقتك</div></div>`;
+  const qb=qBtn("rx:"+c.id,c.t);
+  if(qb)h+=`<div class="card"><b>ملاحظات الجلسة</b><p style="color:var(--mut);margin:4px 0 8px;font-size:13px">${EDIT()?"محادثة البطاقة مع العميل":"لو عندك سؤال أو الألم زاد، اكتب لدكتورك"}</p>${qb}</div>`;
+  if(EDIT())h+=rhPainHist(c)+ed(`rhEditCard(${ci})`,"تعديل اسم البطاقة / حذفها")+addb(`shareRehab(${ci})`,"نسخ هذه البطاقة لعملاء آخرين");
+  $("#app").innerHTML=h;
+}
+function rhSetW(ci,n){RHW=n;const y=window.scrollY;rehab(ci);window.scrollTo(0,y)}
+function rhCopyPrev(ci){
+  const c=(P.data.rehab||[])[ci],w=rhWeek();if(!EDIT()||!c||w<2)return;
+  if(!confirm(`نسخ قيم الأسبوع ${ar(w-1)} لكل تمارين البطاقة مكان قيم الأسبوع ${ar(w)}؟ بعدها تقدر تعدّل اللي يتغير.`))return;
+  let n=0;
+  RH_SECS.forEach(([sc])=>(c[sc]||[]).forEach(it=>{const r=rhVal(it,w-1);if(r){it.v=it.v||{};it.v[w]=clone(r.x);n++}}));
+  if(!n)return toast("مفيش قيم في الأسبوع السابق لنسخها");
+  savePD();
+}
+function rhTick(k,sec,cid){
+  if(EDIT())return;
+  const l=L(),el=$("#rh-"+k);if(!el)return;
+  const box=sec==="ex"?(l.d=l.d||{}):(l.u=l.u||{});
+  if(box[k]){delete box[k];el.classList.remove("done");el.querySelector(".wuk").textContent=""}
+  else{box[k]=1;el.classList.add("done");el.querySelector(".wuk").textContent="✓"}
+  save();
+  if(sec==="ex"){pushTick(k);rhDonePush(cid)}
+}
+function rhDonePush(cid){
+  try{
+    const c=(P.data.rehab||[]).find(x=>x.id===cid);if(!c)return;
+    const w=rhWeek(),l=L(),vis=(c.ex||[]).filter(it=>rhShow(it,w));
+    if(vis.length&&vis.every(it=>(l.d||{})["r"+c.id+"_"+it.id])&&once("rhdone"+c.id))pushAdmin("done",c.t);
+  }catch(e){}
+}
+function rhHold(sec){sec=+sec||0;if(!sec)return;restSeq([{sec,lab:"🧘 ثبات"}]);if(RTM)RTM.hold=1}
+function rhEditCard(ci){
+  if(!EDIT())return;
+  const a=P.data.rehab=P.data.rehab||[],c=ci<0?{t:"",s:"",warn:""}:a[ci];if(!c)return;
+  modal(ci<0?"إضافة بطاقة تأهيل":"تعديل بطاقة التأهيل",[{k:"t",l:"اسم البطاقة (مثال: تأهيل الانزلاق الغضروفي)",v:c.t},{k:"s",l:"وصف / تعليمات للعميل (اختياري)",type:"area",v:c.s||""},{k:"warn",l:"تنبيهات واحتياطات مهمة (اختياري) — بتظهر للعميل بشكل بارز",type:"area",v:c.warn||""}],
+    async v=>{
+      const t=(v.t||"").trim();if(!t){toast("اكتب اسم البطاقة");return false}
+      const o=ci<0?{id:nid(),wu:[],ex:[],cd:[]}:c;o.t=t;o.s=(v.s||"").trim();o.warn=(v.warn||"").trim();
+      if(ci<0)a.push(o);
+      return savePD();
+    },
+    ci<0?null:async()=>{
+      const dead=["rx:"+c.id];RH_SECS.forEach(([sc])=>(c[sc]||[]).forEach(it=>dead.push("rx:"+it.id)));
+      a.splice(ci,1);
+      if(await savePD()!==false){qPurge(dead);if(/^#rh/.test(location.hash))location.hash="train"}
+    });
+}
+function rhEditItem(ci,sec,j){
+  if(!EDIT())return;
+  const c=(P.data.rehab||[])[ci];if(!c)return;
+  const w=rhWeek(),cd=sec==="cd";c[sec]=c[sec]||[];
+  const e=j<0?{n:"",m:cd?"time":"reps",kg:0,url:"",img:"",note:"",v:{}}:c[sec][j];if(!e)return;
+  const cur=(e.v&&e.v[w])||{},HID="مخفي من هذا الأسبوع وما بعده",WK=` · الأسبوع ${ar(w)}`;
+  const f=[{k:"n",l:cd?"الجهاز والمستوى":"اسم التمرين",v:e.n}];
+  if(!cd)f.push({k:"m",l:"نوع التمرين",type:"sel",o:["عدّات","ثبات"],v:e.m==="hold"?"ثبات":"عدّات"},{k:"wt",l:"الوزن",type:"sel",o:["بدون وزن","بوزن"],v:e.kg?"بوزن":"بدون وزن"});
+  f.push({k:"url",l:"لينك فيديو يوتيوب (اختياري)",v:e.url||"",dir:"ltr"},{k:"img",l:"صورة (اختياري، وإلا تظهر صورة الفيديو)",type:"img",v:e.img||""},{k:"note",l:cd?"التوقيت / ملاحظة للعميل (مثال: قبل التمرين)":"ملاحظة للعميل (مثال: وقّف لو حسيت بألم · حركة بطيئة)",type:"area",v:e.note||""});
+  f.push({k:"hide",l:"ظهور التمرين للعميل"+WK,type:"sel",o:["ظاهر",HID],v:cur.hide?HID:"ظاهر"});
+  if(cd)f.push({k:"mn",l:"مدة الكارديو (دقائق)"+WK,type:"number",v:cur.mn||""});
+  else f.push({k:"s",l:"عدد المجموعات / المرات"+WK,type:"number",v:cur.s||""},{k:"r",l:"العدات"+WK+" — مثال: 12 أو 12-15",v:cur.r||"",dir:"ltr"},{k:"h",l:"مدة الثبات بالثواني"+WK,type:"number",v:cur.h||""},{k:"w",l:"الوزن (كجم) أو اكتب مثلًا: مطاط أخضر"+WK,v:cur.kg||"",dir:"ltr"});
+  const setup=m=>{
+    const g=k=>{const i=f.findIndex(x=>x.k===k);return i<0?null:m.querySelector(`[data-i="${i}"]`)};
+    const upd=()=>{const mt=g("m"),wt=g("wt"),hold=!!mt&&mt.value==="ثبات",wg=!!wt&&wt.value==="بوزن";
+      [["r",!hold],["h",hold],["w",wg]].forEach(([k,on])=>{const el=g(k),lb=el&&el.closest("label");if(lb)lb.style.display=on?"":"none"})};
+    ["m","wt"].forEach(k=>{const el=g(k);if(el)el.onchange=upd});upd();
+  };
+  modal(j<0?(cd?"إضافة كارديو":sec==="wu"?"إضافة تمرين إحماء":"إضافة تمرين"):"تعديل البطاقة",f,
+    async v=>{
+      const n=(v.n||"").trim();if(!n){toast("اكتب الاسم");return false}
+      const o=j<0?{id:nid(),v:{}}:Object.assign({},e);
+      o.n=n;o.url=(v.url||"").trim();o.img=v.img||"";o.note=(v.note||"").trim();
+      if(cd)o.m="time";else{o.m=v.m==="ثبات"?"hold":"reps";o.kg=v.wt==="بوزن"?1:0}
+      o.v=clone(o.v||{});
+      const hide=v.hide!=="ظاهر",x={};
+      if(hide)x.hide=1;
+      else if(cd){const mn=Math.round(+v.mn);if(mn>0)x.mn=Math.min(600,mn)}
+      else{
+        const s=Math.round(+v.s);if(s>0)x.s=Math.min(50,s);
+        if(o.m==="hold"){const h=Math.round(+v.h);if(h>0)x.h=Math.min(600,h)}
+        else{const r=String(v.r||"").trim().slice(0,40);if(r)x.r=r}
+        if(o.kg){const kg=String(v.w||"").trim().slice(0,30);if(kg)x.kg=kg}
+      }
+      // أسبوع من غير قيم وفيه أسبوع قبله: يتبع اللي قبله (بنشيل الأسبوع ده)
+      if(!hide&&!Object.keys(x).length&&j>=0&&Object.keys(o.v).some(k=>+k<w))delete o.v[w];else o.v[w]=x;
+      if(j<0)c[sec].push(o);else c[sec][j]=o;
+      return savePD();
+    },
+    j<0?null:async()=>{const dead=["rx:"+e.id];c[sec].splice(j,1);if(await savePD()!==false)qPurge(dead)},
+    setup);
+}
+
 /* ===== الأقساط المستحقة (الأدمن يحدد قيمة القسط وتاريخه → يوم الميعاد يوصل العميل إشعار وبانر لحد ما يرفع إيصال السداد) ===== */
 let INSTS=[],IOK=true,INSTQ={amt:"",due:""};
 async function loadInst(cid){
@@ -1722,7 +1891,7 @@ let LIVE_T=0,LIVE_BUSY=false,LIVE_AGAIN=false,LIVE_DIRTY=false;
 // true لو العميل/الأدمن بيكتب دلوقتي أو في نافذة مفتوحة: منعيد رسم الشاشة تحت إيده
 const busyUI=()=>{const a=document.activeElement;return !!document.querySelector(".md")||!!(a&&/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName))};
 function liveRender(){
-  const y=window.scrollY,r=location.hash.slice(1)||"home",m=/^s([1-9]\d?)$/.exec(r);
+  const y=window.scrollY,r=location.hash.slice(1)||"home",m=/^s([1-9]\d?)$/.exec(r),rh=/^rh([1-9]\d?)$/.exec(r);
   if(r==="body"){measRender();signMeas().then(ok=>{if(ok&&location.hash==="#body")measRender()});return}
   if(r==="labs"){labRender();signLab().then(ok=>{if(ok&&location.hash==="#labs")labRender()});return}
   if(!P){route();return}
@@ -1731,7 +1900,7 @@ function liveRender(){
   if(r==="payrec"){if(!PAYCHG)return;payRecRender();if(EDIT())signRec().then(ok=>{if(ok&&location.hash==="#payrec")payRecRender()});window.scrollTo(0,y);return}
   if(r==="payinst"){if(EDIT()){instRender();window.scrollTo(0,y)}return}
   if(r==="payreq")return;   // صفحة إرسال الإشعارات ليها بياناتها وحالتها (اختيارات/كتابة) فمنلمسهاش في التحديث التلقائي
-  if(m)session(+m[1]-1);else if(r==="train")train();else if(r==="food")food();else if(r==="supp")supp();else if(r==="notes")notes();else home();
+  if(m)session(+m[1]-1);else if(rh)rehab(+rh[1]-1);else if(r==="train")train();else if(r==="food")food();else if(r==="supp")supp();else if(r==="notes")notes();else home();
   window.scrollTo(0,y);
 }
 let PW=0; // آخر وقت كتبنا فيه تعديل على البرنامج (حفظ/نشر): أي جلب أقدم منه يتجاهل
@@ -1828,6 +1997,7 @@ function idsEnsure(d){
   let ch=false;
   (d.sessions||[]).forEach(s=>{if(!s.id){s.id=nid();ch=true}(s.ex||[]).forEach(e=>{if(!e.id){e.id=nid();ch=true}});(s.bk||[]).forEach(b=>{if(!b.id){b.id=nid();ch=true}(b.ex||[]).forEach(e=>{if(!e.id){e.id=nid();ch=true}})})});
   (d.supp||[]).forEach(x=>{if(!x.id){x.id=nid();ch=true}});
+  (d.rehab||[]).forEach(c=>{if(!c.id){c.id=nid();ch=true}["wu","ex","cd"].forEach(sc=>(c[sc]||[]).forEach(e=>{if(!e.id){e.id=nid();ch=true}}))});
   Object.keys(d.meals||{}).forEach(k=>{if(oidAlign(d.meals[k]))ch=true});
   return ch;
 }
@@ -1857,6 +2027,7 @@ function qTopics(d,kind,sel){
   const o=[];
   if(kind==="ml"){Object.keys(d.meals||{}).forEach(k=>{if(sel!=null&&sel!==k)return;(d.meals[k].oid||[]).forEach(id=>id&&o.push("ml:"+id))});return o}
   if(kind==="sp"){(d.supp||[]).forEach(x=>x.id&&o.push("sp:"+x.id));return o}
+  if(kind==="rx"){(d.rehab||[]).forEach((c,i)=>{if(sel!=null&&sel!==i)return;if(c.id)o.push("rx:"+c.id);["wu","ex","cd"].forEach(sc=>(c[sc]||[]).forEach(e=>e.id&&o.push("rx:"+e.id)))});return o}
   (d.sessions||[]).forEach((s,i)=>{
     if(sel!=null&&sel!==i)return;
     if(kind==="se"&&s.id)o.push("se:"+s.id);
@@ -1865,7 +2036,7 @@ function qTopics(d,kind,sel){
   });
   return o;
 }
-const qAllTopics=d=>["se","ex","bk","ml","sp"].reduce((a,k)=>a.concat(qTopics(d,k)),[]);
+const qAllTopics=d=>["se","ex","bk","ml","sp","rx"].reduce((a,k)=>a.concat(qTopics(d,k)),[]);
 // مسح محادثات العناصر المحذوفة فقط (ولو العنصر لسه موجود في برنامج تاني للعميل بنسيبه)
 async function qPurge(topics){
   if(!EDIT()||!topics||!topics.length)return;
@@ -1923,6 +2094,7 @@ function qBubblesOf(ms,emptyTxt){
 function qUrl(t){
   const [k,id]=t.split(":");
   if(k==="ml")return "./#food";if(k==="sp")return "./#supp";if(k==="ms")return "./#body";if(k==="lb")return "./#labs";
+  if(k==="rx"){const rc=P?(P.data.rehab||[]):[];const ri=rc.findIndex(c=>c.id===id||["wu","ex","cd"].some(sc=>(c[sc]||[]).some(e=>e.id===id)));return ri>=0?"./#rh"+(ri+1):"./#train"}
   const ss=P?P.data.sessions:[];
   const i=ss.findIndex(s=>k==="se"?s.id===id:k==="bk"?(s.bk||[]).some(b=>b.id===id):(s.ex||[]).some(e=>e.id===id));
   return i>=0?"./#s"+(i+1):"./#train";
@@ -2158,7 +2330,7 @@ function rtmPaint(left){
   const done=RTM.done,pct=done?100:Math.max(0,Math.min(100,100-left/RTM.total*100));
   e.className="rtm on"+(done?" fin":"");
   e.innerHTML=done
-    ?`<div class="rt1">${RTM.seq?"✅ خلص وقت البلوك، سجّل نتيجتك 💪":"✅ خلصت الراحة، كمّل تمرينك 💪"}</div><button type="button" class="rtb" onclick="restStop()">تمام</button>`
+    ?`<div class="rt1">${RTM.seq?(RTM.hold?"✅ خلص وقت الثبات، ريّح وكمّل 💪":"✅ خلص وقت البلوك، سجّل نتيجتك 💪"):"✅ خلصت الراحة، كمّل تمرينك 💪"}</div><button type="button" class="rtb" onclick="restStop()">تمام</button>`
     :`<div class="rt0"><span>${RTM.lab?esc(RTM.lab):"⏱ راحة"}</span><b>${rtmFmt(left)}</b></div><div class="rtp"><i style="width:${pct}%"></i></div><div class="rtr"><button type="button" class="rtb" onclick="restAdd(30)">+٣٠ ث</button><button type="button" class="rtb" onclick="restStop()">إيقاف</button></div>`;
 }
 function restStart(sec){
@@ -2216,12 +2388,12 @@ addEventListener("visibilitychange",()=>{
 function route(){
   rtSync();idsFix();
   if(!ME||(ADMIN&&!VIEW))return;
-  const r=location.hash.slice(1)||"home",m=/^s([1-9]\d?)$/.exec(r);
+  const r=location.hash.slice(1)||"home",m=/^s([1-9]\d?)$/.exec(r),rh=/^rh([1-9]\d?)$/.exec(r);
   if(r=="body"){measPage();["home","train","food","supp","notes"].forEach(x=>$("#n-"+x).classList.toggle("on",x=="home"));window.scrollTo(0,0);return}
   if(r=="labs"){labPage();["home","train","food","supp","notes"].forEach(x=>$("#n-"+x).classList.toggle("on",x=="home"));window.scrollTo(0,0);return}
   if(!P){empty();return}
-  if(m)session(+m[1]-1);else if(r=="train")train();else if(r=="food")food();else if(r=="supp")supp();else if(r=="notes")notes();else if(r=="pay")payPage();else if(r=="paybank")payBank();else if(r=="payrec")payRec();else if(r=="payreq"&&EDIT())payReq();else if(r=="payinst"&&EDIT())instPage();else home();
-  const cur=m?"train":(["train","food","supp","notes"].includes(r)?r:"home");
+  if(m)session(+m[1]-1);else if(rh)rehab(+rh[1]-1);else if(r=="train")train();else if(r=="food")food();else if(r=="supp")supp();else if(r=="notes")notes();else if(r=="pay")payPage();else if(r=="paybank")payBank();else if(r=="payrec")payRec();else if(r=="payreq"&&EDIT())payReq();else if(r=="payinst"&&EDIT())instPage();else home();
+  const cur=m||rh?"train":(["train","food","supp","notes"].includes(r)?r:"home");
   ["home","train","food","supp","notes"].forEach(x=>$("#n-"+x).classList.toggle("on",x==cur));
   window.scrollTo(0,0);
   qRefresh();gymLoad();
