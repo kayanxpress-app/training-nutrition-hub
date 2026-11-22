@@ -1561,12 +1561,14 @@ async function paySend(){
 
 /* ===== بطاقة التأهيل (قسم التدريب) =====
    بطاقة واحدة فيها: إحماء · تمارين (عدّات أو ثبات، بوزن أو من غيره) · كارديو، بقيم لكل أسبوع (١–٤).
-   العميل يشوف بس اللي المدرب كتبه لأسبوعه الحالي. أي أسبوع من غير قيم بيعرض قيم آخر أسبوع قبله.
+   العميل بيشوف أسابيع البطاقة الأربعة ويتنقل بينها (معاينة)، والتسجيل (الفعلي / تم التمرين) بيتفتح له في أسبوعه الحالي بس. أي أسبوع من غير قيم بيعرض قيم آخر أسبوع قبله.
    بتتخزن جوه بيانات البرنامج (P.data.rehab) فبتتنسخ وتتنشر مع البرنامج، ومفيش أي تغيير في الجلسات العادية. */
 const RH_SECS=[["wu","الإحماء","جهّز مفاصلك وعضلاتك قبل التمرين"],["ex","تمارين التأهيل والتقوية",""],["cd","الكارديو",""]];
 let RHW=0;
 const rhWkAuto=()=>Math.min(4,Math.max(1,Math.ceil((dayNo()||1)/7)));
-const rhWeek=()=>EDIT()&&RHW?RHW:rhWkAuto();
+const rhCur=()=>EDIT()&&RHW?RHW:rhWkAuto();   // الأسبوع الحالي فعليًا (للأدمن: اللي اختاره)
+const rhWeek=()=>RHW||rhWkAuto();             // الأسبوع المعروض في صفحة البطاقة (العميل والأدمن بيتنقلوا)
+const RH_WN=["الأول","الثاني","الثالث","الرابع"],rhWn=n=>RH_WN[n-1]||ar(n);
 const rhVal=(it,w)=>{const v=it.v||{};for(let k=w;k>=1;k--)if(v[k])return{x:v[k],from:k};return null};
 const rhShow=(it,w)=>{const r=rhVal(it,w);return r&&!r.x.hide?r:null};
 const rhNum=t=>/^[\d.٠-٩٫]+$/.test(String(t).trim());
@@ -1580,11 +1582,12 @@ function rhChips(it,x,sec){
 }
 function rhList(){
   const a=P.data.rehab||[];let h="";
+  if(!EDIT())RHW=0;
   if(a.length)h+=`<p style="margin:14px 2px 8px;color:var(--mut);font-size:14px">بطاقات التأهيل</p>`;
-  const w=rhWeek();
+  const w=rhCur();
   a.forEach((c,i)=>{
     const tot=(c.ex||[]).filter(it=>rhShow(it,w)).length,dn=Object.keys(L().d||{}).filter(k=>k.startsWith("r"+c.id+"_")).length,u=qUnreadT(qTopics(P.data,"rx",i));
-    h+=`<a class="card ses" href="#rh${i+1}"><div class="no">🩺</div><div><h3>${esc(c.t)}</h3>${c.s?`<p>${esc(c.s)}</p>`:""}<p style="color:var(--or);font-weight:700">الأسبوع ${ar(w)} من ٤</p><p>اليوم: ${ar(dn)} / ${ar(tot)} تمارين</p>${u?`<p><span class="wun">💬 ${ar(u)} رسالة جديدة</span></p>`:""}</div><div class="go">‹</div></a>`;
+    h+=`<a class="card ses" href="#rh${i+1}"><div class="no">🩺</div><div><h3>${esc(c.t)}</h3>${c.s?`<p>${esc(c.s)}</p>`:""}<p style="color:var(--or);font-weight:700">الأسبوع ${rhWn(w)} من ٤</p><p>اليوم: ${ar(dn)} / ${ar(tot)} تمارين</p>${u?`<p><span class="wun">💬 ${ar(u)} رسالة جديدة</span></p>`:""}</div><div class="go">‹</div></a>`;
   });
   return h+addb("rhEditCard(-1)","إضافة بطاقة تأهيل");
 }
@@ -1611,19 +1614,44 @@ function rhPainHist(c){
 function rhRow(ci,c,sec,it,j,w,lg,u){
   const r=rhVal(it,w),shown=!!(r&&!r.x.hide);
   if(!shown&&!EDIT())return"";
-  const k="r"+c.id+"_"+it.id,done=sec==="ex"?!!(lg.d||{})[k]:!!u[k];
-  const chips=shown?rhChips(it,r.x,sec):[];
+  const k="r"+c.id+"_"+it.id,x=shown?r.x:{},live=!EDIT()&&w===rhCur(),off=!EDIT()&&!live;
+  const done=off?false:(sec==="ex"?!!(lg.d||{})[k]:!!u[k]);
   let st="";
-  if(EDIT())st=!r?"⚠ بدون قيم · مخفي عن العميل":r.x.hide?"⚠ مخفي عن العميل في هذا الأسبوع":r.from<w?`قيم الأسبوع ${ar(r.from)} (بتتكرر)`:"";
-  const hold=shown&&it.m==="hold"&&r.x.h?`<button type="button" class="brest" style="--bc:var(--or)" onclick="rhHold(${+r.x.h})"><span>⏱ ابدأ عدّاد الثبات</span><b>${ar(r.x.h)} ث</b></button>`:"";
-  return `<div class="wur ${done?"done":""}" id="rh-${k}" style="${shown?"":"opacity:.55"}">${it.url||it.img?`<div class="wuv">${vid(it.url,it.n,"sm",it.img)}</div>`:""}<div class="wub"><h3>${esc(it.n)}</h3>${chips.length?`<div class="wuc">${chips.map(x=>`<i>${x}</i>`).join("")}</div>`:""}${it.note?`<div class="rhn">${esc(it.note).replace(/\n/g,"<br>")}</div>`:""}${hold}${st?`<div class="rhs">${st}</div>`:""}${ed(`rhEditItem(${ci},'${sec}',${j})`)}${qBtn("rx:"+it.id,it.n)}</div>${shown?`<button type="button" class="wuk rhk" onclick="rhTick('${k}','${sec}','${c.id}')" aria-label="تم">${done?"✓":""}</button>`:""}</div>`;
+  if(EDIT())st=!r?"⚠ بدون قيم · مخفي عن العميل":r.x.hide?"⚠ مخفي عن العميل في هذا الأسبوع":r.from<w?`قيم الأسبوع ${rhWn(r.from)} (بتتكرر)`:"";
+  const hold=shown&&it.m==="hold"&&x.h?`<button type="button" class="brest" style="--bc:var(--or)" onclick="rhHold(${+x.h})"><span>⏱ ابدأ عدّاد الثبات</span><b>${ar(x.h)} ث</b></button>`:"";
+  /* خانات المجموعات: نفس شكل كارت التمرين العادي (العدّات/الثواني + الوزن المستهدف + الفعلي) */
+  let sets="",cap="";
+  if(shown&&sec==="cd"){
+    if(x.mn)sets=`<div class="sets" style="grid-template-columns:1fr"><div><div class="rp">${ar(x.mn)} دقيقة</div></div></div>`;
+  }else if(shown){
+    const isH=it.m==="hold",n=Math.min(50,+x.s||((x.r||x.h||x.kg)?1:0));
+    if(n){
+      const hasKg=!!(it.kg&&x.kg),aw=((lg.w||{})[k])||[];
+      cap=`<div class="cap">${isH?"الثبات بالثواني":"التكرارات"}${it.kg?" · الوزن (كجم)"+(hasKg?" · المستهدف بالأخضر وسجّل وزنك الفعلي تحته":""):" · سجّل الفعلي تحته"}</div>`;
+      const rp=isH?(x.h?`${ar(x.h)} ث`:"—"):(x.r?ar(esc(x.r)):"—");
+      const tw=!it.kg?"":(hasKg?`<div class="tw">${rhNum(x.kg)?`${fmtW(x.kg)}<small>كجم</small>`:esc(x.kg)}</div>`:`<div class="tw em">—</div>`);
+      let cells="";
+      for(let q=0;q<n;q++){
+        const lw=lastW(k,q);
+        cells+=`<div><div class="rp">${rp}</div>${tw}<input type="text" inputmode="decimal" value="${off?"":esc(aw[q]||"")}" placeholder="${hasKg?"الفعلي":(lw?ar(lw):"الفعلي")}" ${off?"disabled":""} onchange="rhAct('${k}',${q},this.value)"></div>`;
+      }
+      sets=`<div class="sets" style="grid-template-columns:repeat(${Math.min(n,3)},1fr)">${cells}</div>`;
+    }
+  }
+  const vd=it.url||it.img?vid(it.url,it.n,"",it.img):"";
+  return `<div class="card ex ${done?"done":""}" id="rh-${k}" style="${shown?"":"opacity:.55"}">${vd}<div class="top"><div class="n">${ar(j+1)}</div><h3>${esc(it.n)}</h3></div>${ed(`rhEditItem(${ci},'${sec}',${j})`)}${it.note?`<div class="rhn" style="margin:0 0 6px">${esc(it.note).replace(/\n/g,"<br>")}</div>`:""}${cap}${sets}${hold}${st?`<div class="rhs">${st}</div>`:""}${shown?`<button type="button" class="chk rhk" ${off?"disabled":""} onclick="rhTick('${k}','${sec}','${c.id}')">${done?"✓ تم":"تم التمرين"}</button>`:""}${qBtn("rx:"+it.id,it.n)}</div>`;
+}
+function rhTabs(ci,w){
+  const cur=rhCur();
+  return `<div class="rhwk">${[1,2,3,4].map(n=>`<button type="button" class="${n===w?"on":""}${n===cur?" cur":""}" onclick="rhSetW(${ci},${n})"><small>الأسبوع</small><b>${rhWn(n)}</b></button>`).join("")}</div>`;
 }
 function rehab(ci){
   const c=(P.data.rehab||[])[ci];if(!c)return train();
   const w=rhWeek(),lg=L(),u=lg.u||{};
-  hd(esc(c.t),`بطاقة تأهيل · الأسبوع ${ar(w)} من ٤`,true);
+  hd(esc(c.t),`بطاقة تأهيل · الأسبوع ${rhWn(w)} من ٤`,true);
   let h="";
-  if(EDIT())h+=`<div class="card"><div class="lbl" style="color:var(--or)">الأسبوع اللي بتعدّل قيمه</div><div class="rhwk">${[1,2,3,4].map(n=>`<button type="button" class="${n===w?"on":""}" onclick="rhSetW(${ci},${n})">${ar(n)}${n===rhWkAuto()?" ●":""}</button>`).join("")}</div><p class="payhint" style="margin:6px 0 0">● الأسبوع الحالي عند العميل · العميل بيشوف قيم أسبوعه فقط. أي أسبوع من غير قيم بيعرض قيم آخر أسبوع قبله.</p>${w>1?`<button type="button" class="mb" style="margin-top:10px;width:100%;padding:9px" onclick="rhCopyPrev(${ci})">⧉ نسخ قيم الأسبوع ${ar(w-1)} إلى الأسبوع ${ar(w)}</button>`:""}</div>`;
+  if(EDIT())h+=`<div class="card"><div class="lbl" style="color:var(--or)">الأسبوع اللي بتعدّل قيمه</div>${rhTabs(ci,w)}<p class="payhint" style="margin:6px 0 0">● الأسبوع الحالي عند العميل · العميل بيقدر يتنقل ويشوف كل الأسابيع، والتسجيل بيتفتح له في أسبوعه الحالي. أي أسبوع من غير قيم بيعرض قيم آخر أسبوع قبله.</p>${w>1?`<button type="button" class="mb" style="margin-top:10px;width:100%;padding:9px" onclick="rhCopyPrev(${ci})">⧉ نسخ قيم الأسبوع ${rhWn(w-1)} إلى الأسبوع ${rhWn(w)}</button>`:""}</div>`;
+  else h+=`<div class="card"><div class="lbl" style="color:var(--or)">أسابيع البطاقة · اضغط على أي أسبوع</div>${rhTabs(ci,w)}<p class="payhint" style="margin:6px 0 0">● أسبوعك الحالي · تقدر تشوف تمارين كل أسبوع وتطوّر الأسلوب من أسبوع لأسبوع.</p>${w!==rhCur()?`<div class="rhs" style="margin-top:8px">معاينة الأسبوع ${rhWn(w)} · التسجيل متاح في أسبوعك الحالي (الأسبوع ${rhWn(rhCur())})</div>`:""}</div>`;
   if(c.warn)h+=`<div class="card rhw"><b>⚠ تنبيهات مهمة</b><p>${esc(c.warn).replace(/\n/g,"<br>")}</p></div>`;
   if(c.s)h+=`<div class="card"><p style="margin:0;line-height:1.8">${esc(c.s).replace(/\n/g,"<br>")}</p></div>`;
   h+=`<div class="card rhp" id="rhpain">${rhPainHtml(c)}</div>`;
@@ -1632,9 +1660,11 @@ function rehab(ci){
     const rows=(c[sec]||[]).map((it,j)=>rhRow(ci,c,sec,it,j,w,lg,u)).join("");
     if(rows)any=true;
     if(!rows&&!EDIT())return;
-    h+=`<div class="card wu"><div class="lbl" style="color:var(--or)">${t}</div>${sub?`<div class="wus">${sub}</div>`:""}${rows||`<div class="wue">لسه مفيش ${sec==="cd"?"كارديو":"تمارين"} في هذا القسم</div>`}${addb(`rhEditItem(${ci},'${sec}',-1)`,sec==="wu"?"إضافة تمرين إحماء":sec==="cd"?"إضافة كارديو":"إضافة تمرين")}</div>`;
+    const ab=addb(`rhEditItem(${ci},'${sec}',-1)`,sec==="wu"?"إضافة تمرين إحماء":sec==="cd"?"إضافة كارديو":"إضافة تمرين");
+    if(!rows)h+=`<div class="card wu"><div class="lbl" style="color:var(--or)">${t}</div>${sub?`<div class="wus">${sub}</div>`:""}<div class="wue">لسه مفيش ${sec==="cd"?"كارديو":"تمارين"} في هذا القسم</div>${ab}</div>`;
+    else h+=`<div class="rhsec"><div class="lbl" style="color:var(--or)">${t}</div>${sub?`<div class="wus">${sub}</div>`:""}</div>${rows}${ab}`;
   });
-  if(!any&&!EDIT())h+=`<div class="card"><div class="wue">لسه الدكتور ما كتبش تمارين الأسبوع ${ar(w)} في بطاقتك</div></div>`;
+  if(!any&&!EDIT())h+=`<div class="card"><div class="wue">لسه الدكتور ما كتبش تمارين الأسبوع ${rhWn(w)} في بطاقتك</div></div>`;
   const qb=qBtn("rx:"+c.id,c.t);
   if(qb)h+=`<div class="card"><b>ملاحظات الجلسة</b><p style="color:var(--mut);margin:4px 0 8px;font-size:13px">${EDIT()?"محادثة البطاقة مع العميل":"لو عندك سؤال أو الألم زاد، اكتب لدكتورك"}</p>${qb}</div>`;
   if(EDIT())h+=rhPainHist(c)+ed(`rhEditCard(${ci})`,"تعديل اسم البطاقة / حذفها")+addb(`shareRehab(${ci})`,"نسخ هذه البطاقة لعملاء آخرين");
@@ -1643,25 +1673,32 @@ function rehab(ci){
 function rhSetW(ci,n){RHW=n;const y=window.scrollY;rehab(ci);window.scrollTo(0,y)}
 function rhCopyPrev(ci){
   const c=(P.data.rehab||[])[ci],w=rhWeek();if(!EDIT()||!c||w<2)return;
-  if(!confirm(`نسخ قيم الأسبوع ${ar(w-1)} لكل تمارين البطاقة مكان قيم الأسبوع ${ar(w)}؟ بعدها تقدر تعدّل اللي يتغير.`))return;
+  if(!confirm(`نسخ قيم الأسبوع ${rhWn(w-1)} لكل تمارين البطاقة مكان قيم الأسبوع ${rhWn(w)}؟ بعدها تقدر تعدّل اللي يتغير.`))return;
   let n=0;
   RH_SECS.forEach(([sc])=>(c[sc]||[]).forEach(it=>{const r=rhVal(it,w-1);if(r){it.v=it.v||{};it.v[w]=clone(r.x);n++}}));
   if(!n)return toast("مفيش قيم في الأسبوع السابق لنسخها");
   savePD();
 }
 function rhTick(k,sec,cid){
-  if(EDIT())return;
+  if(EDIT()||rhWeek()!==rhCur())return;
   const l=L(),el=$("#rh-"+k);if(!el)return;
   const box=sec==="ex"?(l.d=l.d||{}):(l.u=l.u||{});
-  if(box[k]){delete box[k];el.classList.remove("done");el.querySelector(".wuk").textContent=""}
-  else{box[k]=1;el.classList.add("done");el.querySelector(".wuk").textContent="✓"}
+  if(box[k]){delete box[k];el.classList.remove("done");el.querySelector(".chk").textContent="تم التمرين"}
+  else{box[k]=1;el.classList.add("done");el.querySelector(".chk").textContent="✓ تم"}
   save();
   if(sec==="ex"){pushTick(k);rhDonePush(cid)}
+}
+/* الفعلي (وزن / ثواني / عدّات) لكل مجموعة — بيتخزن في نفس سجل اليوم l.w زي كارت التمرين العادي (مفتاح مستقل بيبدأ بـ r) */
+function rhAct(k,x,v){
+  if(EDIT()||rhWeek()!==rhCur())return;
+  const l=L();l.w=l.w||{};const a=l.w[k]=l.w[k]||[];
+  for(let q=0;q<x;q++)if(a[q]==null)a[q]="";
+  a[x]=String(v||"").trim();save();
 }
 function rhDonePush(cid){
   try{
     const c=(P.data.rehab||[]).find(x=>x.id===cid);if(!c)return;
-    const w=rhWeek(),l=L(),vis=(c.ex||[]).filter(it=>rhShow(it,w));
+    const w=rhCur(),l=L(),vis=(c.ex||[]).filter(it=>rhShow(it,w));
     if(vis.length&&vis.every(it=>(l.d||{})["r"+c.id+"_"+it.id])&&once("rhdone"+c.id))pushAdmin("done",c.t);
   }catch(e){}
 }
