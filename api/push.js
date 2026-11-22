@@ -64,6 +64,7 @@ module.exports = async (req, res) => {
           gym: { title: name + " وصل الجيم الآن 🏋️", body: "تابعه وركّز معاه أثناء تمرينه 💪", tag: "gym-" + uid },
           pay: { title: name + " أرفق إيصال السداد 💳", body: "افتح ملفه وراجع الإيصال", tag: "pay-" + uid },
           lab: { title: name + " رفع نتيجة فحص 🧪" + (label ? " · " + label : ""), body: "افتح ملفه وراجع النتيجة", tag: "lab-" + uid + "-" + label },
+          pain: { title: name + " سجّل ألم مرتفع 🔴", body: (label ? label + " · " : "") + "افتح ملفه وراجع بطاقة التأهيل", tag: "pain-" + uid + "-" + label },
           inst: { title: name + " قام بدفع قسطه 💳", body: (label ? "المبلغ: " + label + " · " : "") + "افتح ملفه وراجع الإيصال", tag: "inst-" + uid }
         };
         const m = kinds[b.kind];
