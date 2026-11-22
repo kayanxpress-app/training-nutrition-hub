@@ -722,10 +722,10 @@ body.av .rhp-c button,body.av .rhk,body.av .rhps{pointer-events:none}
 .cardio .vtg{top:7px;inset-inline-start:7px;width:32px;height:32px}
 .cardio .vtg svg{width:20px;height:20px;stroke-width:2.4}
 
-.wuv{width:38%}
-.wuv .v.vt-wu{aspect-ratio:1/1;--vr:46px 46px 12px 12px;border-width:3px}
-.wuv .vt-wu .vtg{top:9px;inset-inline-start:auto;left:0;right:0;margin:0 auto;transform:none;width:32px;height:32px;
+.wuv{width:40%;max-width:150px}
+.wuv .v.vt-wu{aspect-ratio:1/1;--vr:50%;border-width:3.5px;box-shadow:inset 0 -60px 50px -35px rgba(0,0,0,.7),0 0 0 5px rgba(238,132,52,.22),0 12px 24px -12px rgba(238,132,52,.85)}
+.wuv .vt-wu .vtg{top:11%;inset-inline-start:auto;left:0;right:0;margin:0 auto;transform:none;width:32px;height:32px;
   box-shadow:0 0 0 3px rgba(255,255,255,.28),0 6px 14px -6px rgba(0,0,0,.7)}
 .wuv .vt-wu .vtg svg{width:20px;height:20px;stroke-width:2.3}
-.wuv .vt-wu::before{top:58%}
-.wuv .vt-wu::after{top:58%}
+.wuv .vt-wu::before{top:60%}
+.wuv .vt-wu::after{top:60%}
