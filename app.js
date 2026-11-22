@@ -1591,20 +1591,34 @@ function rhList(){
   });
   return h+addb("rhEditCard(-1)","إضافة بطاقة تأهيل");
 }
+let RHPD={};   // اختيار الألم المؤقت (لسه ما اتحفظش) — مفتاحه: رقم البطاقة + قبل/بعد
 function rhPainHtml(c){
   const p=((L().p||{})[c.id])||{};
-  const row=(f,lab)=>`<div class="rhp-r"><span>${lab}</span><div class="rhp-c">${Array.from({length:11},(_,n)=>`<button type="button" class="${p[f]===n?"on":""}" style="--pc:hsl(${120-12*n},62%,42%)" onclick="rhPainSet('${c.id}','${f}',${n})">${ar(n)}</button>`).join("")}</div></div>`;
-  return `<div class="lbl" style="color:var(--or)">مقياس الألم · ٠ لا ألم ... ١٠ أشد ألم</div>${row("b","قبل التمرين")}${row("a","بعد التمرين")}${EDIT()?"":'<p class="payhint" style="margin:8px 0 0">سجّل مستوى ألمك قبل وبعد التمرين، وده بيوصل لدكتورك.</p>'}`;
+  const row=(f,lab)=>{
+    const dk=c.id+f,dv=dk in RHPD?(RHPD[dk]==null?undefined:RHPD[dk]):p[f],dirty=dv!==p[f];
+    const bt=dirty?`حفظ مستوى الألم ${lab}`:p[f]!=null?`✓ تم حفظ مستوى الألم ${lab} · ${ar(p[f])}`:`اختر الرقم ثم احفظ`;
+    return `<div class="rhp-r"><span>${lab}</span><div class="rhp-c">${Array.from({length:11},(_,n)=>`<button type="button" class="${dv===n?"on":""}" style="--pc:hsl(${120-12*n},62%,42%)" onclick="rhPainSet('${c.id}','${f}',${n})">${ar(n)}</button>`).join("")}</div><button type="button" class="rhps${dirty?" go":""}" ${dirty?"":"disabled"} onclick="rhPainSave('${c.id}','${f}')">${bt}</button></div>`;
+  };
+  return `<div class="lbl" style="color:var(--or)">مقياس الألم · ٠ لا ألم ... ١٠ أشد ألم</div>${row("b","قبل التمرين")}${row("a","بعد التمرين")}${EDIT()?"":'<p class="payhint" style="margin:10px 0 0">اختر مستوى ألمك قبل وبعد التمرين ثم اضغط حفظ، وده بيوصل لدكتورك. لو عندك سؤال أو الألم زاد، اكتب لدكتورك من زر المحادثة.</p>'}`;
 }
+function rhPainDraw(cid){const c=(P.data.rehab||[]).find(x=>x.id===cid),el=$("#rhpain");if(el&&c)el.innerHTML=rhPainHtml(c)}
 function rhPainSet(cid,f,n){
   if(EDIT())return;
+  const dk=cid+f,p=((L().p||{})[cid])||{},dv=dk in RHPD?(RHPD[dk]==null?undefined:RHPD[dk]):p[f];
+  RHPD[dk]=dv===n?null:n;   // الضغط على الرقم المختار تاني بيلغيه
+  rhPainDraw(cid);
+}
+function rhPainSave(cid,f){
+  if(EDIT())return;
+  const dk=cid+f;if(!(dk in RHPD))return;
+  const n=RHPD[dk]==null?undefined:RHPD[dk];
   const l=L();l.p=l.p||{};const cur=l.p[cid]=l.p[cid]||{};
-  if(cur[f]===n)delete cur[f];else cur[f]=n;
+  if(n===undefined)delete cur[f];else cur[f]=n;
   if(!Object.keys(cur).length)delete l.p[cid];
+  delete RHPD[dk];
   save();
-  const c=(P.data.rehab||[]).find(x=>x.id===cid),el=$("#rhpain");
-  if(el&&c)el.innerHTML=rhPainHtml(c);
-  try{if(cur[f]>=7&&once("pain"+cid+f))pushAdmin("pain",n+"/10 "+(f==="b"?"قبل":"بعد")+" التمرين")}catch(e){}
+  rhPainDraw(cid);
+  try{if(n!==undefined&&n>=7&&once("pain"+cid+f))pushAdmin("pain",n+"/10 "+(f==="b"?"قبل":"بعد")+" التمرين")}catch(e){}
 }
 function rhPainHist(c){
   const rows=Object.keys(LOGS).filter(d=>LOGS[d]&&LOGS[d].p&&LOGS[d].p[c.id]).sort().reverse().slice(0,14);
@@ -1667,7 +1681,7 @@ function rehab(ci){
   if(!any&&!EDIT())h+=`<div class="card"><div class="wue">لسه الدكتور ما كتبش تمارين الأسبوع ${rhWn(w)} في بطاقتك</div></div>`;
   h+=`<div class="card rhp" id="rhpain">${rhPainHtml(c)}</div>`;
   const qb=qBtn("rx:"+c.id,c.t);
-  if(qb)h+=`<div class="card"><b>ملاحظات الجلسة</b><p style="color:var(--mut);margin:4px 0 8px;font-size:13px">${EDIT()?"محادثة البطاقة مع العميل":"لو عندك سؤال أو الألم زاد، اكتب لدكتورك"}</p>${qb}</div>`;
+  if(qb)h+=`<div class="card"><b>ملاحظات الجلسة</b>${qb}</div>`;
   if(EDIT())h+=rhPainHist(c)+ed(`rhEditCard(${ci})`,"تعديل اسم البطاقة / حذفها")+addb(`shareRehab(${ci})`,"نسخ هذه البطاقة لعملاء آخرين");
   $("#app").innerHTML=h;
 }
