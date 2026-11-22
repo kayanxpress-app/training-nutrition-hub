@@ -23,7 +23,13 @@ function save(){if(ADMIN)return;clearTimeout(tm);tm=setTimeout(async()=>{
   if(error)toast("تعذر الحفظ، تأكد من الإنترنت")},500)}
 const lastW=(k,i)=>{const ds=Object.keys(LOGS).filter(x=>x<TODAY).sort().reverse();for(const x of ds){const w=(LOGS[x].w||{})[k];if(w&&w[i])return w[i]}return""};
 const yt=u=>{const m=/(?:shorts\/|youtu\.be\/|[?&]v=|embed\/)([\w-]{11})/.exec(u||"");return m?`https://i.ytimg.com/vi/${m[1]}/hqdefault.jpg`:""};
-const vid=(u,n,c,img)=>{const im=img||yt(u);return `<a class="v ${c||""}" href="${u||("https://www.youtube.com/results?search_query="+encodeURIComponent(n+" شرح التمرين"))}" target="_blank" rel="noopener" ${im?`style="background-image:url(${im})"`:""}><span>▶ مشاهدة الفيديو</span></a>`};
+/* ===== هوية الفريم حسب نوع التمرين: wu إحماء · ex أساسي/تأهيل · cd كارديو =====
+   الباراميتر t اختياري: لو مش موجود الناتج مطابق للقديم تمامًا. الألوان والأشكال كلها في style.css (قسم VT) */
+const VT={
+  wu:{l:"إحماء",i:'<path d="M12 3c1 3 4 4.5 4 8.5a4 4 0 0 1-8 0c0-1.7.7-2.8 1.6-3.8C10 9 11 6 12 3z"/>'},
+  ex:{l:"تمرين أساسي",i:'<path d="M6.5 6.5v11M17.5 6.5v11M3.5 9v6M20.5 9v6M6.5 12h11"/>'},
+  cd:{l:"كارديو",i:'<path d="M3 12h4l2-5 4 10 2-5h6"/>'}};
+const vid=(u,n,c,img,t,lb)=>{const im=img||yt(u),T=VT[t];return `<a class="v ${c||""}${T?" vt vt-"+t:""}" href="${u||("https://www.youtube.com/results?search_query="+encodeURIComponent(n+" شرح التمرين"))}" target="_blank" rel="noopener" ${im?`style="background-image:url(${im})"`:""}>${T?`<em class="vtg"><svg viewBox="0 0 24 24" aria-hidden="true">${T.i}</svg><b>${lb||T.l}</b></em>`:""}<span>▶ مشاهدة الفيديو</span></a>`};
 const ed=(fn,t)=>`<button class="ed" onclick="${fn}">✎ ${t||"تعديل"}</button>`;
 const addb=(fn,t)=>`<button class="addb" onclick="${fn}">+ ${t}</button>`;
 const hd=(t,sub,back)=>{
@@ -632,7 +638,7 @@ function warmup(i){
   let h=`<div class="card wu"><div class="lbl" style="color:var(--or)">الإحماء والتسخين</div><div class="wus">جهّز عضلاتك قبل التمرين الأساسي</div>`;
   h+=a.map((e,j)=>{
     const k=("w_"+(e.id||j)).replace(/[^\w-]/g,""),m=[e.sets?`${ar(e.sets)} مجموعات`:"",e.reps?`${ar(e.reps)} عدة`:"",e.w?(num.test(e.w)?`${fmtW(e.w)} كجم`:esc(e.w)):""].filter(Boolean);
-    return `<div class="wur ${u[k]?"done":""}" id="u-${k}">${e.url||e.img?`<div class="wuv">${vid(e.url,e.n,"sm",e.img)}</div>`:""}<div class="wub"><h3>${esc(e.n)}</h3><div class="wuc">${m.map(x=>`<i>${x}</i>`).join("")}</div>${ed(`editWu(${i},${j})`)}</div><button type="button" class="wuk" onclick="tgu('${k}')" aria-label="تم">${u[k]?"✓":""}</button></div>`}).join("");
+    return `<div class="wur ${u[k]?"done":""}" id="u-${k}">${e.url||e.img?`<div class="wuv">${vid(e.url,e.n,"sm",e.img,"wu")}</div>`:""}<div class="wub"><h3>${esc(e.n)}</h3><div class="wuc">${m.map(x=>`<i>${x}</i>`).join("")}</div>${ed(`editWu(${i},${j})`)}</div><button type="button" class="wuk" onclick="tgu('${k}')" aria-label="تم">${u[k]?"✓":""}</button></div>`}).join("");
   if(!a.length)h+=`<div class="wue">لسه مفيش تمارين إحماء في هذه الجلسة</div>`;
   return h+addb(`editWu(${i},-1)`,"إضافة تمرين إحماء")+`</div>`;
 }
@@ -745,7 +751,7 @@ function bkCard(i,k,b){
   h+=ed(`editBk(${i},${k})`,"تعديل البلوك");
   if(b.t==="ds"){
     const e=ex[0]||{},wkey=`${key}x0`,w=lg.w[wkey]||[];
-    h+=`<div class="bxh" style="margin-bottom:10px"><span class="bl">${bkLet(k)}١</span><h3 style="margin:0;font-size:16px;font-weight:800;flex:1">${esc(e.n)}</h3><span class="pill ${e.cls||"t1"}">${esc(e.tag||"")}</span></div>${e.url||e.img?`<div style="margin-bottom:10px">${vid(e.url,e.n,"sm",e.img)}</div>`:""}${ed(`editBkEx(${i},${k},0)`)}`;
+    h+=`<div class="bxh" style="margin-bottom:10px"><span class="bl">${bkLet(k)}١</span><h3 style="margin:0;font-size:16px;font-weight:800;flex:1">${esc(e.n)}</h3><span class="pill ${e.cls||"t1"}">${esc(e.tag||"")}</span></div>${e.url||e.img?`<div style="margin-bottom:10px">${vid(e.url,e.n,"sm",e.img,"ex")}</div>`:""}${ed(`editBkEx(${i},${k},0)`)}`;
     const r1=bkRepsWk(b,e,1,wk)[0];
     for(let r=0;r<R;r++){
       const plan=dsPlan(b,e,w[r*S]);
@@ -763,7 +769,7 @@ function bkCard(i,k,b){
     ex.forEach((e,j)=>{
       const wkey=`${key}x${j}`,w=lg.w[wkey]||[],rp=bkRepsWk(b,e,nR,wk),PW=bkPlan(b,e,wk,nR),PV=PW&&wk>1?bkPlan(b,e,wk-1,nR):null;
       const rpt=b.t==="am"?(rp[0]?`${ar(rp[0])} عدة`:"—"):b.t==="tab"?`شغل ${ar(bkTw(b))}ث · راحة ${ar(bkTr(b))}ث`:null;
-      h+=`${j?`<div class="bc">${b.t==="ci"&&+b.restSt?`⏱ راحة ${ar(+b.restSt)} ث`:b.t==="tab"?"🔁 بالتبادل":"🔗 بدون راحة"}</div>`:""}<div class="bx"><div>${vid(e.url,e.n,"",e.img)}</div><div><div class="bxh"><span class="bl">${bkLet(k)}${ar(j+1)}</span><h3>${esc(e.n)}</h3><span class="pill ${e.cls||"t1"}">${esc(e.tag||"")}</span></div><div class="sets" style="grid-template-columns:repeat(${Math.min(nR,4)},minmax(0,1fr))">${rp.map((r,x)=>`<div><div class="rp">${rpt||(r?ar(r):"—")}</div>${PW?(PW[x]?`<div class="tw">${fmtW(PW[x])}<small>كجم</small>${PV&&PW[x]>PV[x]?"<em>▲</em>":""}</div>`:`<div class="tw em">—</div>`):""}<input type="text" inputmode="decimal" value="${esc(w[x]||"")}" placeholder="${PW&&PW[x]?"الفعلي":(lastW(wkey,x)?ar(lastW(wkey,x)):"كجم")}" onchange="setW('${wkey}',${x},this.value)"></div>`).join("")}</div>${ed(`editBkEx(${i},${k},${j})`)}</div></div>`;
+      h+=`${j?`<div class="bc">${b.t==="ci"&&+b.restSt?`⏱ راحة ${ar(+b.restSt)} ث`:b.t==="tab"?"🔁 بالتبادل":"🔗 بدون راحة"}</div>`:""}<div class="bx"><div>${vid(e.url,e.n,"",e.img,"ex")}</div><div><div class="bxh"><span class="bl">${bkLet(k)}${ar(j+1)}</span><h3>${esc(e.n)}</h3><span class="pill ${e.cls||"t1"}">${esc(e.tag||"")}</span></div><div class="sets" style="grid-template-columns:repeat(${Math.min(nR,4)},minmax(0,1fr))">${rp.map((r,x)=>`<div><div class="rp">${rpt||(r?ar(r):"—")}</div>${PW?(PW[x]?`<div class="tw">${fmtW(PW[x])}<small>كجم</small>${PV&&PW[x]>PV[x]?"<em>▲</em>":""}</div>`:`<div class="tw em">—</div>`):""}<input type="text" inputmode="decimal" value="${esc(w[x]||"")}" placeholder="${PW&&PW[x]?"الفعلي":(lastW(wkey,x)?ar(lastW(wkey,x)):"كجم")}" onchange="setW('${wkey}',${x},this.value)"></div>`).join("")}</div>${ed(`editBkEx(${i},${k},${j})`)}</div></div>`;
     });
     if(T.max&&n<T.max)h+=addb(`editBkEx(${i},${k},-1)`,b.t==="ci"?"إضافة محطة":"إضافة تمرين");
     if(b.t==="am"){const rk=`${key}xr`,rv=(lg.w[rk]||[])[0]||"";h+=`<div class="amr"><label>عدد الجولات اللي خلصتها في ${ar(bkMin(b))} دقيقة</label><input type="text" inputmode="numeric" value="${esc(rv)}" placeholder="${lastW(rk,0)?"آخر مرة: "+ar(lastW(rk,0)):"مثال: ٥"}" onchange="setW('${rk}',0,this.value)"></div>`}
@@ -947,7 +953,7 @@ function editBkEx(i,k,j,chain){
 function session(i){
   const s=P.data.sessions[i];if(!s)return train();
   hd(esc(s.t),`الجلسة ${ar(i+1)} / ${ar(P.data.sessions.length)} · ${esc(s.s)}`,true);
-  let h=`<div class="card cardio"><div>${vid(s.cu,s.c,"sm",s.ci)}</div><div><div class="lbl" style="color:var(--or)">تسخين كارديو / ${ar(s.cm||15)} دقيقة</div><h3>${esc(s.c)||"—"}</h3><p>${esc(s.cw)}</p>${ed(`editCardio(${i})`)}</div></div>${EDIT()?ed(`editSess(${i})`,"تعديل عنوان الجلسة / حذفها"):""}`;
+  let h=`<div class="card cardio"><div>${vid(s.cu,s.c,"sm",s.ci,"cd")}</div><div><div class="lbl" style="color:var(--or)">تسخين كارديو / ${ar(s.cm||15)} دقيقة</div><h3>${esc(s.c)||"—"}</h3><p>${esc(s.cw)}</p>${ed(`editCardio(${i})`)}</div></div>${EDIT()?ed(`editSess(${i})`,"تعديل عنوان الجلسة / حذفها"):""}`;
   const R=REPS();
   h+='<div style="height:12px"></div>'+repsCard();
   h+=warmup(i);
@@ -955,11 +961,11 @@ function session(i){
   s.ex.forEach((e,j)=>{
     const wkN=WK()||1,cuT=String(e.reps||"").trim(),cv=cuT?cuT.split(/[\s,،]+/).filter(Boolean):null,nC=cv?(+e.sets>=1?Math.min(10,Math.round(+e.sets)):cv.length):0,RR=cv?bkReps(cuT,nC):R;
     const k=`s${i}e${j}`,w=lg.w[k]||[],PW=cv?bkPlan(null,e,wkN,nC):planW(e,wkN),PV=PW&&wkN>1?(cv?bkPlan(null,e,wkN-1,nC):planW(e,wkN-1)):null;
-    h+=`<div class="card ex ${lg.d[k]?"done":""}" id="c-${k}">${vid(e.url,e.n,"",e.img)}<div class="top"><div class="n">${ar(j+1)}</div><h3>${esc(e.n)}</h3><span class="pill ${e.cls||"t1"}">${esc(e.tag)}</span></div>${ed(`editEx(${i},${j})`)}${P.data.rest?`<button type="button" class="rest rbtn" onclick="restStart(${+P.data.rest||0})">⏱ راحة <b>${ar(P.data.rest)}</b> ثانية <span>· اضغط لبدء العدّاد</span></button>`:""}<div class="cap">${cv?`التكرارات · خاصة بالتمرين · `:WK()?`التكرارات · الأسبوع ${ar(WK())} · `:""}الوزن (كجم)${PW?" · المستهدف بالأخضر وسجّل وزنك الفعلي تحته":""}</div><div class="sets"${cv?` style="grid-template-columns:repeat(${Math.min(nC,3)},1fr)"`:""}>${RR.map((r,x)=>`<div><div class="rp">${ar(r)}</div>${PW?(PW[x]?`<div class="tw">${fmtW(PW[x])}<small>كجم</small>${PV&&PW[x]>PV[x]?"<em>▲</em>":""}</div>`:`<div class="tw em">—</div>`):""}<input type="text" inputmode="decimal" value="${esc(w[x]||"")}" placeholder="${PW&&PW[x]?"الفعلي":(lastW(k,x)?ar(lastW(k,x)):"")}" onchange="setW('${k}',${x},this.value)"></div>`).join("")}</div><button class="chk" onclick="tgl('${k}')">${lg.d[k]?"✓ تم":"تم التمرين"}</button>${qBtn(e.id?"ex:"+e.id:"",e.n)}</div>`;
+    h+=`<div class="card ex ${lg.d[k]?"done":""}" id="c-${k}">${vid(e.url,e.n,"",e.img,"ex")}<div class="top"><div class="n">${ar(j+1)}</div><h3>${esc(e.n)}</h3><span class="pill ${e.cls||"t1"}">${esc(e.tag)}</span></div>${ed(`editEx(${i},${j})`)}${P.data.rest?`<button type="button" class="rest rbtn" onclick="restStart(${+P.data.rest||0})">⏱ راحة <b>${ar(P.data.rest)}</b> ثانية <span>· اضغط لبدء العدّاد</span></button>`:""}<div class="cap">${cv?`التكرارات · خاصة بالتمرين · `:WK()?`التكرارات · الأسبوع ${ar(WK())} · `:""}الوزن (كجم)${PW?" · المستهدف بالأخضر وسجّل وزنك الفعلي تحته":""}</div><div class="sets"${cv?` style="grid-template-columns:repeat(${Math.min(nC,3)},1fr)"`:""}>${RR.map((r,x)=>`<div><div class="rp">${ar(r)}</div>${PW?(PW[x]?`<div class="tw">${fmtW(PW[x])}<small>كجم</small>${PV&&PW[x]>PV[x]?"<em>▲</em>":""}</div>`:`<div class="tw em">—</div>`):""}<input type="text" inputmode="decimal" value="${esc(w[x]||"")}" placeholder="${PW&&PW[x]?"الفعلي":(lastW(k,x)?ar(lastW(k,x)):"")}" onchange="setW('${k}',${x},this.value)"></div>`).join("")}</div><button class="chk" onclick="tgl('${k}')">${lg.d[k]?"✓ تم":"تم التمرين"}</button>${qBtn(e.id?"ex:"+e.id:"",e.n)}</div>`;
   });
   h+=bkRender(i);
   h+=addb(`editEx(${i},-1)`,"إضافة تمرين")+addb(`editEx(${i},-1,1)`,"إضافة تمرين بمواصفات خاصة")+addb(`addBlock(${i})`,"إضافة بلوك: سوبر ست · تراي ست · دروب ست");
-  if(s.ab){h+=`<div class="card dk"><div class="lbl" style="color:var(--or)">البطن · كور</div><b style="font-size:17px">${esc(s.ab.t)}</b>${ed(`editAb(${i})`)}</div><div style="display:grid;gap:10px;margin-bottom:12px">${s.ab.vids.map((v,x)=>`<div>${vid(v.url,"تمرين بطن "+(x+1),"",v.img)}${ed(`editAbv(${i},${x})`)}</div>`).join("")}</div>`}
+  if(s.ab){h+=`<div class="card dk"><div class="lbl" style="color:var(--or)">البطن · كور</div><b style="font-size:17px">${esc(s.ab.t)}</b>${ed(`editAb(${i})`)}</div><div style="display:grid;gap:10px;margin-bottom:12px">${s.ab.vids.map((v,x)=>`<div>${vid(v.url,"تمرين بطن "+(x+1),"",v.img,"ex","كور")}${ed(`editAbv(${i},${x})`)}</div>`).join("")}</div>`}
   h+=chatCard(i);
   h+=EDIT()?(s.ab?"":addb(`editAb(${i})`,"إضافة قسم البطن"))+addb(`editAbv(${i},-1)`,"إضافة فيديو بطن")+addb(`shareSess(${i})`,"نسخ هذه الجلسة لعملاء آخرين"):"";
   $("#app").innerHTML=h;
@@ -1652,7 +1658,7 @@ function rhRow(ci,c,sec,it,j,w,lg,u){
       sets=`<div class="sets" style="grid-template-columns:repeat(${Math.min(n,3)},1fr)">${cells}</div>`;
     }
   }
-  const vd=it.url||it.img?vid(it.url,it.n,"",it.img):"";
+  const vd=it.url||it.img?vid(it.url,it.n,"",it.img,sec==="wu"?"wu":sec==="cd"?"cd":"ex",sec==="ex"?"تأهيل":""):"";
   return `<div class="card ex ${done?"done":""}" id="rh-${k}" style="${shown?"":"opacity:.55"}">${vd}<div class="top"><div class="n">${ar(j+1)}</div><h3>${esc(it.n)}</h3></div>${ed(`rhEditItem(${ci},'${sec}',${j})`)}${it.note?`<div class="rhn" style="margin:0 0 6px">${esc(it.note).replace(/\n/g,"<br>")}</div>`:""}${cap}${sets}${hold}${st?`<div class="rhs">${st}</div>`:""}${shown?`<button type="button" class="chk rhk" ${off?"disabled":""} onclick="rhTick('${k}','${sec}','${c.id}')">${done?"✓ تم":"تم التمرين"}</button>`:""}${qBtn("rx:"+it.id,it.n)}</div>`;
 }
 function rhTabs(ci,w){
