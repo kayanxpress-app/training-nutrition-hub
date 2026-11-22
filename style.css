@@ -637,3 +637,17 @@ body.av .amr input{pointer-events:none}
 .blk.clu{--bc:#6d4c41}
 .blk.tab{--bc:#c026d3}
 .sh.exs.rpz{--bc:#0891b2}.sh.exs.clu{--bc:#6d4c41}.sh.exs.tab{--bc:#c026d3}
+
+/* ---------- بطاقة التأهيل ---------- */
+.rhw{border:1.5px solid rgba(214,66,95,.5);background:rgba(214,66,95,.06)}
+.rhw b{color:#c0304f}.rhw p{margin:6px 0 0;line-height:1.8;font-size:14px}
+.rhn{margin-top:6px;font-size:13px;color:var(--mut);line-height:1.7}
+.rhs{display:inline-block;margin-top:6px;font-size:11.5px;font-weight:800;color:#a9500e;background:rgba(238,132,52,.14);border-radius:8px;padding:3px 9px}
+.rhwk{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:8px}
+.rhwk button{height:42px;border-radius:12px;border:1.5px solid var(--line);background:var(--chip);color:var(--ink);font:inherit;font-weight:800;font-size:15px;cursor:pointer}
+.rhwk button.on{background:var(--or);border-color:var(--or);color:#fff}
+.rhp-r{margin-top:12px}.rhp-r>span{font-size:13px;font-weight:700;color:var(--mut)}
+.rhp-c{display:grid;grid-template-columns:repeat(11,1fr);gap:3px;margin-top:6px;direction:ltr}
+.rhp-c button{height:36px;border-radius:9px;border:1.5px solid var(--pc);background:transparent;color:var(--ink);font:inherit;font-size:12.5px;font-weight:800;padding:0;cursor:pointer}
+.rhp-c button.on{background:var(--pc);color:#fff}
+body.av .rhp-c button,body.av .rhk{pointer-events:none}
