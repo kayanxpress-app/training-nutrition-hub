@@ -664,3 +664,53 @@ body.av .amr input{pointer-events:none}
 .rhps:active:not(:disabled){transform:scale(.97)}
 .rhps:disabled{cursor:default}
 body.av .rhp-c button,body.av .rhk,body.av .rhps{pointer-events:none}
+
+/* =====================================================================
+   VT — هوية الفريم لكل نوع تمرين (شكل بصري فقط، بدون أي تأثير على المنطق)
+   بألوان اللوجو: أخضر ليموني · برتقالي · أسود
+   إحماء  = كبسولة ناعمة برتقالية                    → تسخين خفيف
+   أساسي  = مستطيل حاد أخضر بحد ليموني + ظل صلب      → ثِقل وقوة
+   كارديو = زوايا مائلة متبادلة سوداء بحد أبيض وشارة ليمونية → سرعة وحركة
+   النوع بيتميّز بـ: اللون + شكل الزوايا + شكل الإطار + شارة بأيقونة واسم
+   ===================================================================== */
+.v.vt{border:3px solid var(--bc,var(--tc,#4f9d0e));border-radius:var(--vr,18px)}
+.vt-wu{--tc:#ee8434;--tc2:#f9b673;--vr:34px;box-shadow:inset 0 -70px 60px -40px rgba(0,0,0,.7),0 0 0 4px rgba(238,132,52,.22),0 10px 22px -12px rgba(238,132,52,.8)}
+.vt-ex{--tc:#3f8a0a;--tc2:#7fd021;--bc:#8fe02c;--vr:10px;border-width:4px;box-shadow:inset 0 -70px 60px -40px rgba(0,0,0,.7),5px 5px 0 -1px #2d6a0a,0 14px 24px -14px rgba(63,138,10,.85)}
+.vt-cd{--tc:#0d150e;--tc2:#27352a;--bc:#fff;--vr:34px 8px 34px 8px;box-shadow:inset 0 -70px 60px -40px rgba(0,0,0,.7),0 0 0 2.5px #0d150e,0 10px 22px -12px rgba(0,0,0,.8)}
+.v.vt::before{background:color-mix(in srgb,var(--tc) 82%,transparent);border-color:rgba(255,255,255,.85)}
+.vt-cd::before{border-color:#8fe02c!important}
+
+/* الشارة */
+.vtg{position:absolute;top:9px;inset-inline-start:9px;z-index:2;display:inline-flex;align-items:center;gap:5px;padding:3px 11px 3px 9px;
+  background:linear-gradient(135deg,var(--tc2),var(--tc));color:#fff;font-style:normal;font-size:11.5px;font-weight:800;line-height:1.5;white-space:nowrap;
+  box-shadow:0 6px 14px -6px rgba(0,0,0,.6),inset 0 0 0 1px rgba(255,255,255,.25)}
+.vtg svg{width:14px;height:14px;flex:none;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.vtg b{font-weight:800}
+.vt-wu .vtg{border-radius:99px}
+.vt-ex .vtg{border-radius:5px;letter-spacing:.2px}
+.vt-cd .vtg{border-radius:12px 3px 12px 3px;background:#0d150e;color:#8fe02c;box-shadow:0 6px 14px -6px rgba(0,0,0,.6),inset 0 0 0 1px rgba(143,224,44,.55)}
+
+/* الأحجام الصغيرة (قائمة الإحماء / بلوكات / كارديو): أيقونة فقط داخل دائرة صغيرة */
+.wuv .vtg,.bx .vtg{top:6px;inset-inline-start:6px;padding:0;width:22px;height:22px;justify-content:center;gap:0}
+.wuv .vtg b,.bx .vtg b{display:none}
+.wuv .vtg svg,.bx .vtg svg{width:13px;height:13px}
+.wuv .v.vt-wu{--vr:999px}
+.wuv .v.vt{border-width:2.5px}
+.bx .v.vt{border-width:3px;box-shadow:inset 0 -50px 40px -30px rgba(0,0,0,.7),3px 3px 0 -1px #2d6a0a}
+.v.sm.vt .vtg{top:7px;inset-inline-start:7px}
+.cardio .vtg{top:5px;inset-inline-start:5px;padding:0;width:20px;height:20px;justify-content:center;gap:0}
+.cardio .vtg b{display:none}.cardio .vtg svg{width:12px;height:12px}
+.cardio .v.vt span{display:none}
+
+/* شريط جانبي لكارت التمرين بنفس لون النوع */
+.card.ex:has(>.v.vt-wu)::before{background:linear-gradient(180deg,#f9b673,#ee8434)}
+.card.ex:has(>.v.vt-cd)::before{background:linear-gradient(180deg,#27352a,#0d150e)}
+.card.ex.done::before{background:var(--ok)}
+.card.cardio{position:relative;overflow:hidden}
+.card.cardio::before{content:"";position:absolute;inset-inline-start:0;top:0;bottom:0;width:5px;background:linear-gradient(180deg,#27352a,#0d150e)}
+.card.cardio .lbl{color:var(--ink)!important}
+.wu>.lbl{color:var(--or)!important}
+@media (prefers-reduced-motion:no-preference){
+  .vt-cd .vtg svg{animation:vtp 1.6s ease-in-out infinite}
+  @keyframes vtp{0%,100%{transform:scale(1)}50%{transform:scale(1.18)}}
+}
