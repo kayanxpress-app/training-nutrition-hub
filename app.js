@@ -1654,9 +1654,9 @@ function rehab(ci){
   else h+=`<div class="card"><div class="lbl" style="color:var(--or)">أسابيع البطاقة · اضغط على أي أسبوع</div>${rhTabs(ci,w)}<p class="payhint" style="margin:6px 0 0">● أسبوعك الحالي · تقدر تشوف تمارين كل أسبوع وتطوّر الأسلوب من أسبوع لأسبوع.</p>${w!==rhCur()?`<div class="rhs" style="margin-top:8px">معاينة الأسبوع ${rhWn(w)} · التسجيل متاح في أسبوعك الحالي (الأسبوع ${rhWn(rhCur())})</div>`:""}</div>`;
   if(c.warn)h+=`<div class="card rhw"><b>⚠ تنبيهات مهمة</b><p>${esc(c.warn).replace(/\n/g,"<br>")}</p></div>`;
   if(c.s)h+=`<div class="card"><p style="margin:0;line-height:1.8">${esc(c.s).replace(/\n/g,"<br>")}</p></div>`;
-  h+=`<div class="card rhp" id="rhpain">${rhPainHtml(c)}</div>`;
   let any=false;
-  RH_SECS.forEach(([sec,t,sub])=>{
+  /* ترتيب العرض (للأدمن والعميل): الأسابيع ← الكارديو ← الإحماء ← التمارين ← مقياس الألم */
+  [RH_SECS[2],RH_SECS[0],RH_SECS[1]].forEach(([sec,t,sub])=>{
     const rows=(c[sec]||[]).map((it,j)=>rhRow(ci,c,sec,it,j,w,lg,u)).join("");
     if(rows)any=true;
     if(!rows&&!EDIT())return;
@@ -1665,6 +1665,7 @@ function rehab(ci){
     else h+=`<div class="rhsec"><div class="lbl" style="color:var(--or)">${t}</div>${sub?`<div class="wus">${sub}</div>`:""}</div>${rows}${ab}`;
   });
   if(!any&&!EDIT())h+=`<div class="card"><div class="wue">لسه الدكتور ما كتبش تمارين الأسبوع ${rhWn(w)} في بطاقتك</div></div>`;
+  h+=`<div class="card rhp" id="rhpain">${rhPainHtml(c)}</div>`;
   const qb=qBtn("rx:"+c.id,c.t);
   if(qb)h+=`<div class="card"><b>ملاحظات الجلسة</b><p style="color:var(--mut);margin:4px 0 8px;font-size:13px">${EDIT()?"محادثة البطاقة مع العميل":"لو عندك سؤال أو الألم زاد، اكتب لدكتورك"}</p>${qb}</div>`;
   if(EDIT())h+=rhPainHist(c)+ed(`rhEditCard(${ci})`,"تعديل اسم البطاقة / حذفها")+addb(`shareRehab(${ci})`,"نسخ هذه البطاقة لعملاء آخرين");
