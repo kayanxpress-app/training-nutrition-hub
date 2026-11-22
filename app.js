@@ -1722,19 +1722,27 @@ function rhEditCard(ci){
 function rhEditItem(ci,sec,j){
   if(!EDIT())return;
   const c=(P.data.rehab||[])[ci];if(!c)return;
-  const w=rhWeek(),cd=sec==="cd";c[sec]=c[sec]||[];
+  const cd=sec==="cd";c[sec]=c[sec]||[];
   const e=j<0?{n:"",m:cd?"time":"reps",kg:0,url:"",img:"",note:"",v:{}}:c[sec][j];if(!e)return;
-  const cur=(e.v&&e.v[w])||{},HID="مخفي من هذا الأسبوع وما بعده",WK=` · الأسبوع ${ar(w)}`;
+  const HID="مخفي من هذا الأسبوع وما بعده",WKS=[1,2,3,4];
   const f=[{k:"n",l:cd?"الجهاز والمستوى":"اسم التمرين",v:e.n}];
   if(!cd)f.push({k:"m",l:"نوع التمرين",type:"sel",o:["عدّات","ثبات"],v:e.m==="hold"?"ثبات":"عدّات"},{k:"wt",l:"الوزن",type:"sel",o:["بدون وزن","بوزن"],v:e.kg?"بوزن":"بدون وزن"});
   f.push({k:"url",l:"لينك فيديو يوتيوب (اختياري)",v:e.url||"",dir:"ltr"},{k:"img",l:"صورة (اختياري، وإلا تظهر صورة الفيديو)",type:"img",v:e.img||""},{k:"note",l:cd?"التوقيت / ملاحظة للعميل (مثال: قبل التمرين)":"ملاحظة للعميل (مثال: وقّف لو حسيت بألم · حركة بطيئة)",type:"area",v:e.note||""});
-  f.push({k:"hide",l:"ظهور التمرين للعميل"+WK,type:"sel",o:["ظاهر",HID],v:cur.hide?HID:"ظاهر"});
-  if(cd)f.push({k:"mn",l:"مدة الكارديو (دقائق)"+WK,type:"number",v:cur.mn||""});
-  else f.push({k:"s",l:"عدد المجموعات / المرات"+WK,type:"number",v:cur.s||""},{k:"r",l:"العدات"+WK+" — مثال: 12 أو 12-15",v:cur.r||"",dir:"ltr"},{k:"h",l:"مدة الثبات بالثواني"+WK,type:"number",v:cur.h||""},{k:"w",l:"الوزن (كجم) أو اكتب مثلًا: مطاط أخضر"+WK,v:cur.kg||"",dir:"ltr"});
+  /* قيم الأسابيع الأربعة كلها في نافذة واحدة. الأسبوع الفاضي بيتبع قيم الأسبوع اللي قبله (نفس منطق التخزين اللي كان موجود). */
+  WKS.forEach(n=>{
+    const cur=(e.v&&e.v[n])||{};
+    if(cd)f.push({k:"mn"+n,l:"مدة الكارديو (دقائق)",type:"number",v:cur.mn||""});
+    else f.push({k:"s"+n,l:"عدد المجموعات / المرات",type:"number",v:cur.s||""},{k:"r"+n,l:"العدات — مثال: 12 أو 12-15",v:cur.r||"",dir:"ltr"},{k:"h"+n,l:"مدة الثبات بالثواني",type:"number",v:cur.h||""},{k:"w"+n,l:"الوزن (كجم) أو اكتب مثلًا: مطاط أخضر",v:cur.kg||"",dir:"ltr"});
+    f.push({k:"hide"+n,l:"ظهور التمرين للعميل",type:"sel",o:["ظاهر",HID],v:cur.hide?HID:"ظاهر"});
+  });
   const setup=m=>{
     const g=k=>{const i=f.findIndex(x=>x.k===k);return i<0?null:m.querySelector(`[data-i="${i}"]`)};
+    WKS.forEach(n=>{
+      const first=g(cd?"mn"+n:"s"+n),lb=first&&first.closest("label");
+      if(lb)lb.insertAdjacentHTML("beforebegin",`<div class="lbl" style="color:var(--or);font-size:14px;margin:18px 0 0;padding-top:12px;border-top:1.5px solid var(--line)">الأسبوع ${rhWn(n)}${n>1?` <span style="color:var(--mut);font-weight:600;letter-spacing:0">· فاضي = نفس الأسبوع السابق</span>`:""}</div>`);
+    });
     const upd=()=>{const mt=g("m"),wt=g("wt"),hold=!!mt&&mt.value==="ثبات",wg=!!wt&&wt.value==="بوزن";
-      [["r",!hold],["h",hold],["w",wg]].forEach(([k,on])=>{const el=g(k),lb=el&&el.closest("label");if(lb)lb.style.display=on?"":"none"})};
+      WKS.forEach(n=>[["r",!hold],["h",hold],["w",wg]].forEach(([k,on])=>{const el=g(k+n),lb=el&&el.closest("label");if(lb)lb.style.display=on?"":"none"}))};
     ["m","wt"].forEach(k=>{const el=g(k);if(el)el.onchange=upd});upd();
   };
   modal(j<0?(cd?"إضافة كارديو":sec==="wu"?"إضافة تمرين إحماء":"إضافة تمرين"):"تعديل البطاقة",f,
@@ -1744,17 +1752,19 @@ function rhEditItem(ci,sec,j){
       o.n=n;o.url=(v.url||"").trim();o.img=v.img||"";o.note=(v.note||"").trim();
       if(cd)o.m="time";else{o.m=v.m==="ثبات"?"hold":"reps";o.kg=v.wt==="بوزن"?1:0}
       o.v=clone(o.v||{});
-      const hide=v.hide!=="ظاهر",x={};
-      if(hide)x.hide=1;
-      else if(cd){const mn=Math.round(+v.mn);if(mn>0)x.mn=Math.min(600,mn)}
-      else{
-        const s=Math.round(+v.s);if(s>0)x.s=Math.min(50,s);
-        if(o.m==="hold"){const h=Math.round(+v.h);if(h>0)x.h=Math.min(600,h)}
-        else{const r=String(v.r||"").trim().slice(0,40);if(r)x.r=r}
-        if(o.kg){const kg=String(v.w||"").trim().slice(0,30);if(kg)x.kg=kg}
-      }
-      // أسبوع من غير قيم وفيه أسبوع قبله: يتبع اللي قبله (بنشيل الأسبوع ده)
-      if(!hide&&!Object.keys(x).length&&j>=0&&Object.keys(o.v).some(k=>+k<w))delete o.v[w];else o.v[w]=x;
+      WKS.forEach(wk=>{
+        const hide=v["hide"+wk]!=="ظاهر",x={};
+        if(hide)x.hide=1;
+        else if(cd){const mn=Math.round(+v["mn"+wk]);if(mn>0)x.mn=Math.min(600,mn)}
+        else{
+          const s=Math.round(+v["s"+wk]);if(s>0)x.s=Math.min(50,s);
+          if(o.m==="hold"){const h=Math.round(+v["h"+wk]);if(h>0)x.h=Math.min(600,h)}
+          else{const r=String(v["r"+wk]||"").trim().slice(0,40);if(r)x.r=r}
+          if(o.kg){const kg=String(v["w"+wk]||"").trim().slice(0,30);if(kg)x.kg=kg}
+        }
+        // أسبوع من غير قيم وفيه أسبوع قبله: يتبع اللي قبله (بنشيل الأسبوع ده)
+        if(!hide&&!Object.keys(x).length&&Object.keys(o.v).some(k=>+k<wk))delete o.v[wk];else o.v[wk]=x;
+      });
       if(j<0)c[sec].push(o);else c[sec][j]=o;
       return savePD();
     },
