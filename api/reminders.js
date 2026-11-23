@@ -154,6 +154,68 @@ async function instJob(admin, today) {
   }
 }
 
+// مواعيد المتابعة المحكمة: قبل الميعاد بيوم (غدًا) نبلّغ العميل، ونبلّغ الأدمن بإشعار واحد فيه كل العملاء اللي ميعادهم غدًا.
+// مسار مستقل: أي خطأ فيه (أو لو restriction_followup.sql لسه ما اتشغلش) مبيأثرش على باقي التذكيرات. notified_at بيمنع التكرار.
+async function followJob(admin) {
+  try {
+    const pub = process.env.VAPID_PUBLIC_KEY, priv = process.env.VAPID_PRIVATE_KEY;
+    const tmr = ymd(new Date(Date.now() + 864e5));
+    const q = await admin.from("inquiry_windows").select("id,client_id,open_on").eq("open_on", tmr).is("notified_at", null);
+    if (q.error) return { skipped: true };
+    const rows0 = q.data || [];
+    if (!rows0.length) return { n: 0 };
+    const ids0 = [...new Set(rows0.map(r => r.client_id))];
+    const rs = await admin.from("account_restrictions").select("client_id").eq("active", true).in("client_id", ids0);
+    const act = new Set((rs.data || []).map(x => x.client_id));
+    const rows = rows0.filter(r => act.has(r.client_id));   // القيد لازم يكون لسه مفعّل
+    if (!rows.length) return { n: 0 };
+    webpush.setVapidDetails(process.env.VAPID_SUBJECT || "https://training-nutrition-hub.vercel.app", pub, priv);
+    const uids = [...new Set(rows.map(r => r.client_id))];
+    const pf = await admin.from("profiles").select("id,full_name").in("id", uids);
+    const ad = await admin.from("profiles").select("id").eq("role", "admin");
+    const nm = new Map((pf.data || []).map(x => [x.id, String(x.full_name || "").trim() || "عميل"]));
+    const adminIds = (ad.data || []).map(x => x.id);
+    const sb = await admin.from("push_subscriptions").select("user_id,endpoint,p256dh,auth").in("user_id", uids.concat(adminIds));
+    const subs = sb.data || [], dead = [];
+    const push = async (ids, m) => {
+      const mine = subs.filter(s => ids.includes(s.user_id));
+      const payload = JSON.stringify({ title: String(m.title).slice(0, 80), body: String(m.body).slice(0, 240), url: m.url, tag: m.tag });
+      const rr = await Promise.allSettled(mine.map(s => webpush.sendNotification({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, payload, { TTL: 43200, urgency: "high" })));
+      let ok = 0;
+      rr.forEach((x, i) => { if (x.status === "fulfilled") ok++; else if (x.reason && (x.reason.statusCode === 404 || x.reason.statusCode === 410)) dead.push(mine[i].endpoint); });
+      return ok;
+    };
+    const ds = AR(tmr.split("-").reverse().join("/"));
+    const done = [];
+    for (const r of rows) {
+      // نحجز الميعاد الأول (لو حد تاني بلّغ عنه في نفس اللحظة نتخطاه) عشان مفيش إشعار يتكرر
+      const c = await admin.from("inquiry_windows").update({ notified_at: new Date().toISOString() }).eq("id", r.id).is("notified_at", null).select("id");
+      if (c.error || !c.data || !c.data.length) continue;
+      const m = { title: "غدًا ميعاد متابعتك 📅", body: "غدًا " + ds + " ميعاد متابعتك مع الدكتور. هتقدر تستخدم زر «استفسر» والمحادثة داخل التطبيق لمدة ٢٤ ساعة.", url: "./", tag: "follow-" + r.id };
+      await admin.from("notifications").insert({ client_id: r.client_id, title: m.title, body: m.body });
+      const pushed = await push([r.client_id], m);
+      done.push({ id: r.client_id, name: nm.get(r.client_id) || "عميل", pushed });
+    }
+    // إشعار واحد للأدمن فيه كل عملاء الميعاد ده
+    let adminPushed = 0;
+    if (done.length && adminIds.length) {
+      const names = done.map(x => x.name);
+      const lst = names.slice(0, 8).join("، ") + (names.length > 8 ? " و" + AR(names.length - 8) + " آخرين" : "");
+      const one = done.length === 1;
+      adminPushed = await push(adminIds, {
+        title: one ? "📅 غدًا ميعاد متابعة " + names[0] : "📅 غدًا ميعاد متابعة " + AR(done.length) + " عملاء",
+        body: (one ? "تتفتح له أزرار «استفسر» والمحادثة ٢٤ ساعة · " + ds : lst + " · " + ds),
+        url: one ? "./?c=" + done[0].id + "&n=" + encodeURIComponent(names[0]) : "./",
+        tag: "follow-adm-" + tmr
+      });
+    }
+    if (dead.length) await admin.from("push_subscriptions").delete().in("endpoint", [...new Set(dead)]);
+    return { n: done.length, names: done.map(x => x.name), adminPushed };
+  } catch (e) {
+    return { error: String((e && e.message) || e).slice(0, 200) };
+  }
+}
+
 const NUDGE_AFTER_MIN = 60, NUDGE_UNTIL_H = 3;
 async function nudge(admin, send, webpush) {
   const now = Date.now(), today = ymd(new Date());
@@ -225,6 +287,7 @@ module.exports = async (req, res) => {
     const job = jq || (req.body && req.body.job) || "all";
     const doClients = job !== "digest", doDigest = job !== "clients";
     const INST = send && job !== "nudge" ? await instJob(admin, ymd(new Date())) : null;   // الأقساط المستحقة (مسار مستقل)
+    const FOL = send && job !== "nudge" ? await followJob(admin) : null;   // مواعيد المتابعة المحكمة (مسار مستقل)
     if (job === "nudge") {
       if (send) webpush.setVapidDetails(process.env.VAPID_SUBJECT || "https://training-nutrition-hub.vercel.app", pub, priv);
       const N = await nudge(admin, send, webpush);
@@ -269,7 +332,7 @@ module.exports = async (req, res) => {
       dg = { n: P.digest.n, names: P.digest.names, noLog: P.digest.nl, pushed };
     }
     if (dead.length) await admin.from("push_subscriptions").delete().in("endpoint", dead);
-    return res.status(200).json({ ok: true, mode: "send", date: today, items: out, digest: dg, installments: INST });
+    return res.status(200).json({ ok: true, mode: "send", date: today, items: out, digest: dg, installments: INST, followups: FOL });
   } catch (e) {
     return res.status(500).json({ error: String((e && e.message) || e).slice(0, 300) });
   }
