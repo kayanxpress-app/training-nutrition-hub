@@ -601,6 +601,7 @@ function home(){
   h+=gymCard();
   h+=payBanner();
   h+=instBanner();
+  h+=restrBanner();
   h+=pendBanner();
   h+=labBanner();
   h+=pushCard();
@@ -1938,6 +1939,28 @@ async function restrSave(){
     toast(on?"تم تفعيل القيد · أضف مواعيد المتابعة":"تم إلغاء القيد · الحساب رجع طبيعي");
   }catch(e){const b2=$("#rqs");if(b2)b2.disabled=false;toast("تعذر الحفظ")}
 }
+const nextDay=s=>{const d=new Date(s+"T00:00:00Z");d.setUTCDate(d.getUTCDate()+1);return d.toISOString().slice(0,10)};
+/* بانر العميل: «غدًا ميعاد متابعتك» (قبلها بيوم) و«اليوم ميعاد متابعتك» (يوم الميعاد). الأدمن مبيشوفوش */
+function restrBanner(){
+  if(ADMIN||!RSTR||!RSTR.active)return "";
+  const day=cairoDay(),tom=nextDay(day);
+  return INQW.filter(w=>w.open_on===day||w.open_on===tom).sort((a,b)=>a.open_on.localeCompare(b.open_on)).map(w=>w.open_on===day
+    ?`<div class="card rq payb"><b>✅ اليوم ميعاد متابعتك</b><p>أزرار «استفسر» والمحادثة متاحة لك الآن لمدة ٢٤ ساعة (لحد آخر اليوم). استغل الفرصة في أسئلتك واستفساراتك.</p></div>`
+    :`<div class="card rq payb"><b>📅 غدًا ميعاد متابعتك</b><p>غدًا ${dmy(w.open_on)} هتقدر تستخدم زر «استفسر» والمحادثة داخل التطبيق لمدة ٢٤ ساعة. جهّز استفساراتك من دلوقتي.</p></div>`).join("");
+}
+/* لو الأدمن أضاف ميعاد النهارده أو بكره: نبلّغ العميل فورًا (غير كده السيرفر هيبلّغه قبل الميعاد بيوم). notified_at بيمنع التكرار */
+async function inqNotify(w){
+  try{
+    const c=await sb.from("inquiry_windows").update({notified_at:new Date().toISOString()}).eq("id",w.id).is("notified_at",null).select("id");
+    if(c.error||!c.data||!c.data.length)return false;
+    const td=w.open_on===cairoDay(),ds=ar(w.open_on.split("-").reverse().join("/"));
+    const nt={client_id:VIEW.id,
+      title:td?"اليوم ميعاد متابعتك 📅":"غدًا ميعاد متابعتك 📅",
+      body:td?"اليوم ميعاد متابعتك مع الدكتور. أزرار «استفسر» والمحادثة متاحة لك الآن لمدة ٢٤ ساعة.":"غدًا "+ds+" ميعاد متابعتك مع الدكتور. هتقدر تستخدم زر «استفسر» والمحادثة داخل التطبيق لمدة ٢٤ ساعة."};
+    await sb.from("notifications").insert(nt);pushTo(VIEW.id,nt.title,nt.body,"./");
+    return true;
+  }catch(e){return false}
+}
 async function restrAdd(){
   if(!EDIT()||!ROK||!(RSTR&&RSTR.active))return;
   const d=RQ.due||"";
@@ -1946,11 +1969,12 @@ async function restrAdd(){
   if(INQW.some(w=>w.open_on===d))return toast("الميعاد ده مضاف قبل كده");
   const b=$("#rqa");if(b)b.disabled=true;
   try{
-    const {error}=await sb.from("inquiry_windows").insert({client_id:VIEW.id,open_on:d});
-    if(error)throw error;
+    const {data,error}=await sb.from("inquiry_windows").insert({client_id:VIEW.id,open_on:d}).select("*").single();
+    if(error||!data)throw error||new Error("x");
     RQ.due="";
+    const sent=d<=nextDay(cairoDay())?await inqNotify(data):false;
     await loadRestr(VIEW.id);restrRender();
-    toast("تمت إضافة الميعاد");
+    toast(sent?"تمت إضافة الميعاد وإرسال الإشعار للعميل":"تمت إضافة الميعاد · هيوصل العميل إشعار قبله بيوم");
   }catch(e){const b2=$("#rqa");if(b2)b2.disabled=false;toast("تعذر الحفظ")}
 }
 async function restrDel(id){
@@ -2074,7 +2098,7 @@ async function liveRefresh(force){
   LIVE_T=t;LIVE_BUSY=true;
   try{
     const cid=CID(),adm=EDIT(),t0=Date.now();
-    const sig=()=>JSON.stringify([NOTIFS.map(x=>x.id+(x.read?1:0)),REQS.map(x=>x.id+x.status),MEAS.map(x=>x.id),LABS.map(x=>x.id+(x.file_path||"")),LREQS.map(x=>x.id+x.status),INSTS.map(x=>x.id+x.status),RSTR?(RSTR.active?1:0):0,INQW.map(x=>x.id+x.open_on),inqLocked()?1:0,RECS.map(x=>x.id),PREQS.map(x=>x.id+x.status+(x.remind_count||0)),PROGS,adm?LOGS:0]);
+    const sig=()=>JSON.stringify([NOTIFS.map(x=>x.id+(x.read?1:0)),REQS.map(x=>x.id+x.status),MEAS.map(x=>x.id),LABS.map(x=>x.id+(x.file_path||"")),LREQS.map(x=>x.id+x.status),INSTS.map(x=>x.id+x.status),RSTR?(RSTR.active?1:0):0,INQW.map(x=>x.id+x.open_on),inqLocked()?1:0,cairoDay(),RECS.map(x=>x.id),PREQS.map(x=>x.id+x.status+(x.remind_count||0)),PROGS,adm?LOGS:0]);
     const before=sig(),pb=psig(),known=new Set(NOTIFS.map(x=>x.id));
     const rs0=[RSTR,INQW,ROK],ib0=[INSTS,IOK],lb0=[LABS,LREQS,LOK],m0=MEAS,r0=REQS,ok0=MOK,pw0=[PAYS,RECS,PREQS,POK];
     const q=[
