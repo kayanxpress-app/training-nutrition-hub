@@ -1659,7 +1659,7 @@ function rhRow(ci,c,sec,it,j,w,lg,u){
     }
   }
   const vd=it.url||it.img?vid(it.url,it.n,"",it.img,sec==="wu"?"wu":sec==="cd"?"cd":"ex",sec==="ex"?"تأهيل":""):"";
-  return `<div class="card ex ${done?"done":""}" id="rh-${k}" style="${shown?"":"opacity:.55"}">${vd}<div class="top"><div class="n">${ar(j+1)}</div><h3>${esc(it.n)}</h3></div>${ed(`rhEditItem(${ci},'${sec}',${j})`)}${it.note?`<div class="rhn" style="margin:0 0 6px">${esc(it.note).replace(/\n/g,"<br>")}</div>`:""}${cap}${sets}${hold}${st?`<div class="rhs">${st}</div>`:""}${shown?`<button type="button" class="chk rhk" ${off?"disabled":""} onclick="rhTick('${k}','${sec}','${c.id}')">${done?"✓ تم":"تم التمرين"}</button>`:""}${qBtn("rx:"+it.id,it.n)}</div>`;
+  return `<div class="card ex ${done?"done":""}" id="rh-${k}" style="${shown?"":"opacity:.55"}">${vd}<div class="top"><div class="n">${ar(j+1)}</div><h3>${esc(it.n)}</h3></div>${ed(`rhEditItem(${ci},'${sec}',${j})`)}${it.note?`<div class="rhn" style="margin:0 0 6px"><span class="hl">${esc(it.note).replace(/\n/g,"<br>")}</span></div>`:""}${cap}${sets}${hold}${st?`<div class="rhs">${st}</div>`:""}${shown?`<button type="button" class="chk rhk" ${off?"disabled":""} onclick="rhTick('${k}','${sec}','${c.id}')">${done?"✓ تم":"تم التمرين"}</button>`:""}${qBtn("rx:"+it.id,it.n)}</div>`;
 }
 function rhTabs(ci,w){
   const cur=rhCur();
