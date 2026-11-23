@@ -109,7 +109,7 @@ async function loadData(cid){
   const [b,c,d]=await Promise.all([
     sb.from("programs").select("*").eq("client_id",cid).order("month_start",{ascending:false}),
     sb.from("logs").select("log_date,data").eq("client_id",cid),
-    sb.from("notifications").select("*").eq("client_id",cid).order("created_at",{ascending:false}).limit(30),loadMeas(cid),loadPay(cid),loadLab(cid),loadInst(cid)]);
+    sb.from("notifications").select("*").eq("client_id",cid).order("created_at",{ascending:false}).limit(30),loadMeas(cid),loadPay(cid),loadLab(cid),loadInst(cid),loadRestr(cid)]);
   if(b.error)throw b.error;
   PROGS=b.data||[];LOGS={};(c.data||[]).forEach(r=>LOGS[r.log_date]=r.data);NOTIFS=d.data||[];
   const i=PROGS.findIndex(p=>p.month_start<=TODAY);PI=i<0?PROGS.length-1:i;P=PROGS[PI];
@@ -1345,6 +1345,7 @@ function payPage(){
   if(EDIT()){
     h+=paySlide("payreq","📣","إرسال إشعار سداد للعملاء","اكتب القيمة · اختر العملاء · تذكير المتأخرين");
     h+=paySlide("payinst","📅","الأقساط المستحقة",instSub());
+    h+=paySlide("payrestr","🔒","وضع الحساب تحت قيد المتابعة المحكمة",restrSub());
     const pr=PREQS.filter(r=>r.status==="pending"&&r.program_id===p.id);
     if(pr.length)h+=`<div class="card"><b>طلب سداد منتظر</b>${pr.map(r=>`<div class="act"><span>${ar(esc(r.amount))} · ${payDate(r.created_at)}${r.remind_count?` · ${ar(r.remind_count)} تذكير`:""}</span><button class="mb" onclick="payCancel('${r.id}')">إلغاء الطلب</button></div>`).join("")}</div>`;
   }
@@ -1869,6 +1870,96 @@ async function instDel(id){
   await loadInst(CID());instRender();
 }
 
+/* ===== وضع الحساب تحت قيد المتابعة المحكمة (الأدمن فقط يرى الزر والصفحة) =====
+   العميل تحت القيد: أزرار «استفسر» مخفية عنده، وتظهر يوم محدد فقط (٢٤ ساعة بتوقيت القاهرة). العميل العادي مبيتأثرش.
+   السيرفر (RLS) بيرجّع للعميل بس ميعاد النهارده، وبيمنع تسجيل رسالته خارج اليوم المحدد (ملف restriction.sql). */
+const RSTR_TZ="Africa/Cairo";
+let RSTR=null,INQW=[],ROK=true,RCID=null,RQ={on:null,due:""};
+const cairoDay=()=>{try{return new Intl.DateTimeFormat("en-CA",{timeZone:RSTR_TZ,year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date())}catch(e){return iso(new Date())}};
+async function loadRestr(cid){
+  try{
+    if(RCID!==cid){RCID=cid;RSTR=null;INQW=[]}
+    const [a,b]=await Promise.all([
+      sb.from("account_restrictions").select("*").eq("client_id",cid).maybeSingle(),
+      sb.from("inquiry_windows").select("*").eq("client_id",cid).order("open_on",{ascending:true}).limit(200)]);
+    ROK=!(a.error||b.error);
+    if(ROK){RSTR=a.data||null;INQW=b.data||[]}
+  }catch(e){ROK=false}
+}
+/* true = أزرار «استفسر» مخفية. الأدمن عمره ما يتقفل عليه، والعميل اللي مش تحت قيد (أو الميزة لسه متفعلتش) مفيش أي تغيير عنده */
+function inqLocked(){
+  if(ADMIN||!RSTR||!RSTR.active)return false;
+  const d=cairoDay();
+  return !INQW.some(w=>w.open_on===d);
+}
+function restrSub(){
+  if(!ROK)return "محتاجة تفعيل (ملف restriction.sql)";
+  if(!RSTR||!RSTR.active)return "غير مفعّل";
+  const n=INQW.filter(w=>w.open_on>=cairoDay()).length;
+  return n?`مفعّل · ${ar(n)} ميعاد قادم`:"مفعّل · أضف مواعيد المتابعة";
+}
+function restrPage(){
+  hd("وضع الحساب تحت قيد المتابعة المحكمة","إدارة السداد","pay");
+  RQ={on:null,due:""};
+  restrRender();
+}
+function restrRender(){
+  const A=$("#app");
+  if(!ROK){A.innerHTML=`<div class="card" style="text-align:center"><b>الميزة محتاجة تفعيل</b><p style="color:var(--mut)">شغّل ملف supabase/restriction.sql مرة واحدة في Supabase ← SQL Editor، ثم أعد تحميل الصفحة.</p></div>`;return}
+  const act=!!(RSTR&&RSTR.active);
+  if(RQ.on===null)RQ.on=act;
+  let h=`<div class="card"><div class="lbl" style="color:var(--or)">صاحب الحساب</div><h3 style="margin:6px 0 12px">${esc(VIEW?VIEW.name:"")}</h3>
+    <label class="pqr"><input type="checkbox" id="rqon" ${RQ.on?"checked":""} onchange="RQ.on=this.checked"><span class="pqn">هل ترغب في تنفيذ القيد عليه؟</span></label></div>
+    <button class="btn" id="rqs" onclick="restrSave()">حفظ</button>
+    <p class="payhint">لما القيد يتفعّل، أزرار «استفسر» بتختفي من كل أقسام العميل، وبتظهر له بس في المواعيد اللي تحددها (٢٤ ساعة لكل ميعاد، بتوقيت القاهرة). الزر والصفحة دي ظاهرين لك أنت بس.</p>`;
+  if(act){
+    const day=cairoDay();
+    h+=`<div class="card"><div class="lbl" style="color:var(--or)">إضافة مواعيد المتابعة الشهرية</div>
+      <label class="pql">تاريخ ظهور أزرار «استفسر» عند العميل<input id="rqd" type="date" value="${esc(RQ.due)}" min="${day}" oninput="RQ.due=this.value" onchange="RQ.due=this.value"></label></div>
+      <button class="btn" id="rqa" onclick="restrAdd()">إضافة الميعاد</button>`;
+    if(INQW.length){
+      const chip=x=>x.open_on===day?'<i class="stc ok">مفتوح الآن</i>':(x.open_on>day?'<i class="stc no">قادم</i>':'<i class="stc nn">انتهى</i>');
+      const srt=INQW.slice().sort((a,b)=>a.open_on.localeCompare(b.open_on));
+      h+=`<h2>المواعيد</h2><div class="card" style="padding:4px 14px">${srt.map(x=>`<div class="act"><span>${dmy(x.open_on)} ${chip(x)}</span><button class="mb" onclick="restrDel('${x.id}')">حذف</button></div>`).join("")}</div>`;
+    }
+  }
+  A.innerHTML=h;
+}
+async function restrSave(){
+  if(!EDIT()||!ROK)return;
+  const was=!!(RSTR&&RSTR.active),on=RQ.on===null?was:!!RQ.on;
+  if(!on&&!RSTR)return toast("لا يوجد قيد مفعّل على الحساب");
+  const b=$("#rqs");if(b)b.disabled=true;
+  try{
+    const {error}=await sb.from("account_restrictions").upsert({client_id:VIEW.id,active:on,updated_at:new Date().toISOString()},{onConflict:"client_id"});
+    if(error)throw error;
+    RQ.on=null;
+    await loadRestr(VIEW.id);restrRender();
+    toast(on?"تم تفعيل القيد · أضف مواعيد المتابعة":"تم إلغاء القيد · الحساب رجع طبيعي");
+  }catch(e){const b2=$("#rqs");if(b2)b2.disabled=false;toast("تعذر الحفظ")}
+}
+async function restrAdd(){
+  if(!EDIT()||!ROK||!(RSTR&&RSTR.active))return;
+  const d=RQ.due||"";
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(d))return toast("اختر تاريخ الميعاد");
+  if(d<cairoDay())return toast("اختر تاريخ النهارده أو بعده");
+  if(INQW.some(w=>w.open_on===d))return toast("الميعاد ده مضاف قبل كده");
+  const b=$("#rqa");if(b)b.disabled=true;
+  try{
+    const {error}=await sb.from("inquiry_windows").insert({client_id:VIEW.id,open_on:d});
+    if(error)throw error;
+    RQ.due="";
+    await loadRestr(VIEW.id);restrRender();
+    toast("تمت إضافة الميعاد");
+  }catch(e){const b2=$("#rqa");if(b2)b2.disabled=false;toast("تعذر الحفظ")}
+}
+async function restrDel(id){
+  if(!EDIT()||!confirm("حذف هذا الميعاد؟"))return;
+  const {error}=await sb.from("inquiry_windows").delete().eq("id",id);
+  if(error)return toast("تعذر الحذف");
+  await loadRestr(CID());restrRender();
+}
+
 /* ===== إشعارات الموبايل (Web Push) ===== */
 const PUSH_OK=()=>"serviceWorker" in navigator&&"PushManager" in window&&"Notification" in window;
 const STANDALONE=()=>window.navigator.standalone===true||(window.matchMedia&&matchMedia("(display-mode: standalone)").matches);
@@ -1967,6 +2058,7 @@ function liveRender(){
   if(r==="paybank"){if(PAYCHG){payBank();window.scrollTo(0,y)}return}
   if(r==="payrec"){if(!PAYCHG)return;payRecRender();if(EDIT())signRec().then(ok=>{if(ok&&location.hash==="#payrec")payRecRender()});window.scrollTo(0,y);return}
   if(r==="payinst"){if(EDIT()){instRender();window.scrollTo(0,y)}return}
+  if(r==="payrestr"){if(EDIT()){restrRender();window.scrollTo(0,y)}return}
   if(r==="payreq")return;   // صفحة إرسال الإشعارات ليها بياناتها وحالتها (اختيارات/كتابة) فمنلمسهاش في التحديث التلقائي
   if(m)session(+m[1]-1);else if(rh)rehab(+rh[1]-1);else if(r==="train")train();else if(r==="food")food();else if(r==="supp")supp();else if(r==="notes")notes();else home();
   window.scrollTo(0,y);
@@ -1982,19 +2074,19 @@ async function liveRefresh(force){
   LIVE_T=t;LIVE_BUSY=true;
   try{
     const cid=CID(),adm=EDIT(),t0=Date.now();
-    const sig=()=>JSON.stringify([NOTIFS.map(x=>x.id+(x.read?1:0)),REQS.map(x=>x.id+x.status),MEAS.map(x=>x.id),LABS.map(x=>x.id+(x.file_path||"")),LREQS.map(x=>x.id+x.status),INSTS.map(x=>x.id+x.status),RECS.map(x=>x.id),PREQS.map(x=>x.id+x.status+(x.remind_count||0)),PROGS,adm?LOGS:0]);
+    const sig=()=>JSON.stringify([NOTIFS.map(x=>x.id+(x.read?1:0)),REQS.map(x=>x.id+x.status),MEAS.map(x=>x.id),LABS.map(x=>x.id+(x.file_path||"")),LREQS.map(x=>x.id+x.status),INSTS.map(x=>x.id+x.status),RSTR?(RSTR.active?1:0):0,INQW.map(x=>x.id+x.open_on),inqLocked()?1:0,RECS.map(x=>x.id),PREQS.map(x=>x.id+x.status+(x.remind_count||0)),PROGS,adm?LOGS:0]);
     const before=sig(),pb=psig(),known=new Set(NOTIFS.map(x=>x.id));
-    const ib0=[INSTS,IOK],lb0=[LABS,LREQS,LOK],m0=MEAS,r0=REQS,ok0=MOK,pw0=[PAYS,RECS,PREQS,POK];
+    const rs0=[RSTR,INQW,ROK],ib0=[INSTS,IOK],lb0=[LABS,LREQS,LOK],m0=MEAS,r0=REQS,ok0=MOK,pw0=[PAYS,RECS,PREQS,POK];
     const q=[
       sb.from("notifications").select("*").eq("client_id",cid).order("created_at",{ascending:false}).limit(30),
       loadMeas(cid),
       sb.from("programs").select("*").eq("client_id",cid).order("month_start",{ascending:false})];
     // سجلات التمرين: الأدمن يحتاجها (يشوف وزن وملاحظات العميل). العميل هو اللي بيكتبها فمش بنعمل لها refetch عشان منكتبش فوق شغله.
     if(adm)q.push(sb.from("logs").select("log_date,data").eq("client_id",cid));
-    const pp=loadPay(cid,true),lp=loadLab(cid),ip=loadInst(cid);
-    const [n,,pg,lg]=await Promise.all(q);await pp;await lp;await ip;
+    const pp=loadPay(cid,true),lp=loadLab(cid),ip=loadInst(cid),rp=loadRestr(cid);
+    const [n,,pg,lg]=await Promise.all(q);await pp;await lp;await ip;await rp;
     // أثناء الجلب: ممكن النافذة تتفتح أو يتحفظ تعديل. لو حصل كده نرجّع القديم ونتجاهل النتيجة (البيانات الأحدث موجودة عندنا).
-    if(busyUI()||PW>=t0||cid!==CID()){MEAS=m0;REQS=r0;MOK=ok0;[LABS,LREQS,LOK]=lb0;[INSTS,IOK]=ib0;[PAYS,RECS,PREQS,POK]=pw0;LIVE_DIRTY=true;return}
+    if(busyUI()||PW>=t0||cid!==CID()){MEAS=m0;REQS=r0;MOK=ok0;[LABS,LREQS,LOK]=lb0;[INSTS,IOK]=ib0;[RSTR,INQW,ROK]=rs0;[PAYS,RECS,PREQS,POK]=pw0;LIVE_DIRTY=true;return}
     if(n&&!n.error&&n.data)NOTIFS=n.data;
     if(pg&&!pg.error&&pg.data){
       // نستبدل بيانات البرنامج بس لو اتغيرت فعلًا على السيرفر (عشان منبدّلش الكائنات من غير داعي)
@@ -2037,7 +2129,7 @@ function rtSync(){
   if(RT_KEY===key&&RT)return;
   rtStop();RT_KEY=key;
   const ch=sb.channel("live-"+key+"-"+Date.now()),list=key==="admin-list",f=list?null:"client_id=eq."+key;
-  ["notifications","logs","programs","measurements","measure_requests","item_chat"].concat(!list&&LOK?["lab_results","lab_requests"]:[]).concat(!list&&IOK?["installments"]:[]).forEach(t=>{
+  ["notifications","logs","programs","measurements","measure_requests","item_chat"].concat(!list&&LOK?["lab_results","lab_requests"]:[]).concat(!list&&IOK?["installments"]:[]).concat(!list&&ROK?["account_restrictions","inquiry_windows"]:[]).forEach(t=>{
     if(list&&t==="item_chat")return;
     const o={event:"*",schema:"public",table:t};if(f)o.filter=f;
     ch.on("postgres_changes",o,()=>{if(t==="item_chat")qRefresh(true);else list?setTimeout(listRefresh,1200):liveRefresh(true)});
@@ -2127,7 +2219,7 @@ function qUnreadPre(pre){if(!QOK||!ME)return 0;const me=chMe();return QC.filter(
 const qBadgeT=ts=>{const n=qUnreadT(ts);return n?` <span class="wun">${ar(n)}</span>`:""};
 const qBadge=pre=>{const n=qUnreadPre(pre);return n?` <span class="wun">${ar(n)}</span>`:""};
 function qBtn(topic,label){
-  if(!QOK||!topic)return "";
+  if(!QOK||!topic||inqLocked())return "";
   const n=qUnreadT([topic]),c=QC.filter(m=>m.topic===topic).length;
   return `<button type="button" class="qbtn${n?" un":""}" data-t="${esc(topic)}" data-l="${esc(label)}" onclick="qOpen(this,event)">💬 ${EDIT()?"محادثة":"استفسر"}${c?" · "+ar(c):""}${n?` <span class="wun">${ar(n)} جديدة</span>`:""}</button>`;
 }
@@ -2232,7 +2324,8 @@ function qClose(silent){
   if(!silent&&was&&ME&&!busyUI())liveRender(); // نحدّث الشارات بعد القفل
 }
 async function qSend(){
-  if(!QOPEN)return;const ta=document.getElementById("qin");if(!ta)return;
+  if(!QOPEN)return;
+  if(inqLocked())return toast("الاستفسار غير متاح حاليًا");const ta=document.getElementById("qin");if(!ta)return;
   const v=ta.value.trim();if(!v)return;
   if(v.length>1000)return toast("الرسالة طويلة (الحد ١٠٠٠ حرف)");
   const {t,l}=QOPEN;ta.value="";ta.style.height="auto";QD[t]="";
@@ -2251,6 +2344,7 @@ function chMsgs(i){
 const chUnread=i=>{const t=chTopic(i);return t?qUnreadT([t]):0};
 const chBubbles=i=>qBubblesOf(chMsgs(i),EDIT()?"ابدأ المحادثة مع العميل: اسأله عن التمرين وتقدمه 👇":"اكتب ملاحظاتك أو سؤالك للدكتور هنا، وهيوصله إشعار 👇");
 function chatCard(i){
+  if(inqLocked())return "";
   const who=EDIT()?"العميل":"الدكتور";
   if(!QOK)return `<div class="card"><div class="lbl" style="color:var(--or)">ملاحظات وتقدم</div><p style="color:var(--mut);font-size:14px;margin:8px 0 0">${EDIT()?"المحادثة محتاجة تشغيل ملف supabase/item_chat.sql في Supabase ← SQL Editor.":"المحادثة غير متاحة دلوقتي."}</p></div>`;
   if(!chTopic(i))return `<div class="card"><div class="lbl" style="color:var(--or)">ملاحظات وتقدم</div><p style="color:var(--mut);font-size:14px;margin:8px 0 0">جاري تجهيز المحادثة...</p></div>`;
@@ -2275,6 +2369,7 @@ async function chatEnsure(i){
 }
 async function chatSend(i){
   const ta=$("#chin"),t=chTopic(i);if(!ta||!t)return;
+  if(inqLocked())return toast("الاستفسار غير متاح حاليًا");
   const v=ta.value.trim();if(!v)return;
   if(v.length>1000)return toast("الرسالة طويلة (الحد ١٠٠٠ حرف)");
   const s=P.data.sessions[i];
@@ -2460,7 +2555,7 @@ function route(){
   if(r=="body"){measPage();["home","train","food","supp","notes"].forEach(x=>$("#n-"+x).classList.toggle("on",x=="home"));window.scrollTo(0,0);return}
   if(r=="labs"){labPage();["home","train","food","supp","notes"].forEach(x=>$("#n-"+x).classList.toggle("on",x=="home"));window.scrollTo(0,0);return}
   if(!P){empty();return}
-  if(m)session(+m[1]-1);else if(rh)rehab(+rh[1]-1);else if(r=="train")train();else if(r=="food")food();else if(r=="supp")supp();else if(r=="notes")notes();else if(r=="pay")payPage();else if(r=="paybank")payBank();else if(r=="payrec")payRec();else if(r=="payreq"&&EDIT())payReq();else if(r=="payinst"&&EDIT())instPage();else home();
+  if(m)session(+m[1]-1);else if(rh)rehab(+rh[1]-1);else if(r=="train")train();else if(r=="food")food();else if(r=="supp")supp();else if(r=="notes")notes();else if(r=="pay")payPage();else if(r=="paybank")payBank();else if(r=="payrec")payRec();else if(r=="payreq"&&EDIT())payReq();else if(r=="payinst"&&EDIT())instPage();else if(r=="payrestr"&&EDIT())restrPage();else home();
   const cur=m||rh?"train":(["train","food","supp","notes"].includes(r)?r:"home");
   ["home","train","food","supp","notes"].forEach(x=>$("#n-"+x).classList.toggle("on",x==cur));
   window.scrollTo(0,0);
