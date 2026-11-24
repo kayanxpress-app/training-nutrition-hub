@@ -278,7 +278,7 @@ function importProg(){
   });
 }
 function pubCard(){
-  return `<div class="card" style="border:2px solid ${P.published?"#3fb37f":"var(--or)"}"><b>${P.published?"✓ منشور: العميل يرى هذا البرنامج":"مسودة: العميل لا يرى هذا البرنامج بعد"}</b><button class="btn ${P.published?"o":""}" style="margin-top:10px" onclick="togglePub()">${P.published?"إلغاء النشر":"نشر البرنامج للعميل"}</button></div>`;
+  return `<div class="card" style="border:2px solid ${P.published?"#3fb37f":"var(--or)"}"><b>${P.published?"✓ منشور: العميل يرى هذا البرنامج":"مسودة: العميل لا يرى هذا البرنامج بعد"}</b><button class="btn ${P.published?"o":""}" style="margin-top:10px" onclick="togglePub()">${P.published?"إلغاء النشر":"نشر البرنامج للعميل"}</button><button class="mb" style="display:block;margin:12px auto 0" onclick="delProg('${P.id}')">🗑 حذف هذا البرنامج</button></div>`;
 }
 async function togglePub(){
   PW=Date.now();
@@ -460,10 +460,31 @@ function newMonth(){
 /* ===== برامج الأشهر الماضية: فتح + حذف نهائي (الأدمن فقط) ===== */
 let PLOPEN=false;   // القسم مقفول افتراضيًا ويفضل على حالته (مفتوح/مقفول) حتى لو الصفحة اتحدّثت
 function progTgl(){PLOPEN=!PLOPEN;const c=$("#plc"),a=$("#plar");if(c)c.style.display=PLOPEN?"":"none";if(a)a.textContent=PLOPEN?"▴":"▾"}
+/* البرنامج «الحالي» = نفس اختيار التطبيق الافتراضي. «سابق» = شهره خلص وفي برنامج أحدث منه (لو هو الوحيد يفضل هو الحالي). */
+const progEnd=p=>{const n=(p.data&&p.data.info&&+p.data.info.days)||30;return p.month_start?addDaysIso(p.month_start,n-1):""};
+function progCur(){const i=PROGS.findIndex(x=>x.month_start<=TODAY);return i<0?PROGS.length-1:i}
+const progIsPast=(p,i)=>{const e=progEnd(p);return i!==progCur()&&!!e&&e<TODAY};
+function progRow(p,i,adm){
+  const chips=adm?(i==PI?'<i class="stc ok">معروض الآن</i> ':"")+(p.published?'<i class="stc ok">منشور</i>':'<i class="stc no">مسودة</i>'):(i==PI?'<i class="stc ok">معروض الآن</i>':"");
+  return `<div class="act"><span style="flex:1;min-width:0">${esc(p.title||p.month_start)} <small style="color:var(--mut)">${ltr(fmtDmy(p.month_start))}</small> ${chips}</span>${i==PI?"":`<button class="mb" onclick="setProg(${i})">فتح</button>`}${adm?`<button class="mb" onclick="delProg('${p.id}')">حذف</button>`:""}</div>`;
+}
+/* «برامج الأشهر الماضية»: بتظهر بس لو في برنامج شهره خلص وفي برنامج أحدث منه. مفيهاش الحالي ولا القادم (منشور أو مسودة) */
 function progList(){
-  if(!EDIT()||!PROGS.length)return "";
-  const rows=PROGS.map((p,i)=>`<div class="act"><span style="flex:1;min-width:0">${esc(p.title||p.month_start)} <small style="color:var(--mut)">${ltr(fmtDmy(p.month_start))}</small> ${i==PI?'<i class="stc ok">المعروض الآن</i>':""} ${p.published?'<i class="stc ok">منشور</i>':'<i class="stc no">مسودة</i>'}</span>${i==PI?"":`<button class="mb" onclick="setProg(${i})">فتح</button>`}<button class="mb" onclick="delProg('${p.id}')">حذف</button></div>`).join("");
-  return `<div class="card"><div onclick="progTgl()" style="display:flex;justify-content:space-between;align-items:center;gap:10px;cursor:pointer"><div class="lbl" style="color:var(--or);margin:0">برامج الأشهر الماضية · ${ar(PROGS.length)}</div><span id="plar" style="color:var(--mut);font-size:16px">${PLOPEN?"▴":"▾"}</span></div><div id="plc" style="${PLOPEN?"":"display:none;"}margin-top:6px">${rows}</div></div>`;
+  const rows=PROGS.map((p,i)=>progIsPast(p,i)?progRow(p,i,EDIT()):"").join("");
+  if(!rows)return "";
+  return `<div class="card"><div onclick="progTgl()" style="display:flex;justify-content:space-between;align-items:center;gap:10px;cursor:pointer"><div class="lbl" style="color:var(--or);margin:0">برامج الأشهر الماضية</div><span id="plar" style="color:var(--mut);font-size:16px">${PLOPEN?"▴":"▾"}</span></div><div id="plc" style="${PLOPEN?"":"display:none;"}margin-top:6px">${rows}</div></div>`;
+}
+/* لو بيتعرض برنامج شهر سابق: تنبيه + رجوع للحالي (للأدمن والعميل) */
+function progBack(){
+  if(!P||!PROGS.length||!progIsPast(P,PI))return "";
+  return `<div class="card" style="border:2px solid var(--or)"><b>📂 أنت تعرض برنامج شهر سابق</b><button class="btn o" style="margin-top:10px" onclick="setProg(${progCur()})">العودة للبرنامج الحالي</button></div>`;
+}
+/* للأدمن فقط: باقي البرامج غير السابقة (الحالي/القادم) عشان يوصللها ويعدّل عليها من غير ما تتحط في «الأشهر الماضية» */
+function progOthers(){
+  if(!EDIT())return "";
+  const c=progCur(),rows=PROGS.map((p,i)=>(i===PI||progIsPast(p,i))?"":progRow(p,i,true).replace('</span>',`${i===c?' <i class="stc ok">الحالي</i>':(p.month_start>TODAY?' <i class="stc nn">قادم</i>':"")}</span>`)).join("");
+  if(!rows)return "";
+  return `<div class="card"><div class="lbl" style="color:var(--or)">برنامج الشهر الحالي والقادم</div>${rows}</div>`;
 }
 async function delProg(id){
   if(!EDIT())return;
@@ -632,8 +653,9 @@ function home(){
   h+=`<div class="card pg"><div class="sub">${esc(dt.sub||"")}</div><div class="big">${esc(dt.brand||P.title||"")}</div><div class="mem">${[["الاسم",NAME()||"—"],["العمر",inf.age],["الوزن",inf.weight],["الطول",inf.height],["البداية",ltr(fmtDmy(P.month_start))||ltr(inf.start)],["النهاية",P.month_start?ltr(fmtDmy(addDaysIso(P.month_start,(+inf.days||30)-1))):ltr(inf.end)],["المدة",inf.days?ar(inf.days)+" يومًا":""],["التمرين",inf.minutes]].map(x=>`<div><span>${x[0]}</span><b>${esc(x[1])||"—"}</b></div>`).join("")}</div>${ed("editInfo()","تعديل بيانات العميل والبرنامج")}</div>`;
   const dn=dayNo(),T=inf.days||30;
   h+=`<div class="card"><div class="hi"><b>أهلاً ${esc(NAME())}</b><span style="color:var(--mut);font-size:13px">${esc(P.title||"")}</span></div><div style="margin-top:8px;font-weight:700">${dn?`اليوم ${ar(dn)} من ${ar(T)}`:`البرنامج لسه ما بدأش · يبدأ ${ltr(fmtDmy(P.month_start))}`}</div><div class="bar"><i style="width:${dn/T*100}%"></i></div></div>`;
-  if(EDIT())h+=progList();
-  else if(PROGS.length>1)h+=`<div class="lbl" style="color:var(--or);margin:4px 2px 6px">برامج الأشهر الماضية</div><select onchange="setProg(this.value)">${PROGS.map((p,i)=>`<option value="${i}" ${i==PI?"selected":""}>${esc(p.title||p.month_start)}${EDIT()&&!p.published?" (مسودة)":""}</option>`).join("")}</select>`;
+  h+=progBack();
+  h+=progOthers();
+  h+=progList();
   h+=gymCard();
   h+=payBanner();
   h+=instBanner();
