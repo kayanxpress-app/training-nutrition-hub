@@ -458,33 +458,38 @@ function newMonth(){
   });
 }
 /* ===== برامج الأشهر الماضية: فتح + حذف نهائي (الأدمن فقط) ===== */
-let PLOPEN=false;   // القسم مقفول افتراضيًا ويفضل على حالته (مفتوح/مقفول) حتى لو الصفحة اتحدّثت
-function progTgl(){PLOPEN=!PLOPEN;const c=$("#plc"),a=$("#plar");if(c)c.style.display=PLOPEN?"":"none";if(a)a.textContent=PLOPEN?"▴":"▾"}
 /* البرنامج «الحالي» = نفس اختيار التطبيق الافتراضي. «سابق» = شهره خلص وفي برنامج أحدث منه (لو هو الوحيد يفضل هو الحالي). */
 const progEnd=p=>{const n=(p.data&&p.data.info&&+p.data.info.days)||30;return p.month_start?addDaysIso(p.month_start,n-1):""};
 function progCur(){const i=PROGS.findIndex(x=>x.month_start<=TODAY);return i<0?PROGS.length-1:i}
 const progIsPast=(p,i)=>{const e=progEnd(p);return i!==progCur()&&!!e&&e<TODAY};
-function progRow(p,i,adm){
-  const chips=adm?(i==PI?'<i class="stc ok">معروض الآن</i> ':"")+(p.published?'<i class="stc ok">منشور</i>':'<i class="stc no">مسودة</i>'):(i==PI?'<i class="stc ok">معروض الآن</i>':"");
-  return `<div class="act"><span style="flex:1;min-width:0">${esc(p.title||p.month_start)} <small style="color:var(--mut)">${ltr(fmtDmy(p.month_start))}</small> ${chips}</span>${i==PI?"":`<button class="mb" onclick="setProg(${i})">فتح</button>`}${adm?`<button class="mb" onclick="delProg('${p.id}')">حذف</button>`:""}</div>`;
+const progSt=p=>{const e=progEnd(p);return p.month_start>TODAY?["قادم","nn"]:(e&&e<TODAY?["منتهي","nn"]:["جاري","ok"])};
+function progRow(p,i,adm,showSt){
+  const st=progSt(p);
+  const chips=(showSt?`<i class="stc ${st[1]}">${st[0]}</i>`:"")+(adm?(p.published?'<i class="stc ok">منشور</i>':'<i class="stc no">مسودة</i>'):"")+(i==PI?'<i class="stc nn">معروض</i>':"");
+  return `<div class="act"><div style="flex:1;min-width:0"><div><b>${esc(p.title||p.month_start)}</b> <small style="color:var(--mut)">${ltr(fmtDmy(p.month_start))}</small></div>${chips?`<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px">${chips}</div>`:""}</div>${i==PI?"":`<button class="mb" onclick="openProg(${i})">فتح</button>`}${adm?`<button class="mb" onclick="delProg('${p.id}')">حذف</button>`:""}</div>`;
 }
-/* «برامج الأشهر الماضية»: بتظهر بس لو في برنامج شهره خلص وفي برنامج أحدث منه. مفيهاش الحالي ولا القادم (منشور أو مسودة) */
-function progList(){
-  const rows=PROGS.map((p,i)=>progIsPast(p,i)?progRow(p,i,EDIT()):"").join("");
-  if(!rows)return "";
-  return `<div class="card"><div onclick="progTgl()" style="display:flex;justify-content:space-between;align-items:center;gap:10px;cursor:pointer"><div class="lbl" style="color:var(--or);margin:0">برامج الأشهر الماضية</div><span id="plar" style="color:var(--mut);font-size:16px">${PLOPEN?"▴":"▾"}</span></div><div id="plc" style="${PLOPEN?"":"display:none;"}margin-top:6px">${rows}</div></div>`;
+function openProg(i){PI=+i;P=PROGS[PI];location.hash="home";window.scrollTo(0,0)}
+/* شريط واحد صغير في الرئيسية يفتح صفحة البرامج (مهما زادت البرامج مبياخدش مساحة).
+   الأدمن: بيظهر لو في أكتر من برنامج. العميل: بيظهر بس لو في برنامج شهره خلص. */
+function progBar(){
+  if(!P||!PROGS.length)return "";
+  const adm=EDIT(),past=PROGS.filter((p,i)=>progIsPast(p,i)).length;
+  if(adm?PROGS.length<2:!past)return "";
+  return `<a class="card" href="#progs" style="display:flex;align-items:center;justify-content:space-between;gap:10px;text-decoration:none;color:inherit"><div style="min-width:0"><b>${adm?"برامج العميل":"برامج الأشهر الماضية"}</b><div style="color:var(--mut);font-size:13px;margin-top:2px">${adm?"المعروض: "+esc(P.title||P.month_start):"عرض البرامج السابقة"}</div></div><span style="display:flex;align-items:center;gap:10px;flex:none">${adm?`<i class="stc nn">${ar(PROGS.length)}</i>`:""}<span style="color:var(--mut);font-size:22px;line-height:1">‹</span></span></a>`;
+}
+function progsPage(){
+  hd(EDIT()?"برامج العميل":"برامج الأشهر الماضية","Training Nutrition Hub","home");
+  const adm=EDIT(),c=progCur(),cur=[],past=[];
+  PROGS.forEach((p,i)=>{if(progIsPast(p,i))past.push(progRow(p,i,adm,false));else if(adm||i===c)cur.push(progRow(p,i,adm,true))});
+  let h="";
+  if(cur.length)h+=`<div class="card"><div class="lbl" style="color:var(--or)">${adm?"البرنامج الحالي والقادم":"البرنامج الحالي"}</div>${cur.join("")}</div>`;
+  if(past.length)h+=`<div class="card"><div class="lbl" style="color:var(--or)">برامج الأشهر الماضية</div>${past.join("")}</div>`;
+  $("#app").innerHTML=h||`<div class="card" style="text-align:center"><b>لا توجد برامج</b></div>`;
 }
 /* لو بيتعرض برنامج شهر سابق: تنبيه + رجوع للحالي (للأدمن والعميل) */
 function progBack(){
   if(!P||!PROGS.length||!progIsPast(P,PI))return "";
   return `<div class="card" style="border:2px solid var(--or)"><b>📂 أنت تعرض برنامج شهر سابق</b><button class="btn o" style="margin-top:10px" onclick="setProg(${progCur()})">العودة للبرنامج الحالي</button></div>`;
-}
-/* للأدمن فقط: باقي البرامج غير السابقة (الحالي/القادم) عشان يوصللها ويعدّل عليها من غير ما تتحط في «الأشهر الماضية» */
-function progOthers(){
-  if(!EDIT())return "";
-  const c=progCur(),rows=PROGS.map((p,i)=>(i===PI||progIsPast(p,i))?"":progRow(p,i,true).replace('</span>',`${i===c?' <i class="stc ok">الحالي</i>':(p.month_start>TODAY?' <i class="stc nn">قادم</i>':"")}</span>`)).join("");
-  if(!rows)return "";
-  return `<div class="card"><div class="lbl" style="color:var(--or)">برنامج الشهر الحالي والقادم</div>${rows}</div>`;
 }
 async function delProg(id){
   if(!EDIT())return;
@@ -654,8 +659,7 @@ function home(){
   const dn=dayNo(),T=inf.days||30;
   h+=`<div class="card"><div class="hi"><b>أهلاً ${esc(NAME())}</b><span style="color:var(--mut);font-size:13px">${esc(P.title||"")}</span></div><div style="margin-top:8px;font-weight:700">${dn?`اليوم ${ar(dn)} من ${ar(T)}`:`البرنامج لسه ما بدأش · يبدأ ${ltr(fmtDmy(P.month_start))}`}</div><div class="bar"><i style="width:${dn/T*100}%"></i></div></div>`;
   h+=progBack();
-  h+=progOthers();
-  h+=progList();
+  h+=progBar();
   h+=gymCard();
   h+=payBanner();
   h+=instBanner();
@@ -2141,6 +2145,7 @@ function liveRender(){
   if(r==="payrec"){if(!PAYCHG)return;payRecRender();if(EDIT())signRec().then(ok=>{if(ok&&location.hash==="#payrec")payRecRender()});window.scrollTo(0,y);return}
   if(r==="payinst"){if(EDIT()){instRender();window.scrollTo(0,y)}return}
   if(r==="payrestr"){if(EDIT()){restrRender();window.scrollTo(0,y)}return}
+  if(r==="progs"){progsPage();window.scrollTo(0,y);return}
   if(r==="payreq")return;   // صفحة إرسال الإشعارات ليها بياناتها وحالتها (اختيارات/كتابة) فمنلمسهاش في التحديث التلقائي
   if(m)session(+m[1]-1);else if(rh)rehab(+rh[1]-1);else if(r==="train")train();else if(r==="food")food();else if(r==="supp")supp();else if(r==="notes")notes();else home();
   window.scrollTo(0,y);
@@ -2637,7 +2642,7 @@ function route(){
   if(r=="body"){measPage();["home","train","food","supp","notes"].forEach(x=>$("#n-"+x).classList.toggle("on",x=="home"));window.scrollTo(0,0);return}
   if(r=="labs"){labPage();["home","train","food","supp","notes"].forEach(x=>$("#n-"+x).classList.toggle("on",x=="home"));window.scrollTo(0,0);return}
   if(!P){empty();return}
-  if(m)session(+m[1]-1);else if(rh)rehab(+rh[1]-1);else if(r=="train")train();else if(r=="food")food();else if(r=="supp")supp();else if(r=="notes")notes();else if(r=="pay")payPage();else if(r=="paybank")payBank();else if(r=="payrec")payRec();else if(r=="payreq"&&EDIT())payReq();else if(r=="payinst"&&EDIT())instPage();else if(r=="payrestr"&&EDIT())restrPage();else home();
+  if(m)session(+m[1]-1);else if(rh)rehab(+rh[1]-1);else if(r=="train")train();else if(r=="food")food();else if(r=="supp")supp();else if(r=="notes")notes();else if(r=="pay")payPage();else if(r=="paybank")payBank();else if(r=="payrec")payRec();else if(r=="payreq"&&EDIT())payReq();else if(r=="payinst"&&EDIT())instPage();else if(r=="payrestr"&&EDIT())restrPage();else if(r=="progs")progsPage();else home();
   const cur=m||rh?"train":(["train","food","supp","notes"].includes(r)?r:"home");
   ["home","train","food","supp","notes"].forEach(x=>$("#n-"+x).classList.toggle("on",x==cur));
   window.scrollTo(0,0);
