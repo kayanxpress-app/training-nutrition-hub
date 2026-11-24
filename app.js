@@ -458,9 +458,12 @@ function newMonth(){
   });
 }
 /* ===== برامج الأشهر الماضية: فتح + حذف نهائي (الأدمن فقط) ===== */
+let PLOPEN=false;   // القسم مقفول افتراضيًا ويفضل على حالته (مفتوح/مقفول) حتى لو الصفحة اتحدّثت
+function progTgl(){PLOPEN=!PLOPEN;const c=$("#plc"),a=$("#plar");if(c)c.style.display=PLOPEN?"":"none";if(a)a.textContent=PLOPEN?"▴":"▾"}
 function progList(){
   if(!EDIT()||!PROGS.length)return "";
-  return `<div class="card"><div class="lbl" style="color:var(--or)">برامج الأشهر الماضية</div>${PROGS.map((p,i)=>`<div class="act"><span style="flex:1;min-width:0">${esc(p.title||p.month_start)} <small style="color:var(--mut)">${ltr(fmtDmy(p.month_start))}</small> ${i==PI?'<i class="stc ok">المعروض الآن</i>':""} ${p.published?'<i class="stc ok">منشور</i>':'<i class="stc no">مسودة</i>'}</span>${i==PI?"":`<button class="mb" onclick="setProg(${i})">فتح</button>`}<button class="mb" onclick="delProg('${p.id}')">حذف</button></div>`).join("")}</div>`;
+  const rows=PROGS.map((p,i)=>`<div class="act"><span style="flex:1;min-width:0">${esc(p.title||p.month_start)} <small style="color:var(--mut)">${ltr(fmtDmy(p.month_start))}</small> ${i==PI?'<i class="stc ok">المعروض الآن</i>':""} ${p.published?'<i class="stc ok">منشور</i>':'<i class="stc no">مسودة</i>'}</span>${i==PI?"":`<button class="mb" onclick="setProg(${i})">فتح</button>`}<button class="mb" onclick="delProg('${p.id}')">حذف</button></div>`).join("");
+  return `<div class="card"><div onclick="progTgl()" style="display:flex;justify-content:space-between;align-items:center;gap:10px;cursor:pointer"><div class="lbl" style="color:var(--or);margin:0">برامج الأشهر الماضية · ${ar(PROGS.length)}</div><span id="plar" style="color:var(--mut);font-size:16px">${PLOPEN?"▴":"▾"}</span></div><div id="plc" style="${PLOPEN?"":"display:none;"}margin-top:6px">${rows}</div></div>`;
 }
 async function delProg(id){
   if(!EDIT())return;
