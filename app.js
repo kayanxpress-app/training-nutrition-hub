@@ -457,12 +457,44 @@ function newMonth(){
     PROGS.unshift(data);PROGS.sort((a,b)=>b.month_start.localeCompare(a.month_start));PI=PROGS.findIndex(p=>p.id===data.id);P=PROGS[PI];toast("تم إنشاء البرنامج، عدّل عليه");route();
   });
 }
+/* ===== برامج الأشهر الماضية: فتح + حذف نهائي (الأدمن فقط) ===== */
+function progList(){
+  if(!EDIT()||!PROGS.length)return "";
+  return `<div class="card"><div class="lbl" style="color:var(--or)">برامج الأشهر الماضية</div>${PROGS.map((p,i)=>`<div class="act"><span style="flex:1;min-width:0">${esc(p.title||p.month_start)} <small style="color:var(--mut)">${ltr(fmtDmy(p.month_start))}</small> ${i==PI?'<i class="stc ok">المعروض الآن</i>':""} ${p.published?'<i class="stc ok">منشور</i>':'<i class="stc no">مسودة</i>'}</span>${i==PI?"":`<button class="mb" onclick="setProg(${i})">فتح</button>`}<button class="mb" onclick="delProg('${p.id}')">حذف</button></div>`).join("")}</div>`;
+}
+async function delProg(id){
+  if(!EDIT())return;
+  const p=PROGS.find(x=>x.id===id);if(!p)return;
+  // الحذف بيمسح معاه كل المرتبط بالبرنامج (رسائل الاستفسار + إيصالات وطلبات السداد). نعدّ الإيصالات عشان نحذّر بدقة.
+  let rc=0,rq=0;
+  try{
+    const [a,b]=await Promise.all([
+      sb.from("payment_receipts").select("id",{count:"exact",head:true}).eq("program_id",id),
+      sb.from("payment_requests").select("id",{count:"exact",head:true}).eq("program_id",id)]);
+    rc=a&&a.count||0;rq=b&&b.count||0;
+  }catch(e){}
+  const warn=(rc||rq)?`\n\n⚠ مرتبط بالبرنامج ده ${rc?ar(rc)+" إيصال سداد":""}${rc&&rq?" و":""}${rq?ar(rq)+" طلب سداد":""} وهيتحذفوا معاه.`:"";
+  if(!confirm(`حذف البرنامج «${p.title||p.month_start}» نهائيًا؟${p.published?"\n(منشور: العميل يراه الآن)":""}\n\nهيتم حذف كل ما بداخله من تدريب وتغذية ومكملات ورسائل الاستفسار المرتبطة به.${warn}\n\nلا يمكن التراجع عن الحذف.`))return;
+  PW=Date.now();
+  const {data,error}=await sb.from("programs").delete().eq("id",id).select("id");
+  if(error||!data||!data.length)return toast("تعذر الحذف");
+  IDS_DIRTY.delete(id);
+  const cur=P&&P.id;
+  PROGS=PROGS.filter(x=>x.id!==id);
+  if(!PROGS.length){P=null;PI=0}
+  else if(cur===id){let i=PROGS.findIndex(x=>x.month_start<=TODAY);if(i<0)i=PROGS.length-1;PI=i;P=PROGS[PI]}
+  else PI=PROGS.findIndex(x=>x.id===cur);
+  toast("تم حذف البرنامج");route();
+}
 function newProgram(){
   const base=BASE();
-  modal("إنشاء أول برنامج للعميل",[{k:"d",l:"تاريخ البداية",type:"date",v:TODAY},{k:"t",l:"عنوان البرنامج",v:""}],async v=>{
+  modal(PROGS.length?"إنشاء برنامج جديد (فارغ)":"إنشاء أول برنامج للعميل",[{k:"d",l:"تاريخ البداية",type:"date",v:TODAY},{k:"t",l:"عنوان البرنامج",v:""}],async v=>{
+    if(!v.d)return false;
     const {data,error}=await sb.from("programs").insert({client_id:CID(),title:v.t.trim()||("برنامج "+v.d),month_start:v.d,data:(syncDates(base,v.d),base)}).select().single();
     if(error){toast("تعذر الإنشاء");return false}
-    PROGS=[data];PI=0;P=data;route();
+    if(PROGS.length){PROGS.unshift(data);PROGS.sort((a,b)=>b.month_start.localeCompare(a.month_start));PI=PROGS.findIndex(x=>x.id===data.id);P=PROGS[PI];toast("تم إنشاء برنامج فارغ، عدّل عليه")}
+    else{PROGS=[data];PI=0;P=data}
+    route();
   });
 }
 
@@ -597,7 +629,8 @@ function home(){
   h+=`<div class="card pg"><div class="sub">${esc(dt.sub||"")}</div><div class="big">${esc(dt.brand||P.title||"")}</div><div class="mem">${[["الاسم",NAME()||"—"],["العمر",inf.age],["الوزن",inf.weight],["الطول",inf.height],["البداية",ltr(fmtDmy(P.month_start))||ltr(inf.start)],["النهاية",P.month_start?ltr(fmtDmy(addDaysIso(P.month_start,(+inf.days||30)-1))):ltr(inf.end)],["المدة",inf.days?ar(inf.days)+" يومًا":""],["التمرين",inf.minutes]].map(x=>`<div><span>${x[0]}</span><b>${esc(x[1])||"—"}</b></div>`).join("")}</div>${ed("editInfo()","تعديل بيانات العميل والبرنامج")}</div>`;
   const dn=dayNo(),T=inf.days||30;
   h+=`<div class="card"><div class="hi"><b>أهلاً ${esc(NAME())}</b><span style="color:var(--mut);font-size:13px">${esc(P.title||"")}</span></div><div style="margin-top:8px;font-weight:700">${dn?`اليوم ${ar(dn)} من ${ar(T)}`:`البرنامج لسه ما بدأش · يبدأ ${ltr(fmtDmy(P.month_start))}`}</div><div class="bar"><i style="width:${dn/T*100}%"></i></div></div>`;
-  if(PROGS.length>1)h+=`<select onchange="setProg(this.value)">${PROGS.map((p,i)=>`<option value="${i}" ${i==PI?"selected":""}>${esc(p.title||p.month_start)}${EDIT()&&!p.published?" (مسودة)":""}</option>`).join("")}</select>`;
+  if(EDIT())h+=progList();
+  else if(PROGS.length>1)h+=`<div class="lbl" style="color:var(--or);margin:4px 2px 6px">برامج الأشهر الماضية</div><select onchange="setProg(this.value)">${PROGS.map((p,i)=>`<option value="${i}" ${i==PI?"selected":""}>${esc(p.title||p.month_start)}${EDIT()&&!p.published?" (مسودة)":""}</option>`).join("")}</select>`;
   h+=gymCard();
   h+=payBanner();
   h+=instBanner();
@@ -613,7 +646,7 @@ function home(){
   if(EDIT()){
     h+=cheerCard();
     const days=dn?Object.keys(LOGS).filter(d=>{const g=LOGS[d];return g&&d>=P.month_start&&d<=TODAY&&(Object.keys(g.d||{}).length+Object.keys(g.m||{}).length+Object.keys(g.s||{}).length)>0}).sort().reverse().slice(0,7):[];
-    h+=`<div class="card"><b>نشاط العميل (آخر ٧ أيام)</b>${days.length?days.map(d=>{const g=LOGS[d];return `<div class="act"><span>${ar(d.slice(5).replace("-","/"))}</span><span>${ar(Object.keys(g.d||{}).length)} تمارين · ${ar(Object.keys(g.m||{}).length)} وجبات · ${ar(Object.keys(g.s||{}).length)} مكملات</span></div>`}).join(""):`<p style="color:var(--mut);margin:6px 0 0">${dn?"لا يوجد نشاط مسجل بعد":"البرنامج لسه ما بدأش · لا يوجد نشاط"}</p>`}</div>${addb("newMonth()","برنامج شهر جديد (نسخ من الحالي)")}${addb("shareSec('train','food','supp')","نسخ هذا البرنامج لعملاء آخرين")}${addb("pullProg()","سحب برنامج من عميل آخر")}${addb("importProg()","استيراد برنامج من ملف PDF")}<button class="btn o" onclick="sendNote('${VIEW.id}')">✉ إرسال إشعار للعميل</button>`;
+    h+=`<div class="card"><b>نشاط العميل (آخر ٧ أيام)</b>${days.length?days.map(d=>{const g=LOGS[d];return `<div class="act"><span>${ar(d.slice(5).replace("-","/"))}</span><span>${ar(Object.keys(g.d||{}).length)} تمارين · ${ar(Object.keys(g.m||{}).length)} وجبات · ${ar(Object.keys(g.s||{}).length)} مكملات</span></div>`}).join(""):`<p style="color:var(--mut);margin:6px 0 0">${dn?"لا يوجد نشاط مسجل بعد":"البرنامج لسه ما بدأش · لا يوجد نشاط"}</p>`}</div>${addb("newMonth()","برنامج شهر جديد (نسخ من الحالي)")}${addb("shareSec('train','food','supp')","نسخ هذا البرنامج لعملاء آخرين")}${addb("pullProg()","سحب برنامج من عميل آخر")}${addb("importProg()","استيراد برنامج من ملف PDF")}${addb("newProgram()","إنشاء برنامج جديد (فارغ)")}<button class="btn o" onclick="sendNote('${VIEW.id}')">✉ إرسال إشعار للعميل</button>`;
   }
   h+=`<div class="card" style="background:linear-gradient(180deg,#10261a,#0b0f0b);color:#fff;border:0;margin-top:12px"><div class="lbl">المؤهلات</div>${["أخصائي الإعداد البدني قبل وبعد جراحة الإصابات وعلاج الانحرافات القوامية","أخصائي تغذية عام","دبلومة الطب الرياضي","دبلومة وماجستير ودكتوراه التغذية العلاجية"].map(x=>`<div class="q" style="background:rgba(255,255,255,.07)">${x}</div>`).join("")}<div class="lbl" style="margin-top:12px">في تغذية</div><div class="cp">${["مرضى السمنة والنحافة","مرضى الجهاز الهضمي","التهابات وحساسية المرارة","مرضى الكلى","الضغط","السكر","الأورام","الأطفال","فترة الحمل والرضاعة","مرضى الإسهال","تقرحات والتهابات القولون المناعية المزمنة","مرضى الغدة الدرقية","الرياضيين"].map(x=>`<i style="color:#cfd8c8;border-color:rgba(255,255,255,.2)">${x}</i>`).join("")}</div><div class="qr"><a href="https://wa.me/201006130790" target="_blank" rel="noopener"><img src="img/qr-wa.png" alt=""></a><div><div class="lbl" style="color:var(--or)">التواصل</div><b>تواصل معي على واتساب</b><br><a class="ih" style="border:1px solid rgba(255,255,255,.3);margin:6px 0 0" href="https://wa.me/201006130790" target="_blank" rel="noopener">فتح واتساب ↗</a></div></div><div class="qr"><a href="https://docs.google.com/forms/d/e/1FAIpQLScabXfmxUsT3gaL7NJZjdyBedf0UIx-x2YAtlo8A_rJnBEIuA/viewform" target="_blank" rel="noopener"><img src="img/qr-form.png" alt=""></a><div><div class="lbl" style="color:var(--or)">المتابعة</div><b>استمارة المتابعة</b><br><a class="ih" style="border:1px solid rgba(255,255,255,.3);margin:6px 0 0" href="https://docs.google.com/forms/d/e/1FAIpQLScabXfmxUsT3gaL7NJZjdyBedf0UIx-x2YAtlo8A_rJnBEIuA/viewform" target="_blank" rel="noopener">فتح الاستمارة ↗</a></div></div></div>`;
   h+=`<button class="btn o" onclick="out()">تسجيل الخروج</button>`;
