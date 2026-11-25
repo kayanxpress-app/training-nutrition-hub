@@ -1053,7 +1053,7 @@ function food(){
   const M=dt.meals[ft],sel=L().m[ft];
   h+=`<div class="mh"><b>يمكنك اختيار ما يناسبك أدناه</b>${E.plan?`<small>${esc(E.plan)} سعرة / يوم</small>`:""}</div>`;
   if(M.note)h+=`<div class="note"><span class="lbl">ملاحظة</span> ${esc(M.note)}</div>`;
-  M.opts.forEach((o,i)=>{h+=`<div class="mo ${sel===i?"sel":""}" onclick="pick(${i})"><div class="mn">${sel===i?"✓":ar(i+1)}</div><div class="mx"><div class="mc">${o.split(/\s*\+\s*/).filter(Boolean).map(x=>`<i>${esc(x)}</i>`).join("<b>+</b>")}</div>${EDIT()?nxLine(o):""}${ed(`editOpt('${ft}',${i})`)}${qBtn(M.oid&&M.oid[i]?"ml:"+M.oid[i]:"",(M.t||"")+" · خيار "+ar(i+1))}</div></div>`});
+  M.opts.forEach((o,i)=>{h+=`<div class="mo ${sel===i?"sel":""}" onclick="pick(${i})"><div class="mn">${sel===i?"✓":ar(i+1)}</div><div class="mx"><div class="mc">${(window.NX&&NX.chips?NX.chips(o):o.split(/\s*\+\s*/).filter(Boolean)).map(x=>`<i>${esc(x)}</i>`).join("<b>+</b>")}</div>${EDIT()?nxLine(o):""}${ed(`editOpt('${ft}',${i})`)}${qBtn(M.oid&&M.oid[i]?"ml:"+M.oid[i]:"",(M.t||"")+" · خيار "+ar(i+1))}</div></div>`});
   if(!M.opts.length&&!EDIT())h+=`<div class="card" style="text-align:center;color:var(--mut)">لسه مفيش خيارات لهذه الوجبة</div>`;
   if(EDIT())h+=nxMealCard(M);
   h+=addb(`editOpt('${ft}',-1)`,"إضافة خيار")+addb(`editOpts('${ft}')`,"كل خيارات هذه الوجبة مرة واحدة (لصق / تعديل)")+addb("editAllMeals()","كل الوجبات في نص واحد (لصق / تعديل)");

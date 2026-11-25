@@ -272,8 +272,49 @@ function calcSeg(src){
   return out;
 }
 /* ---------- خيار كامل / وجبة / يوم ---------- */
+/* صيغة السلطة: «١٠٠ ج فلفل اخضر + خس + خيار» = وزن الطبق كله ١٠٠ جم (مش ١٠٠ لكل صنف).
+   القاعدة: خضار أول مكوّن له وزن بالجرام، وبعده خضار تانية من غير أي كمية ← بيتقسم الوزن بينهم بالتساوي، والسعرات تتحسب على ده.
+   نفس الشيء لو كتبتها بأقواس «١٠٠ ج (فلفل اخضر + خس + خيار)» (الأقواس بتتجاهل). بتقف عند أول مكوّن ليه كمية أو مش خضار. */
+const SAL_X=new Set(["salad","veg_mixed"]);
+const isSalLead=r=>!!(r&&r.ok&&r.food&&r.food.g==="v"&&!SAL_X.has(r.food.id)&&r.pq&&r.pq.had&&!r.inherited&&r.u==="g"&&r.g>0);
+const isSalFol=r=>!!(r&&r.food&&r.food.g==="v"&&!SAL_X.has(r.food.id)&&r.pq&&!r.pq.had);
+function groupSalad(items){
+  for(let i=0;i<items.length;i++){
+    const L=items[i];if(!isSalLead(L))continue;
+    const F=[];for(let j=i+1;j<items.length&&isSalFol(items[j]);j++)F.push(j);
+    if(!F.length)continue;
+    const n=F.length+1,W=L.g,share=W/n,sh=String(+share.toFixed(3));
+    // المكوّن الأول: نفس قيمه لكن بحصته من الوزن الكلي
+    L.g=share;if(L.q)L.q=L.q/n;
+    ["k","p","c","f"].forEach(x=>L.m[x]/=n);
+    Object.keys(L.ex).forEach(g=>L.ex[g]/=n);
+    L.notes.push({t:"i",m:"سلطة من "+n+" أنواع وزنها الكلي "+(+W.toFixed(1))+" جم (محسوبة بالتساوي: "+(+share.toFixed(1))+" جم لكل نوع)"});
+    // باقي المكوّنات: بتتحسب بنفس الحصة
+    F.forEach(k=>{
+      const o=items[k],r=calcSeg(sh+" ج "+o.src);
+      if(r&&r.ok){r.src=o.src;r.inSalad=true;items[k]=r}
+    });
+  }
+  return items;
+}
+/* عرض الخيار في صفحة العميل: مكوّنات السلطة (خضار بوزن كلي + خضار من غير كمية) بتظهر في زرار واحد «١٠٠ ج (فلفل اخضر + خس + خيار)».
+   بترجّع مصفوفة نصوص (واحد لكل زرار). عرض فقط: النص المحفوظ ما بيتغيرش. لو مفيش سلطة بترجّع نفس التقسيم القديم على + */
+function chips(text){
+  const segs=String(text==null?"":text).split(/\s*[+＋]\s*/).map(x=>x.trim()).filter(Boolean);
+  let rs;try{rs=segs.map(calcSeg)}catch(e){return segs}
+  const out=[];
+  for(let i=0;i<segs.length;i++){
+    if(isSalLead(rs[i])){
+      const m=/^([\d٠-٩۰-۹][\d٠-٩۰-۹.,٫\/]*\s*(?:كجم|كيلو|جرام|جم|غ|ج|kg|gm|gr|g)?)\s+(\S.*)$/i.exec(segs[i]);
+      const F=[];for(let j=i+1;j<segs.length&&isSalFol(rs[j]);j++)F.push(segs[j]);
+      if(m&&F.length){out.push(m[1].trim()+" ("+[m[2]].concat(F).join(" + ")+")");i+=F.length;continue}
+    }
+    out.push(segs[i]);
+  }
+  return out;
+}
 function calcOpt(text){
-  const items=splitSegs(text).map(calcSeg),T={k:0,p:0,c:0,f:0},EX={p:0,s:0,v:0,fr:0,f:0,d:0};
+  const items=groupSalad(splitSegs(text).map(calcSeg)),T={k:0,p:0,c:0,f:0},EX={p:0,s:0,v:0,fr:0,f:0,d:0};
   let bad=0,weak=0,est=0;
   items.forEach(i=>{
     if(!i.ok){bad++;return}
@@ -298,7 +339,7 @@ function calcDay(meals){ // meals: {key:{t,opts}}
   ms.forEach(m=>{["k","p","c","f"].forEach(x=>{d.avg[x]+=m.r.avg[x];d.min[x]+=m.r.min[x];d.max[x]+=m.r.max[x]});GORDER.forEach(g=>d.ex[g]+=m.r.ex[g])});
   return d;
 }
-const API={norm,toks,splitSegs,calcSeg,calcOpt,calcMeal,calcDay,setCustom,SERV,GORDER,GNAME,UNAME,
+const API={norm,toks,splitSegs,calcSeg,calcOpt,chips,calcMeal,calcDay,setCustom,SERV,GORDER,GNAME,UNAME,
   foods:()=>FOODS,builtin:()=>BUILTIN,custom:()=>CUSTOM,parseDB};
 if(typeof module!=="undefined"&&module.exports)module.exports=API;else root.NX=API;
 })(typeof window!=="undefined"?window:globalThis);

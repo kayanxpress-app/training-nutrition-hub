@@ -40,10 +40,133 @@ function nxFit(m){
   vv.addEventListener("resize",fit);vv.addEventListener("scroll",fit);fit();
 }
 /* لوحة حية تحت خانة الكتابة داخل النافذة: mode = one (خيار واحد) | list (كل خيارات الوجبة) */
+/* ===== مولّد الخيارات المتوازنة (واجهة) =====
+   زرار جوه نافذة «كل خيارات الوجبة». بيعرض معاينة الأول، ومابيكتب في خانة النص إلا لما تدوس «استخدم هذه الخيارات».
+   مفيش حفظ تلقائي: الحفظ بيفضل بزرار «حفظ» العادي. لو nutri-gen.js مش محمّل الزرار مابيظهرش خالص. */
+function nxGenCss(){
+  if(document.getElementById("nxg-css"))return;
+  const s=document.createElement("style");s.id="nxg-css";
+  s.textContent=`.nxg{margin-top:10px;border:1.5px solid var(--line);border-radius:16px;padding:12px;background:var(--bg)}
+.nxg[hidden]{display:none}
+.nxg label{display:block;font-size:12.5px;font-weight:800;color:var(--mut);margin-top:10px}
+.nxg label>select,.nxg label>input{margin-top:5px}
+.nxg-2{display:grid;grid-template-columns:1fr 1fr;gap:0 10px}
+.nxg-note{font-size:12px;line-height:1.7;color:var(--mut);margin:8px 0 0}
+.nxg-ch{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.nxg-c{border:1.5px solid var(--line);background:var(--card);color:var(--mut);border-radius:999px;padding:6px 11px;font:inherit;font-size:13px;font-weight:700;cursor:pointer}
+.nxg-c.on{background:var(--pk);border-color:var(--pk);color:#0a1505}
+.nxg-gh{display:flex;justify-content:space-between;align-items:center;margin-top:12px;font-size:13px;font-weight:800;color:var(--ink)}
+.nxg-l{background:none;border:0;color:var(--pk);font:inherit;font-size:12px;font-weight:800;padding:2px 6px;cursor:pointer}
+.nxg-sum{font-size:13.5px;line-height:1.9;margin-top:4px}
+.nxg-op{border-bottom:1px solid var(--line);padding:7px 0;font-size:13px;line-height:1.7}
+.nxg-op:last-child{border-bottom:0}
+.nxg-op small{display:block;color:var(--mut);font-size:12px}
+.nxg details summary{cursor:pointer;font-size:13px;font-weight:800;color:var(--pk);margin-top:10px}`;
+  document.head.appendChild(s);
+}
+function nxGenUI(m,ta,box){
+  const G=window.NXG;if(!G||!box)return;
+  nxGenCss();
+  const sh=m.querySelector(".sh");
+  const nrm=t=>String(t||"").replace(/[\u064B-\u065F]/g,"").replace(/[أإآ]/g,"ا").replace(/ة/g,"ه").replace(/ى/g,"ي");
+  const num=v=>{const x=String(v==null?"":v).replace(/[٠-٩]/g,c=>"٠١٢٣٤٥٦٧٨٩".indexOf(c)).replace(/[٫,]/g,".").match(/\d+(\.\d+)?/);return x?+x[0]:0};
+  const title=nrm((m.querySelector("h3")||{}).textContent||"");
+  const mealOf=/فطار|صباح|بريك/.test(title)?"b":/عشا/.test(title)?"d":"l";
+  const E=(P.data&&P.data.energy)||{},plan={kcal:num(E.plan),p:num(E.ptn),c:num(E.cho)};
+  const cats=[];G.DIETS.forEach(d=>{let c=cats.find(x=>x.n===d.cat);if(!c){c={n:d.cat,l:[]};cats.push(c)}c.l.push(d)});
+  const wrap=document.createElement("div");
+  wrap.innerHTML=`<button type="button" class="btn o g-open">✨ توليد خيارات متوازنة</button>
+<div class="nxg" hidden>
+<div class="nxg-2"><label>الوجبة<select class="g-meal">${G.MEALS.map(x=>`<option value="${x.id}"${x.id===mealOf?" selected":""}>${x.n}</option>`).join("")}</select></label>
+<label>عدد الخيارات<input class="g-n" type="text" inputmode="numeric" value="${ar(7)}"></label></div>
+<label>النظام الغذائي<select class="g-diet">${cats.map(c=>`<optgroup label="${c.n}">${c.l.map(d=>`<option value="${d.id}">${d.n}</option>`).join("")}</optgroup>`).join("")}</select></label>
+<p class="nxg-note g-note"></p>
+<div class="g-al" hidden><div class="nxg-gh"><span>الأنواع اللي عنده حساسية منها</span></div><div class="nxg-ch g-alc"></div></div>
+<div class="nxg-2"><label>سعرات الوجبة<input class="g-k" type="text" inputmode="decimal"></label><label>بروتين (جم)<input class="g-p" type="text" inputmode="decimal"></label>
+<label>كارب (جم)<input class="g-c" type="text" inputmode="decimal"></label><label>دهون (جم)<input class="g-f" type="text" inputmode="decimal"></label></div>
+<button type="button" class="btn o g-avg">خد الأرقام من متوسط الخيارات الحالية</button>
+<details class="g-fd"><summary>اختيار الأطعمة (اختياري)</summary><p class="nxg-note">الأصناف المضيئة هي اللي هتشتغل عليها. اطفي أي صنف مش عايزه، أو «مسح» ثم اختار اللي عايزه بس.</p><div class="g-foods"></div></details>
+<button type="button" class="btn g-go">توليد</button>
+<p class="nxg-note">مسودة بتجهزها الأداة من قاعدة الأصناف: راجعها قبل الاعتماد (الميكرونيوترينتس والصوديوم والأدوية خارج حسابها).</p>
+<div class="g-out"></div></div>`;
+  box.before(wrap);
+  const $=s=>wrap.querySelector(s),val=s=>num($(s).value);
+  let dirtyK=false,al=[],off={},lastCat=null,last=null,opened=false;
+  const GROUPS=["p","s","fr","f","d","v"],GN={p:"البروتين",s:"النشويات",fr:"الفاكهة",f:"الدهون",d:"الألبان",v:"الخضار"};
+  const setV=(s,v,d)=>{$(s).value=v?nxN(v,d):""};
+  function refill(){
+    const T=G.targets($(".g-meal").value,$(".g-diet").value,plan,dirtyK?val(".g-k"):0);
+    setV(".g-k",T.k);setV(".g-p",T.p,1);setV(".g-c",T.c,1);setV(".g-f",T.f,1);
+    $(".g-note").textContent=G.dietById($(".g-diet").value).note||"";
+  }
+  function renderAl(){
+    const on=$(".g-diet").value==="allergy";$(".g-al").hidden=!on;
+    if(!on){al=[];return}
+    $(".g-alc").innerHTML=G.ALLERGENS.map(a=>`<button type="button" class="nxg-c${al.includes(a.id)?" on":""}" data-a="${a.id}">${a.n}</button>`).join("");
+  }
+  function renderFoods(){
+    lastCat=G.catalog($(".g-meal").value,$(".g-diet").value,al);
+    $(".g-foods").innerHTML=GROUPS.map(g=>lastCat[g].length?`<div class="nxg-gh"><span>${GN[g]}</span><span><button type="button" class="nxg-l" data-all="${g}">الكل</button><button type="button" class="nxg-l" data-none="${g}">مسح</button></span></div><div class="nxg-ch">${lastCat[g].map(x=>`<button type="button" class="nxg-c${off[x.key]?"":" on"}" data-k="${esc(x.key)}">${esc(x.lab)}</button>`).join("")}</div>`:"").join("");
+  }
+  const onlySet=()=>{let any=false;const o={};GROUPS.forEach(g=>lastCat[g].forEach(x=>{if(off[x.key])any=true;else o[x.key]=1}));return any?o:null};
+  function open(){
+    const h=$(".nxg");h.hidden=!h.hidden;
+    if(!h.hidden&&!opened){opened=true;refill();renderAl();renderFoods()}
+  }
+  $(".g-open").onclick=open;
+  $(".g-meal").onchange=()=>{refill();renderFoods()};
+  $(".g-diet").onchange=()=>{off={};refill();renderAl();renderFoods()};
+  $(".g-k").oninput=()=>{dirtyK=true};
+  $(".g-alc").onclick=e=>{const b=e.target.closest("[data-a]");if(!b)return;const id=b.dataset.a;al=al.includes(id)?al.filter(x=>x!==id):al.concat(id);off={};renderAl();renderFoods()};
+  $(".g-foods").onclick=e=>{
+    const b=e.target.closest("button");if(!b)return;
+    if(b.dataset.k){off[b.dataset.k]=!off[b.dataset.k];b.classList.toggle("on",!off[b.dataset.k]);return}
+    const g=b.dataset.all||b.dataset.none;if(!g)return;
+    lastCat[g].forEach(x=>{off[x.key]=!!b.dataset.none});renderFoods();
+  };
+  $(".g-avg").onclick=()=>{
+    try{
+      const r=NX.calcMeal(parseOpts(ta.value));
+      if(!r||!r.counted){toast("مفيش خيارات محسوبة في الخانة");return}
+      dirtyK=true;setV(".g-k",r.avg.k);setV(".g-p",r.avg.p,1);setV(".g-c",r.avg.c,1);setV(".g-f",r.avg.f,1);
+    }catch(e){toast("تعذر قراءة الخيارات الحالية")}
+  };
+  function renderOut(r){
+    const out=$(".g-out");
+    if(!r||!r.ok){out.innerHTML=`<p class="nx-n w">⚠ ${esc((r&&r.error)||"تعذر التوليد")}</p>`;return}
+    const rg=r.range,sp=r.spread,R=(a,d)=>nxN(a[0],d)+"–"+nxN(a[1],d);
+    out.innerHTML=`<div class="nxg-sum">${r.okSpread?"✔":"⚠"} <b>${nxN(r.options.length)}</b> خيارات<br>سعرات ${R(rg.k)} | بروتين ${R(rg.p,1)} | كارب ${R(rg.c,1)} | دهون ${R(rg.f,1)}<br><span class="nx-n">أقصى فرق بين الخيارات: بروتين ${nxN(sp.p,1)} | كارب ${nxN(sp.c,1)} | دهون ${nxN(sp.f,1)} جم | سعرات ${nxN(sp.k)}</span></div>`
+      +r.warnings.map(w=>`<p class="nx-n w">⚠ ${esc(w)}</p>`).join("")
+      +`<details><summary>عرض الخيارات</summary>${r.options.map((o,i)=>`<div class="nxg-op">${nxN(i+1)}) ${esc(o.text)}<small>${nxMac(o)}</small></div>`).join("")}</details>
+<button type="button" class="btn g-use">استخدم هذه الخيارات</button><button type="button" class="btn o g-re">إعادة توليد</button>`;
+    out.querySelector(".g-use").onclick=()=>{
+      ta.value=last.options.map(o=>o.text).join("\n");
+      ta.dispatchEvent(new Event("input",{bubbles:true}));
+      if(sh)sh.scrollTop=0;
+      out.insertAdjacentHTML("afterbegin",`<p class="nx-n">✔ اتكتبت في خانة الخيارات فوق. راجع الحساب واضغط «حفظ» لما تخلص.</p>`);
+    };
+    out.querySelector(".g-re").onclick=run;
+  }
+  function run(){
+    const out=$(".g-out"),go=$(".g-go"),k=val(".g-k"),p=val(".g-p"),c=val(".g-c");
+    let n=Math.round(val(".g-n"))||7;n=Math.max(1,Math.min(12,n));$(".g-n").value=ar(n);
+    if(!(k>0)){out.innerHTML=`<p class="nx-n w">⚠ اكتب سعرات الوجبة الأول.</p>`;return}
+    const f=$(".g-f").value.trim()?val(".g-f"):Math.max(0,(k-4*p-4*c)/9);
+    go.disabled=true;out.innerHTML=`<p class="nx-n">جاري التوليد…</p>`;
+    setTimeout(()=>{
+      let r;
+      try{r=G.generate({meal:$(".g-meal").value,diet:$(".g-diet").value,allergies:al,k,p,c,f,n,only:onlySet(),seed:(Math.random()*1e9)|0,ms:900})}
+      catch(e){r={ok:false,error:"حصل خطأ غير متوقع في التوليد."}}
+      go.disabled=false;last=r;renderOut(r);
+    },40);
+  }
+  $(".g-go").onclick=run;
+}
 function nxPanel(m,mode){
   const ta=m.querySelector("textarea");if(!ta)return;
   const box=document.createElement("div");box.className="nx";ta.closest("label").after(box);
   nxFit(m);
+  if(mode==="list"&&window.NXG){try{nxGenUI(m,ta,box)}catch(e){}}
   const sh=m.querySelector(".sh");
   let tm;
   const draw=()=>{
