@@ -90,7 +90,7 @@ baladi|s|خبز بني,عيش بني,رغيف بني,خبز بلدي قمح كا
 shami|s|عيش شامي,رغيف شامي,خبز شامي,شامي,white pita,lebanese bread,syrian bread|275,9.1,55.7,1.2|pc:70 amb:رغيف_شامي_٧٠_جم_(تقريبي)
 fino|s|فينو,عيش فينو,رغيف فينو,خبز فينو,fino,fino bread|266,8.9,49.2,3.3|pc:65 amb:رغيف_فينو_٦٥_جم_(تقريبي)
 toast_white|s|توست,توست ابيض,خبز توست,عيش توست,خبز ابيض,عيش ابيض,شريحه توست,white bread,toast,sandwich bread|266,8.9,49.2,3.3|slice:30 pc:30 amb:شريحة_التوست_٣٠_جم
-toast_wheat|s|خبز قمح كامل,عيش قمح كامل,شرايح قمح كامل,توست بر,توست اسمر,خبز توست بر,عيش توست بر,توست قمح كامل,خبز اسمر,whole wheat bread,brown bread,whole grain bread,whole wheat toast|252,12.4,42.7,3.5|slice:30 pc:30 amb:شريحة_التوست_٣٠_جم
+toast_wheat|s|توست بني,عيش توست بني,خبز توست بني,خبز قمح كامل,عيش قمح كامل,شرايح قمح كامل,توست بر,توست اسمر,خبز توست بر,عيش توست بر,توست قمح كامل,خبز اسمر,whole wheat bread,brown bread,whole grain bread,whole wheat toast|252,12.4,42.7,3.5|slice:30 pc:30 amb:شريحة_التوست_٣٠_جم
 rice_cake|s|رايس كيك,كيك الارز,بسكويت الارز,rice cake|387,8.2,81.5,2.8|pc:9
 oats|s|شوفان,اوتس,اوتمل,oat,oatmeal,rolled oats,porridge oats|379,13.2,67.7,6.5|st:r alt:71,2.5,12,1.5 tbsp:10 cup:81 amb:شوفان_جاف_(الملعقة_١٠_جم)_—_اكتب_مطبوخ_لو_بعد_الطبخ
 cornflakes|s|كورن فليكس,كورنفليكس,كورن فلاكس,رقايق الذره,cornflake,corn flakes|357,7.5,84.1,0.4|cup:28 tbsp:5 amb:ملعقة_كورن_فليكس_٥_جم_(تقريبي)
@@ -182,6 +182,7 @@ dried_apricot|fr|قمر الدين,مشمش مجفف,dried apricot|241,3.4,62.6,
 prunes|fr|برقوق مجفف,prune,dried plum|240,2.2,63.9,0.4
 dates|fr|تمر,بلح,تمره,بلحه,date|282,2.5,75,0.4|pc:8 amb:تمرة_٨_جم_(تقريبي)
 dates_medjool|fr|تمر مجدول,مجدول,medjool,medjool date|277,1.8,75,0.2|pc:24
+juice_generic|fr|عصير بدون سكر,عصير طبيعي بدون سكر,عصير طبيعي,عصير,عصير فواكه,عصير فاكهه,juice,fruit juice|45,0.5,10.5,0.1|d:1.04 est:1 cup:240 amb:عصير_فواكه_بدون_سكر_(تقديري)_—_اكتب_نوع_العصير_لو_عايز_دقة
 orange_juice|fr|عصير برتقال,orange juice|45,0.7,10.4,0.2|d:1.04
 apple_juice|fr|عصير تفاح,apple juice|46,0.1,11.3,0.1|d:1.04
 # ===== دهون =====
