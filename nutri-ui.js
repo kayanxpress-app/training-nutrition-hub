@@ -25,12 +25,29 @@ function nxItem(i){
 function nxFlags(r){
   const a=[];if(r.bad)a.push(`<span class="nx-fl bad">✖ ${nxN(r.bad)} غير محسوب</span>`);if(r.weak)a.push(`<span class="nx-fl w">⚠ ${nxN(r.weak)} للمراجعة</span>`);return a.join(" ");
 }
+/* تثبيت النافذة فوق الكيبورد: على الآيفون الكيبورد بيصغّر المساحة المرئية بس (visualViewport) فالنافذة كانت بتتزحزح لوحدها مع كل تغيير في ارتفاع الحساب أو تبديل الكيبورد (حروف/أرقام).
+   هنا بنخلي النافذة بالظبط في المساحة المرئية فمفيش حاجة تحت الكيبورد يحتاج المتصفح يسكرول لها. تنسيق فقط ومحمي: لو الدعم مش موجود مفيش أي تأثير. */
+function nxFit(m){
+  const vv=window.visualViewport,sh=m.querySelector(".sh");if(!vv||!sh)return;
+  const fit=()=>{
+    if(!m.isConnected){vv.removeEventListener("resize",fit);vv.removeEventListener("scroll",fit);return}
+    try{
+      if(vv.scale>1.01||(vv.height>=window.innerHeight-2&&vv.offsetTop<=0)){m.style.top=m.style.bottom=m.style.height=sh.style.maxHeight="";return}
+      m.style.top=Math.max(0,vv.offsetTop)+"px";m.style.bottom="auto";m.style.height=vv.height+"px";sh.style.maxHeight=Math.floor(vv.height*.96)+"px";
+    }catch(e){}
+  };
+  sh.style.overscrollBehavior="contain";
+  vv.addEventListener("resize",fit);vv.addEventListener("scroll",fit);fit();
+}
 /* لوحة حية تحت خانة الكتابة داخل النافذة: mode = one (خيار واحد) | list (كل خيارات الوجبة) */
 function nxPanel(m,mode){
   const ta=m.querySelector("textarea");if(!ta)return;
   const box=document.createElement("div");box.className="nx";ta.closest("label").after(box);
+  nxFit(m);
+  const sh=m.querySelector(".sh");
   let tm;
   const draw=()=>{
+    const st=sh?sh.scrollTop:0;
     try{
       if(mode==="one"){
         const r=NX.calcOpt(ta.value);
@@ -40,6 +57,7 @@ function nxPanel(m,mode){
         box.innerHTML=opts.length?`<div class="nx-h">الحساب التلقائي لكل خيار</div>`+rs.map((r,i)=>`<details class="nx-d"${r.bad||r.weak?" open":""}><summary>خيار ${ar(i+1)}: ${nxMac(r.t)} ${nxFlags(r)}</summary>${r.items.map(nxItem).join("")}</details>`).join("")+(ml.counted?`<div class="nx-tot">متوسط الوجبة: ${nxMac(ml.avg)}<br><small>من ${nxN(ml.min.k)} إلى ${nxN(ml.max.k)} سعرة (${nxN(ml.counted)} من ${nxN(ml.n)} خيار محسوب)</small></div>`:""):`<div class="nx-h">اكتب الخيارات وهتظهر السعرات هنا</div>`;
       }
     }catch(e){box.innerHTML=`<div class="nx-n w">تعذر الحساب</div>`}
+    if(sh&&sh.scrollTop!==st)sh.scrollTop=st;
   };
   ta.addEventListener("input",()=>{clearTimeout(tm);tm=setTimeout(draw,180)});
   draw();
