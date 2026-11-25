@@ -84,11 +84,11 @@ labneh|p|لبنه,labneh,labne|170,7,4,14|est:1
 soy_milk|d|حليب صويا,لبن صويا,soy milk,soymilk|33,2.8,1.7,1.6|d:1.03
 almond_milk|d|حليب لوز,لبن لوز,almond milk|15,0.6,0.6,1.2|d:1
 # ===== نشويات =====
-baladi|s|عيش بلدي,عيش بر,خبز بر,رغيف بر,رغيف بلدي,خبز بلدي,عيش بلدي بر,رغيف عيش بلدي,رغيف عيش بر,عيش اسمر,رغيف اسمر,عيش,خبز,رغيف,رغيف عيش,baladi bread,whole wheat baladi,whole wheat pita,pita bread,bread|266,9.8,55,1.7|pc:100 amb:رغيف_بلدي_١٠٠_جم_(تقريبي)_—_اكتب_بالجرام_لو_مختلف
+baladi|s|خبز بلدي قمح كامل,عيش بلدي قمح كامل,رغيف بلدي قمح كامل,رغيف قمح كامل,عيش بلدي,عيش بر,خبز بر,رغيف بر,رغيف بلدي,خبز بلدي,عيش بلدي بر,رغيف عيش بلدي,رغيف عيش بر,عيش اسمر,رغيف اسمر,عيش,خبز,رغيف,رغيف عيش,baladi bread,whole wheat baladi,whole wheat pita,pita bread,bread|266,9.8,55,1.7|pc:100 amb:رغيف_بلدي_١٠٠_جم_(تقريبي)_—_اكتب_بالجرام_لو_مختلف
 shami|s|عيش شامي,رغيف شامي,خبز شامي,شامي,white pita,lebanese bread,syrian bread|275,9.1,55.7,1.2|pc:70 amb:رغيف_شامي_٧٠_جم_(تقريبي)
 fino|s|فينو,عيش فينو,رغيف فينو,خبز فينو,fino,fino bread|266,8.9,49.2,3.3|pc:65 amb:رغيف_فينو_٦٥_جم_(تقريبي)
 toast_white|s|توست,توست ابيض,خبز توست,عيش توست,خبز ابيض,عيش ابيض,شريحه توست,white bread,toast,sandwich bread|266,8.9,49.2,3.3|slice:30 pc:30 amb:شريحة_التوست_٣٠_جم
-toast_wheat|s|توست بر,توست اسمر,خبز توست بر,عيش توست بر,توست قمح كامل,خبز اسمر,whole wheat bread,brown bread,whole grain bread,whole wheat toast|252,12.4,42.7,3.5|slice:30 pc:30 amb:شريحة_التوست_٣٠_جم
+toast_wheat|s|خبز قمح كامل,عيش قمح كامل,شرايح قمح كامل,توست بر,توست اسمر,خبز توست بر,عيش توست بر,توست قمح كامل,خبز اسمر,whole wheat bread,brown bread,whole grain bread,whole wheat toast|252,12.4,42.7,3.5|slice:30 pc:30 amb:شريحة_التوست_٣٠_جم
 rice_cake|s|رايس كيك,كيك الارز,بسكويت الارز,rice cake|387,8.2,81.5,2.8|pc:9
 oats|s|شوفان,اوتس,اوتمل,oat,oatmeal,rolled oats,porridge oats|379,13.2,67.7,6.5|st:r alt:71,2.5,12,1.5 tbsp:10 cup:81 amb:شوفان_جاف_(الملعقة_١٠_جم)_—_اكتب_مطبوخ_لو_بعد_الطبخ
 cornflakes|s|كورن فليكس,كورنفليكس,كورن فلاكس,رقايق الذره,cornflake,corn flakes|357,7.5,84.1,0.4|cup:28 tbsp:5 amb:ملعقة_كورن_فليكس_٥_جم_(تقريبي)

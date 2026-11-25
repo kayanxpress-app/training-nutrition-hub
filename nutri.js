@@ -27,6 +27,7 @@ function norm(s){
   s=s.toLowerCase();
   s=s.replace(/[\u064B-\u065F\u0670\u0640]/g,"");
   s=s.replace(/[أإآٱ]/g,"ا").replace(/ى/g,"ي").replace(/ة/g,"ه").replace(/ؤ/g,"و").replace(/ئ/g,"ي").replace(/ء/g,"");
+  s=s.replace(/(حبه|حبوب|قمح)\s+كامل(ه|ين)?/g,"قمحكامل").replace(/whole\s*-?\s*(wheat|grain)/g,"قمحكامل");
   s=s.replace(/(نص|نصف)\s+دسم/g,"نصفدسم");
   s=s.replace(/غير\s+مطبوخ(ه)?/g,"ني").replace(/قبل\s+(ال)?(طبخ|سلق|شوي|طهي)/g,"ني").replace(/بعد\s+(ال)?(طبخ|سلق|شوي|طهي)/g,"مطبوخ");
   s=s.replace(/(\d)\.(\d)/g,"$1"+DOT+"$2").replace(/\./g," ").replace(new RegExp(DOT,"g"),".");
