@@ -120,7 +120,7 @@ async function load(){
     if(!user)return login();
     ME=user;$("#app").innerHTML='<p class="ld">جاري التحميل...</p>';
     const a=await sb.from("profiles").select("*").eq("id",user.id).maybeSingle();
-    PROF=a.data||{};ADMIN=PROF.role==="admin";VIEW=null;pushSync();
+    PROF=a.data||{};ADMIN=PROF.role==="admin";VIEW=null;pushSync();if(ADMIN)nxLoadFoods();
     if(ADMIN){const dl=deepClient();if(dl)return openClient(dl.id,dl.name);const sv=SV.get();if(sv&&sv.id)return openClient(sv.id,sv.name,true);document.body.classList.remove("av");$("nav").style.display="none";return clients()}
     await loadData(user.id);$("nav").style.display="flex";badge();route();
   }catch(e){
@@ -397,7 +397,8 @@ function editOpt(m,k){
   const M=P.data.meals[m],cur=k<0?"":M.opts[k];
   modal(k<0?"إضافة خيار":"تعديل الخيار",[{k:"o",l:"مكونات الخيار (افصل بين المكونات بعلامة +)",type:"area",v:cur}],
     async v=>{const o=normOpt(v.o);if(!o){toast("اكتب الخيار");return false}oidAlign(M);if(k<0){M.opts.push(o);M.oid.push(nid())}else M.opts[k]=o;return savePD()},
-    k<0?null:async()=>{oidAlign(M);const dead=["ml:"+M.oid[k]];M.opts.splice(k,1);M.oid.splice(k,1);if(await savePD()!==false)qPurge(dead)});
+    k<0?null:async()=>{oidAlign(M);const dead=["ml:"+M.oid[k]];M.opts.splice(k,1);M.oid.splice(k,1);if(await savePD()!==false)qPurge(dead)},
+    m=>nxPanel(m,"one"));
 }
 function editNote(m){const M=P.data.meals[m];modal("ملاحظة الوجبة",[{k:"n",l:"الملاحظة (اتركها فاضية لإخفائها)",type:"area",v:M.note}],async v=>{M.note=v.n.trim();return savePD()})}
 function editSup(i){
@@ -622,7 +623,7 @@ function parseOpts(t){
 function editOpts(m){
   const M=P.data.meals[m];
   modal("كل خيارات "+M.t+" مرة واحدة",[{k:"o",l:"اكتب كل خيار في سطر، وافصل بين مكونات الخيار بعلامة +  (تقدر تلصق كل الخيارات مرة واحدة، وتعدّل أو تمسح أي سطر)",type:"area",big:true,v:M.opts.join("\n")}],
-    async v=>{const nw=parseOpts(v.o),r=oidRemap(M,nw);M.opts=nw;M.oid=r.oid;const ok=await savePD();if(ok!==false)qPurge(r.dead);return ok});
+    async v=>{const nw=parseOpts(v.o),r=oidRemap(M,nw);M.opts=nw;M.oid=r.oid;const ok=await savePD();if(ok!==false)qPurge(r.dead);return ok},null,m=>nxPanel(m,"list"));
 }
 function editAllMeals(){
   const M=P.data.meals,txt=Object.keys(M).map(k=>"# "+M[k].t+"\n"+(M[k].note?"ملاحظة: "+M[k].note+"\n":"")+M[k].opts.join("\n")).join("\n\n");
@@ -1052,11 +1053,13 @@ function food(){
   const M=dt.meals[ft],sel=L().m[ft];
   h+=`<div class="mh"><b>يمكنك اختيار ما يناسبك أدناه</b>${E.plan?`<small>${esc(E.plan)} سعرة / يوم</small>`:""}</div>`;
   if(M.note)h+=`<div class="note"><span class="lbl">ملاحظة</span> ${esc(M.note)}</div>`;
-  M.opts.forEach((o,i)=>{h+=`<div class="mo ${sel===i?"sel":""}" onclick="pick(${i})"><div class="mn">${sel===i?"✓":ar(i+1)}</div><div class="mx"><div class="mc">${o.split(/\s*\+\s*/).filter(Boolean).map(x=>`<i>${esc(x)}</i>`).join("<b>+</b>")}</div>${ed(`editOpt('${ft}',${i})`)}${qBtn(M.oid&&M.oid[i]?"ml:"+M.oid[i]:"",(M.t||"")+" · خيار "+ar(i+1))}</div></div>`});
+  M.opts.forEach((o,i)=>{h+=`<div class="mo ${sel===i?"sel":""}" onclick="pick(${i})"><div class="mn">${sel===i?"✓":ar(i+1)}</div><div class="mx"><div class="mc">${o.split(/\s*\+\s*/).filter(Boolean).map(x=>`<i>${esc(x)}</i>`).join("<b>+</b>")}</div>${EDIT()?nxLine(o):""}${ed(`editOpt('${ft}',${i})`)}${qBtn(M.oid&&M.oid[i]?"ml:"+M.oid[i]:"",(M.t||"")+" · خيار "+ar(i+1))}</div></div>`});
   if(!M.opts.length&&!EDIT())h+=`<div class="card" style="text-align:center;color:var(--mut)">لسه مفيش خيارات لهذه الوجبة</div>`;
+  if(EDIT())h+=nxMealCard(M);
   h+=addb(`editOpt('${ft}',-1)`,"إضافة خيار")+addb(`editOpts('${ft}')`,"كل خيارات هذه الوجبة مرة واحدة (لصق / تعديل)")+addb("editAllMeals()","كل الوجبات في نص واحد (لصق / تعديل)");
   h+=ed(`editMeal('${ft}')`,"تعديل اسم الوجبة / حذفها")+ed(`editNote('${ft}')`,"تعديل الملاحظة")+ed(`shareMeal('${ft}')`,"نسخ هذه الوجبة لعملاء")+addb("editMeal('')","إضافة وجبة");
   h+=addb("shareSec('food','energy')","نسخ التغذية كلها لعملاء آخرين");
+  if(EDIT())h+=nxDayCard();
   h+=blocksBlock("food");
   h+=sx("٠٤","المرجع")+REF;
   h+=filesBlock("food");

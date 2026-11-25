@@ -734,3 +734,31 @@ body.av .rhp-c button,body.av .rhk,body.av .rhps{pointer-events:none}
 .rhn{margin-top:8px;font-size:14.5px;line-height:2.15;color:#fff}
 .rhn .hl{color:#fff;font-weight:700;background:linear-gradient(135deg,#3f8a0a,#4f9d0e);padding:3px 11px;border-radius:9px;
   -webkit-box-decoration-break:clone;box-decoration-break:clone;box-shadow:0 2px 0 rgba(31,90,10,.55);text-shadow:0 1px 1px rgba(0,0,0,.25)}
+
+/* ===== حاسبة التغذية (للأدمن فقط) — إضافة جديدة بكلاسات nx-* ولا تلمس أي كلاس موجود ===== */
+.nx{margin-top:12px;border:1.5px dashed var(--pk);border-radius:16px;padding:10px 12px;background:var(--chip)}
+.nx-h{font-size:13px;font-weight:800;color:var(--pk);margin-bottom:6px}
+.nx-r{border-bottom:1px solid var(--line);padding:7px 0}
+.nx-r:last-of-type{border-bottom:0}
+.nx-r.bad{background:rgba(214,66,95,.08);border-radius:10px;padding:7px 8px}
+.nx-s{font-size:13px;color:var(--mut);font-weight:700}
+.nx-m{font-size:13.5px;line-height:1.7}
+.nx-n{font-size:12px;line-height:1.6;color:var(--mut)}
+.nx-n.w{color:var(--or);font-weight:700}
+.nx-tot,.nx-big{font-weight:700;line-height:1.8}
+.nx-tot{margin-top:8px;padding-top:8px;border-top:2px solid var(--line);font-size:14px}
+.nx-big{font-size:15px;margin:6px 0}.nx-big small{font-size:12px;color:var(--mut);font-weight:600}
+.nx-sm{font-size:12.5px;color:var(--mut);margin:2px 0}
+.nx-fl{font-size:11.5px;font-weight:800;border-radius:99px;padding:1px 8px;margin-inline-start:4px}
+.nx-fl.bad{background:rgba(214,66,95,.15);color:var(--bad)}.nx-fl.w{background:rgba(238,132,52,.15);color:var(--or)}
+.nx-btn,.nx-ed{font:inherit;cursor:pointer;border:1.5px solid var(--or);color:var(--or);background:transparent;border-radius:99px}
+.nx-btn{font-size:12.5px;font-weight:800;padding:3px 12px;margin-top:6px}
+.nx-ed{font-size:12px;padding:0 7px;margin-inline-start:4px;line-height:20px}
+.nx-d{border-bottom:1px solid var(--line);padding:4px 0}
+.nx-d summary{font-size:13.5px;cursor:pointer;line-height:1.8}
+.nx-ln{font-size:12.5px;color:var(--mut);margin-top:6px;line-height:1.7}.nx-ln b{color:var(--ink)}
+.nx-x{display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:baseline;padding:6px 0;border-bottom:1px solid var(--line);font-size:13.5px}
+.nx-x small{color:var(--mut);font-size:11px}.nx-x b{font-size:16px}.nx-x em{font-style:normal;font-size:12px;color:var(--mut)}
+.nx-x.df em{color:var(--or);font-weight:800}
+.nx-c .lbl{color:var(--or)}
+body.av .nx-btn,body.av .nx-ed{pointer-events:auto}
