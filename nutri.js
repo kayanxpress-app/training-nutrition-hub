@@ -21,6 +21,7 @@ const GNAME={p:"بروتين",s:"نشويات",v:"خضار",fr:"فاكهه",f:"�
 const AD="٠١٢٣٤٥٦٧٨٩",PD="۰۱۲۳۴۵۶۷۸۹",DOT="\u0001";
 function norm(s){
   s=String(s==null?"":s);
+  s=s.replace(/\u00A0/g," ").replace(/[\u200B-\u200F\u202A-\u202E\u2066-\u2069\uFEFF]/g,""); // مسافات/رموز غير مرئية (بتيجي من كيبورد الموبايل / النسخ واللصق)
   s=s.replace(/[٠-٩]/g,c=>AD.indexOf(c)).replace(/[۰-۹]/g,c=>PD.indexOf(c));
   s=s.replace(/(\d)[٫,](\d)/g,"$1.$2").replace(/\u066C/g,"");
   s=s.replace(/½/g," 0.5 ").replace(/¼/g," 0.25 ").replace(/¾/g," 0.75 ").replace(/⅓/g," 0.333 ").replace(/⅔/g," 0.667 ");
@@ -63,7 +64,7 @@ const UW={
   lb:"lb pound",
   ml:"مل ملل ملي ميلي ملليلتر مللي ml cc milliliter",
   l:"لتر l liter litre",
-  tbsp:"ملعقه ملاعق tbsp tablespoon spoon",
+  tbsp:"ملعقه ملاعق معلقه معالق tbsp tablespoon spoon",
   cup:"كوب اكواب كوبايه كوبايات كباييه cup",
   scoop:"سكوب سكوبات scoop",
   slice:"شريحه شرايح slice",
@@ -78,8 +79,14 @@ const MASS={g:1,kg:1000,oz:28.35,lb:453.6},VOL={ml:1,l:1000};
 const BIGW=new Set(["كبيره","كبار","كبير","اكل","طعام"].map(w=>tok(norm(w)))),SMALLW=new Set(["صغيره","صغار","صغير","شاي","قهوه"].map(w=>tok(norm(w))));
 const NOISE=new Set(["من","في","of","the","an","كبير","كبيره","كبار","صغير","صغيره","وسط","متوسط","متوسطه","medium","large","small","طازج","طازجه","fresh","ساده","plain","تقريبا","حوالي","about","نيو"]);
 const ST_RAW=new Set(["ني","نيي","خام","raw","uncooked","dry","جاف","جافه"].map(w=>tok(norm(w))));
-const ST_COOK=new Set(["مسلوق","مسلوقه","مطبوخ","مطبوخه","مشوي","مشويه","مغلي","مخبوز","مخبوزه","مبخر","cooked","boiled","grilled","baked","roasted","steamed"].map(w=>tok(norm(w))));
+const ST_COOK=new Set(["مسلوق","مسلوقه","مطبوخ","مطبوخه","مشوي","مشويه","مشوح","مغلي","مخبوز","مخبوزه","مبخر","cooked","boiled","grilled","baked","roasted","steamed"].map(w=>tok(norm(w))));
 const ST_FRY=new Set(["مقلي","مقليه","محمر","محمره","fried"].map(w=>tok(norm(w))));
+/* كلمات وصفية لا تغيّر القيمة الغذائية (طريقة تقديم / تفاصيل) — بنتجاهلها بدون تحذير، وبس لو الصنف اتفهم من غيرها */
+const FILL=new Set(["فريش","بخار","بالبخار","مسحب","مسحبه","بدون","جلد","مصفاه"].map(w=>tok(norm(w))));
+/* حجم الطبق للخضار/السلطة (جم) لما الكوتش يكتب صغير/متوسط/كبير */
+const BOWLV={s:50,m:100,l:200};
+const BOWL_OK=new Set(["salad","veg_mixed","lettuce","arugula","spinach","cabbage","cabbage_red","broccoli","cauliflower","carrot","zucchini","eggplant","green_beans","okra","molokhia","tomato","cucumber","pepper_green","pepper_red","mushroom","kale","asparagus","celery"]); // أصناف بتتاكل بالطبق فقط (مش ثوم/بصل/ليمون…)
+const SZ_M=new Set(["متوسط","متوسطه","وسط","medium"].map(w=>tok(norm(w)))),SZ_L=new Set(["كبير","كبيره","كبار","large"].map(w=>tok(norm(w)))),SZ_S=new Set(["صغير","صغيره","small"].map(w=>tok(norm(w))));
 const isState=t=>ST_RAW.has(t)||ST_COOK.has(t)||ST_FRY.has(t);
 
 /* ---------- بناء الفهرس ---------- */
@@ -182,7 +189,7 @@ function findFood(T){
   });
   return best;
 }
-function gramsFor(f,q,u,had){
+function gramsFor(f,q,u,had,size){
   if(f.zero)return {g:0};
   const M=f.m||{};
   if(!u){
@@ -200,14 +207,19 @@ function gramsFor(f,q,u,had){
   else if(u==="cup")w=M.cup||(f.d?240*f.d:null);
   else if(u==="slice")w=M.slice||(f.pc&&/توست|toast|bread/.test(f.id)?f.pc:null);
   else w=M[u]||null;
+  if(u==="bowl"&&size&&BOWL_OK.has(f.id)&&BOWLV[size])w=BOWLV[size]; // طبق خضار/سلطة بحجم محدد
   if(!w)return {err:"مفيش وزن معروف لـ«"+UNAME[u]+"» مع الصنف ده — اكتبه بالجرام"};
   return {g:q*w,u,q,per:w};
 }
-function calcSeg(src){
+function calcOne(src,inh){
   const it={src,ok:false,notes:[],food:null,g:0,m:{k:0,p:0,c:0,f:0},ex:{p:0,s:0,v:0,fr:0,f:0,d:0},weak:false,est:false};
   let T=toks(src);
   if(!T.length){it.err="فاضي";return it}
-  const pq=parseQty(T);let rest=pq.rest.filter(t=>!NOISE.has(t)||isState(t));
+  const size=T.some(t=>SZ_M.has(t))?"m":T.some(t=>SZ_L.has(t))?"l":T.some(t=>SZ_S.has(t))?"s":"";
+  const pq=parseQty(T);
+  if(!pq.had&&inh&&inh.had){pq.qty=inh.qty;pq.unit=inh.unit;pq.had=true;it.inherited=true} // البديل بياخد نفس كمية الأول لو مفيش كمية
+  it.pq={qty:pq.qty,unit:pq.unit,had:pq.had};
+  let rest=pq.rest.filter(t=>!NOISE.has(t)||isState(t));
   let body=rest.filter(t=>!NOISE.has(t));
   let best=body.length?findFood(body):null;
   if(!best&&body.length){ // تصحيح إملائي: بنقبله بس لو الجملة كلها اتفهمت بعده (غير كده الصنف يفضل «غير معروف»)
@@ -215,7 +227,11 @@ function calcSeg(src){
     const b2=fx.length?findFood(nb):null;
     if(b2&&!b2.left.length){best=b2;body=nb;fx.forEach(a=>it.notes.push({t:"w",m:"فهمت «"+a[0]+"» على إنها «"+a[1]+"»"}));it.weak=true}
   }
-  if(!best){it.err="صنف غير معروف";it.unknown=true;return it}
+  if(best&&best.left.length){ // كلمات وصفية/وحدة زيادة (بدون جلد، فريش، (ملعقة كبيرة)…) — نحاول من غيرها، ونقبل بس لو الفهم اتحسّن
+    const sb=body.filter(t=>!FILL.has(t)&&!UNITS[t]);
+    if(sb.length&&sb.length<body.length){const b2=findFood(sb);if(b2&&b2.A.f===best.A.f&&b2.left.length<best.left.length){best=b2;body=sb}}
+  }
+  if(!best){it.err="صنف غير معروف";it.unknown=true;it.mod=body.every(t=>FILL.has(t)||isState(t)||UNITS[t]);return it}
   const f=best.A.f;it.food=f;
   const sw=body.filter(t=>isState(t)&&!best.as.has(t));
   let st=null;if(sw.some(t=>ST_RAW.has(t)))st="r";else if(sw.some(t=>ST_COOK.has(t)))st="c";else if(sw.some(t=>ST_FRY.has(t)))st="f";
@@ -228,7 +244,7 @@ function calcSeg(src){
   }
   if(!st&&f.amb)it.notes.push({t:"i",m:f.amb});
   if(f.est){it.est=true;it.notes.push({t:"i",m:"قيمة تقديرية — راجعها"})}
-  const gr=gramsFor(f,pq.qty,pq.unit,pq.had);
+  const gr=gramsFor(f,pq.qty,pq.unit,pq.had,size);
   if(gr.err){it.err=gr.err;it.bad=true;return it}
   if(gr.assumed){it.notes.push({t:"w",m:"مفيش وحدة — افترضت إن الرقم بالجرام"});it.weak=true}
   it.g=gr.g;it.u=gr.u;it.q=gr.q;it.per=gr.per||(gr.u==="piece"?f.pc:0);
@@ -236,6 +252,24 @@ function calcSeg(src){
   it.m={k:m.k*r,p:m.p*r,c:m.c*r,f:m.f*r};
   const S=SERV[f.g];if(S)it.ex[f.g]=it.m[S.key]/S.size;
   it.ok=true;return it;
+}
+/* بدائل جوه نفس المكوّن («افوكادو او ملعقة زيت زيتون» / «فريش او بخار»):
+   - جزء وصفي بس (مشوي / بخار …) بيتجاهل. - أول بديل متفهم هو اللي بيتحسب، والباقي بيظهر كملاحظة بسعراته ومش داخل في الإجمالي. */
+const ALT_RE=/\s+(?:أو|او|or)\s+/i;
+function calcSeg(src){
+  const parts=String(src==null?"":src).split(ALT_RE).map(x=>x.trim()).filter(Boolean);
+  if(parts.length<2)return calcOne(src);
+  const rs=[];let inh=null;
+  parts.forEach(p=>{const r=calcOne(p,inh);rs.push(r);if(!inh&&r.pq&&r.pq.had&&!r.inherited)inh=r.pq});
+  const ch=rs.find(r=>r.ok);
+  if(!ch){const r=rs.find(x=>!x.mod)||rs[0];r.src=src;return r}
+  const out=Object.assign({},ch,{src,notes:ch.notes.slice()});
+  rs.forEach(r=>{
+    if(r===ch||r.mod)return;
+    if(r.ok)out.notes.push({t:"i",m:"بديل «"+r.src+"»: "+Math.round(r.m.k)+" سعرة — مش داخل في الإجمالي (المحسوب أول بديل)"});
+    else{out.notes.push({t:"w",m:"جزء غير محسوب: «"+r.src+"» — "+(r.err||"غير معروف")});out.weak=true}
+  });
+  return out;
 }
 /* ---------- خيار كامل / وجبة / يوم ---------- */
 function calcOpt(text){
