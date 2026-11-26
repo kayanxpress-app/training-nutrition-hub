@@ -194,11 +194,22 @@
     { id: "anem", cat: "حالات طبية", n: "أنيميا (نقص حديد)", split: [20, 50, 30], ban: [], bst: { fe: 1.2, vc: 1 }, note: "مصادر حديد + فيتامين C في نفس الوجبة. الألبان والشاي بيقللوا امتصاص الحديد (فاصل ساعتين)؛ الألبان موجودة بحكم المجموعات الستة — عدّلها لو لازم." },
     { id: "dm", cat: "حالات طبية", n: "سكري / مقاومة إنسولين (Low-GI)", split: [20, 45, 35], ban: ["hgi"], bst: { lowgi: 1.2, fib: 0.6 }, note: "كارب منخفض المؤشر وموزع بالتساوي بين الوجبات. الأدوية والجرعات خارج نطاق الأداة." },
     { id: "gout", cat: "حالات طبية", n: "نقرس (بيورين منخفض)", split: [20, 52, 28], ban: ["pur", "org"], pen: { red: 1.5 }, note: "بدون كبدة وسردين وماكريل وجمبري. البقوليات محسوبة مسموحة (بيورينها النباتي أقل خطورة)." },
+    { id: "fliver", cat: "حالات طبية", n: "كبد دهني (دهون على الكبد)", split: [22, 42, 36], ban: ["hgi", "prc"], pen: { red: 2, mfat: 1, hcf: 0.5 }, bst: { o3: 1.2, mufa: 1, lowgi: 1, fib: 0.6, wg: 0.5, nut: 0.4 }, grp: { s: [0.8, 0.9] }, note: "أسلوب متوسطي: بدون نشويات سريعة السكر ولا مصنعات، تقليل اللحوم الحمراء، وتفضيل السمك والزيوت والمكسرات والألياف والحبوب الكاملة. السعرات بتحددها بما يناسب نزول الوزن التدريجي. العصائر والسكريات والمشروبات المحلّاة والدهون المتحولة خارج حساب الأداة: ممنوعة." },
+    { id: "hypot", cat: "حالات طبية", n: "قصور الغدة الدرقية", split: [25, 40, 35], ban: ["hgi"], pen: { soy: 1, gas: 0.5, red: 0.5 }, bst: { fsh: 0.8, egg: 0.6, mlk: 0.4, fib: 0.8, lowgi: 0.6, nut: 0.3 }, note: "بروتين كفاية وكارب معتدل منخفض المؤشر وألياف عالية (للإمساك). مصادر اليود والسيلينيوم (سمك وبيض وألبان) مفضّلة، والصويا والخضار الصليبية النيئة بأقل نطاق. أدوية الغدة (ليفوثيروكسين) على معدة فاضية وبفاصل ٤ ساعات عن الكالسيوم والحديد والصويا: بتتابعها انت." },
+    { id: "ovw", cat: "حالات طبية", n: "زيادة الوزن (عجز سعرات)", split: [30, 40, 30], ban: ["hgi"], pen: { mfat: 1, hcf: 1, red: 1 }, bst: { fib: 1, lowgi: 0.8, fsh: 0.4 }, grp: { s: [0.8, 0.9], f: [1, 0.7] }, note: "بروتين عالي وألياف وكارب منخفض المؤشر ودهون مضبوطة لزيادة الشبع. السعرات المستهدفة (العجز) بتحطها انت أو بتتاخد من خطة العميل." },
     { id: "lactose", cat: "حساسية", n: "حساسية لاكتوز", split: null, ban: ["lh"], note: "بدون حليب وجبنة قريش وريكوتا؛ الزبادي مسموح (لاكتوزه أقل) والبدائل النباتية متاحة. لو الحالة شديدة اختار «حساسية أكل» ← لبن." },
     { id: "gluten", cat: "حساسية", n: "سيلياك / حساسية جلوتين", split: null, ban: ["gl"], note: "بدون قمح ومشتقاته، والشوفان محذوف احتياطًا لتلوثه بالجلوتين. راجع ملصقات المنتجات." },
     { id: "allergy", cat: "حساسية", n: "حساسية أكل (اختار الأنواع)", split: null, ban: [], allergy: true, note: "الأنواع اللي تختارها بتتشال من كل الخيارات." },
     { id: "veg", cat: "نباتي", n: "نباتي (لاكتو-أوفو)", split: null, ban: ["flesh"], note: "بدون لحوم وأسماك ودواجن؛ بيض وألبان مسموحة." },
-    { id: "vegan", cat: "نباتي", n: "نباتي صرف (Vegan)", split: null, ban: ["flesh", "anm"], note: "بدون أي منتج حيواني. لازم متابعة B12 والحديد والكالسيوم والأوميجا ٣." }
+    { id: "vegan", cat: "نباتي", n: "نباتي صرف (Vegan)", split: null, ban: ["flesh", "anm"], note: "بدون أي منتج حيواني. لازم متابعة B12 والحديد والكالسيوم والأوميجا ٣." },
+    { id: "bar1", cat: "ما بعد عمليات السمنة", n: "ما بعد السمنة — مرحلة المهروس/اللين", split: [38, 32, 30], ban: ["hgi", "gas", "fatty", "mfat", "raw", "prc", "nut", "seed", "pnt", "ses", "hcf", "hna", "org"], vk: "cook", vm: 0.5, grp: { p: [0.3, 0.5], s: [0.3, 0.5], fr: [0.4, 0.6], f: [0.5, 0.6], d: [0.5, 0.8] }, bst: { lh: 0.3, anm: 0.5 }, note: "مرحلة المهروس واللين (عادةً بعد السوائل): البروتين أولًا بكميات صغيرة، قوام ناعم، بدون سكر ولا دهون ولا أكل مسبب غازات، والخضار مطبوخ بس. السعرات صغيرة (أقل من الحد العملي)، فرجّع للتحذيرات. مدة المرحلة والتدرج بتحددها فريق الجراحة/التغذية. ما تشربش مع الأكل (فاصل ٣٠ دقيقة)." },
+    { id: "bar2", cat: "ما بعد عمليات السمنة", n: "ما بعد السمنة — مرحلة الأطعمة اللينة/التدرج", split: [35, 35, 30], ban: ["hgi", "prc", "gas", "fatty", "mfat", "hcf", "hna", "seed"], vm: 0.7, grp: { p: [0.4, 0.7], s: [0.4, 0.6], fr: [0.5, 0.7], f: [0.5, 0.7], d: [0.6, 0.9] }, bst: { anm: 0.5, lowgi: 0.6 }, note: "رجوع تدريجي للأكل الصلب اللين: بروتين أولًا ثم الخضار ثم النشويات. بدون سكريات وأكل دسم أو مقلي أو غازات. وجبات صغيرة، مضغ كويس، ومتابعة تحمل كل صنف. التوقيت بتحدده الجراحة/التغذية." },
+    { id: "bar3", cat: "ما بعد عمليات السمنة", n: "ما بعد السمنة — صيانة طويلة المدى", split: [30, 38, 32], ban: ["hgi", "prc"], pen: { mfat: 1, hcf: 1, red: 1 }, bst: { fib: 0.6, lowgi: 1, o3: 0.5 }, vm: 0.8, grp: { p: [0.6, 0.9], s: [0.5, 0.7], fr: [0.6, 0.8], f: [0.7, 0.9], d: [0.7, 1] }, note: "بروتين عالي أولًا، كارب منخفض المؤشر بكميات صغيرة، ودهون صحية مضبوطة. ركّز على الفيتامينات والمعادن (B12 والحديد والكالسيوم وD) بالمكملات اللي بيحددها الطبيب: خارج حساب الأداة." },
+    { id: "kid1", cat: "أطفال ومراهقين", n: "طفل ٦–١٢ شهر (تغذية تكميلية)", split: [12, 48, 40], ban: ["prc", "hna", "raw", "hg", "nut", "seed", "pnt", "hcf"], off: ["d"], vk: "cook", vm: 0.25, grp: { p: [0.15, 0.3], s: [0.2, 0.4], fr: [0.2, 0.4], f: [0.5, 0.6] }, bst: { fe: 1, o3: 0.4, egg: 0.3 }, note: "الرضاعة (طبيعية أو صناعي) بتفضل الأساس، والأكل ده تكميلي بقوام مهروس أو ناعم. بدون ملح ولا سكر ولا عسل، وبدون مكسرات كاملة. الأصناف المسببة للحساسية (بيض، سمسم، سمك) بتتدخّل واحد واحد. الحليب والألبان خارج الحساب (متاخدة من الرضاعة). الأرقام تقريبية: راجع دكتور الأطفال." },
+    { id: "kid2", cat: "أطفال ومراهقين", n: "طفل ١–٣ سنين", split: [15, 50, 35], ban: ["prc", "hna", "raw", "hg", "nut", "seed", "pnt", "hcf"], vm: 0.4, grp: { p: [0.3, 0.5], s: [0.3, 0.5], fr: [0.3, 0.5], f: [0.4, 0.6], d: [0.8, 1] }, bst: { fe: 0.8, ca: 0.6, o3: 0.4 }, note: "كميات صغيرة موزعة، بدون ملح ولا سكر مضاف ولا مكسرات كاملة (خطر اختناق). الخضار والفاكهة تتقطع أو تتبشر. الأفضل اللبن كامل الدسم حتى سنتين، والألبان في القاعدة قليلة الدسم فبدّلها يدويًا." },
+    { id: "kid3", cat: "أطفال ومراهقين", n: "طفل ٤–٨ سنين", split: [15, 52, 33], ban: ["prc", "hna", "hg"], vm: 0.6, grp: { p: [0.5, 0.7], s: [0.5, 0.7], fr: [0.5, 0.7], f: [0.5, 0.7] }, bst: { ca: 0.6, fe: 0.5, fib: 0.4 }, note: "مرحلة النمو: كالسيوم وحديد وألياف، بدون مصنعات وأسماك عالية الزئبق وأصناف مالحة. تقليل السكر المضاف، والمكسرات الكاملة بحذر تحت ٥ سنين." },
+    { id: "kid4", cat: "أطفال ومراهقين", n: "طفل ٩–١٣ سنة", split: [16, 52, 32], ban: ["prc", "hg"], vm: 0.8, grp: { p: [0.7, 0.9], s: [0.7, 0.9], fr: [0.7, 0.9], f: [0.7, 0.9] }, bst: { ca: 0.8, fe: 0.5, fib: 0.4 }, note: "بداية البلوغ: كالسيوم وحديد (خصوصًا للبنات) وبروتين كفاية. بدون مصنعات وأسماك عالية الزئبق." },
+    { id: "teen", cat: "أطفال ومراهقين", n: "مراهق ١٤–١٨ سنة", split: [17, 52, 31], ban: ["prc"], bst: { ca: 0.8, fe: 0.6, o3: 0.4 }, note: "احتياجات مرتفعة للنمو والنشاط: كالسيوم وحديد وبروتين كفاية. ما بيُنصحش بنظم تخسيس قاسية في السن ده. بدون مصنعات." }
   ];
   var ALLERGENS = [
     { id: "egg", n: "بيض", tags: ["egg"] }, { id: "mlk", n: "لبن ومنتجاته", tags: ["mlk"] },
@@ -234,6 +245,7 @@
     POOL.forEach(function (it) { if (usable(it, meal, ban, diet, null)) out[it.g].push({ key: it.key, lab: it.lab }); });
     VEG.forEach(function (v) {
       if (v.meals.indexOf(meal) < 0) return;
+      if (diet.vk && v.kind !== diet.vk) return;
       for (var i = 0; i < v.tags.length; i++) if (ban[v.tags[i]]) return;
       out.v.push({ key: v.key, lab: v.lab });
     });
@@ -318,14 +330,21 @@
     if (gen.length) styles.push("B");
     if (raw.length >= 3) styles.push("C");
     if (cook.length >= 1 && raw.length >= 1) styles.push("D");
+    /* لو اتعلّم نوع خضار واحد بس (مفيش تركيبة ممكنة): سلطة من الصنف ده لوحده بدل ما تتشال السلطة بالكامل */
+    if (!styles.length && cook.length >= 1) styles.push("F");
+    if (!styles.length && vegAll.length === 1) styles.push("E");
     if (!styles.length) return null;
+    var vm = (diet && diet.vm) || 1;
     var out = [], seen = {}, tries = 0, order = shuffle(styles, rnd), si = 0;
-    var TOT = { A: [80, 100, 120, 150], B: [100, 120, 150], C: [100, 120, 150, 200], D: [100, 120, 150, 200] };
+    var TOT = { A: [80, 100, 120, 150], B: [100, 120, 150], C: [100, 120, 150, 200], D: [100, 120, 150, 200], E: [80, 100, 120, 150], F: [100, 120, 150, 200] };
     while (out.length < N && tries < 400) {
       tries++;
       var st = order[si % order.length]; si++; if (si % order.length === 0) order = shuffle(styles, rnd);
       var W = TOT[st][Math.floor(rnd() * TOT[st].length)], vs, sig;
+      if (vm !== 1) W = Math.max(20, Math.round(W * vm / 10) * 10);
       if (st === "B") vs = [gen[0]];
+      else if (st === "E") vs = [vegAll[0]];
+      else if (st === "F") { var pc = shuffle(cook, rnd); vs = pc.length >= 2 ? [pc[0], pc[1]] : [pc[0]]; }
       else {
         var pickR = shuffle(raw, rnd), pickC = shuffle(cook, rnd);
         vs = st === "A" ? [pickR[0], pickR[1]] : st === "C" ? [pickR[0], pickR[1], pickR[2]] : [pickC[0], pickR[0]];
@@ -334,7 +353,7 @@
       if (seen[sig] && tries < 300) continue; seen[sig] = 1;
       var n = vs.length, m = { k: 0, p: 0, c: 0, f: 0 }, tags = [];
       vs.forEach(function (v) { m.k += v.mu.k * W / n; m.p += v.mu.p * W / n; m.c += v.mu.c * W / n; m.f += v.mu.f * W / n; tags = tags.concat(v.tags || []); });
-      out.push({ text: ar(W) + " ج " + vs.map(function (v) { return v.lab; }).join(" + "), m: m, tags: tags, style: st });
+      out.push({ text: ar(W) + " ج " + vs.map(function (v) { return v.lab; }).join(" + "), m: m, tags: tags, style: st, keys: vs.map(function (v) { return v.key; }) });
     }
     while (out.length < N) out.push(out[out.length % Math.max(1, out.length)]);
     return out;
@@ -359,12 +378,13 @@
     });
     var vegAll = VEG.filter(function (v) {
       if (v.meals.indexOf(meal) < 0) return false;
+      if (diet.vk && v.kind !== diet.vk) return false;
       for (var i = 0; i < v.tags.length; i++) if (ban[v.tags[i]]) return false;
       return !(o.only && !o.only[v.key]);
     });
     // "سلطه" الجاهزة (قيمة تقديرية معروفة في القاعدة) كشكل مستقل، وبتتخطى لو الحمضيات ممنوعة
     var gen = NXe.calcOpt("100 ج سلطه"), gx = gen && gen.items && gen.items[0];
-    if (gx && gx.ok && !ban.acid && !o.only) {
+    if (gx && gx.ok && !ban.acid && !o.only && !diet.vk) {
       vegAll.push({ meals: "bld", lab: "سلطه", kind: "gen", tags: [], mu: { k: gen.t.k / 100, p: gen.t.p / 100, c: gen.t.c / 100, f: gen.t.f / 100 } });
     }
     // الألبان النباتية بدائل: بتدخل بس لو مفيش حليب عادي متاح (لاكتوز / نباتي / حساسية لبن)
@@ -491,7 +511,9 @@
       if (st[i2].f2 && amt.f2 > 0) parts.push(amountText(st[i2].f2, amt.f2));
       var text = parts.join(" + "), r = NXe.calcOpt(text);
       var weak = r.items.filter(function (x) { return !x.ok || x.weak; }).length;
-      options.push({ text: text, k: r.t.k, p: r.t.p, c: r.t.c, f: r.t.f, weak: weak, p1: st[i2].p1.lab, s: st[i2].s ? st[i2].s.lab : "", fr: st[i2].fr ? st[i2].fr.lab : "", f_: st[i2].f ? st[i2].f.lab : "", d: st[i2].d ? st[i2].d.lab : "" });
+      var ukeys = []; ["p1", "p2", "s", "fr", "f", "f2", "d"].forEach(function (sl) { if (st[i2][sl] && amt[sl] > 0) ukeys.push(st[i2][sl].key); });
+      if (salads && salads[i2].keys) ukeys = ukeys.concat(salads[i2].keys);
+      options.push({ keys: ukeys, text: text, k: r.t.k, p: r.t.p, c: r.t.c, f: r.t.f, weak: weak, p1: st[i2].p1.lab, s: st[i2].s ? st[i2].s.lab : "", fr: st[i2].fr ? st[i2].fr.lab : "", f_: st[i2].f ? st[i2].f.lab : "", d: st[i2].d ? st[i2].d.lab : "" });
     }
     function rng2(key) { var v = options.map(function (x) { return x[key]; }); return [Math.min.apply(null, v), Math.max.apply(null, v)]; }
     var rg = { k: rng2("k"), p: rng2("p"), c: rng2("c"), f: rng2("f") };
