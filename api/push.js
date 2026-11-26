@@ -65,7 +65,10 @@ module.exports = async (req, res) => {
           pay: { title: name + " أرفق إيصال السداد 💳", body: "افتح ملفه وراجع الإيصال", tag: "pay-" + uid },
           lab: { title: name + " رفع نتيجة فحص 🧪" + (label ? " · " + label : ""), body: "افتح ملفه وراجع النتيجة", tag: "lab-" + uid + "-" + label },
           pain: { title: name + " سجّل ألم مرتفع 🔴", body: (label ? label + " · " : "") + "افتح ملفه وراجع بطاقة التأهيل", tag: "pain-" + uid + "-" + label },
-          inst: { title: name + " قام بدفع قسطه 💳", body: (label ? "المبلغ: " + label + " · " : "") + "افتح ملفه وراجع الإيصال", tag: "inst-" + uid }
+          inst: { title: name + " قام بدفع قسطه 💳", body: (label ? "المبلغ: " + label + " · " : "") + "افتح ملفه وراجع الإيصال", tag: "inst-" + uid },
+          // تم التمرين / تم اليوم (مكمل): إشعار لكل ضغطة، والـ tag فريد عشان الإشعارات متحلّش محل بعض
+          ex: { title: name + " خلّص تمرين ✅", body: clip(b.label, 70) || "تمرين", tag: "ex-" + uid + "-" + Date.now() },
+          supp: { title: name + " أخد المكمل 💊", body: clip(b.label, 70) || "مكمل", tag: "supp-" + uid + "-" + Date.now() }
         };
         const m = kinds[b.kind];
         if (!m) return res.status(400).json({ error: "نوع غير معروف" });
