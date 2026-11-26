@@ -25,23 +25,26 @@
   add("p", "bd", "موتزاريلا قليله الدسم", "g", 10, 30, 100, "mlk anm hna", { r: "1", fam: "dai" });
   add("p", "bd", "ريكوتا", "g", 10, 30, 120, "mlk lh anm", { r: "1", fam: "dai" });
   add("p", "bd", "تركي مدخن", "g", 10, 30, 120, "flesh prc hna raw", { r: "12", fam: "pou" });
-  add("p", "bld", "تونه", "g", 10, 50, 150, "flesh fsh hna hg1", { r: "12", fam: "fsh" });
+  add("p", "bld", "تونه", "g", 10, 50, 220, "flesh fsh hna hg1", { r: "12", fam: "fsh" });
   add("p", "b", "سلمون مدخن", "g", 10, 30, 100, "flesh fsh prc hna raw o3", { r: "2", fam: "fsh" });
   add("p", "bd", "واي بروتين", "sc", 0.5, 0.5, 2, "mlk anm", { r: "2", fam: "whey", lab1: "سكوب واي بروتين", lab2: "سكوب واي بروتين", sport: true });
   add("p", "ld", "صدر فراخ", "g", 10, 80, 220, "flesh", { r: "1", fam: "pou" });
   add("p", "l", "ورك فراخ", "g", 10, 80, 200, "flesh mfat", { r: "1", fam: "pou" });
   add("p", "ld", "درمستيك", "g", 10, 80, 200, "flesh", { r: "1", fam: "pou" });
   add("p", "ld", "صدر حبش", "g", 10, 80, 220, "flesh", { r: "1", fam: "pou" });
-  add("p", "l", "لحم قليل الدهن", "g", 10, 80, 200, "flesh red fe", { r: "1", fam: "red" });
-  add("p", "l", "ضاني", "g", 10, 70, 180, "flesh red mfat fe", { r: "1", fam: "red" });
+  add("p", "l", "لحم قليل الدهن", "g", 10, 80, 220, "flesh red fe", { r: "1", fam: "red" });
+  add("p", "ld", "ضاني", "g", 10, 70, 200, "flesh red mfat fe", { r: "1", fam: "red", est: true });
+  add("p", "ld", "شيش طاووق", "g", 10, 100, 250, "flesh", { r: "1", fam: "pou", est: true });
+  add("p", "ld", "كفته دجاج", "g", 10, 100, 250, "flesh", { r: "1", fam: "pou", est: true });
+  add("p", "ld", "كفته لحم", "g", 10, 100, 220, "flesh red mfat", { r: "1", fam: "red" });
   add("p", "l", "كبده", "g", 10, 70, 150, "flesh org pur fe", { r: "1", fam: "red" });
   add("p", "l", "كبدة فراخ", "g", 10, 70, 150, "flesh org pur fe", { r: "1", fam: "pou" });
-  add("p", "ld", "سلمون", "g", 10, 80, 180, "flesh fsh o3 fatty ldl", { r: "1", fam: "fsh" });
+  add("p", "ld", "سلمون", "g", 10, 80, 220, "flesh fsh o3 fatty ldl", { r: "1", fam: "fsh" });
   add("p", "ld", "بلطي", "g", 10, 100, 250, "flesh fsh", { r: "1", fam: "fsh" });
   add("p", "ld", "قاروص", "g", 10, 100, 250, "flesh fsh", { r: "1", fam: "fsh" });
   add("p", "ld", "سمك ابيض", "g", 10, 100, 250, "flesh fsh", { r: "1", fam: "fsh" });
   add("p", "ld", "جمبري", "g", 10, 80, 220, "flesh shl pur", { r: "1", fam: "shl" });
-  add("p", "ld", "تونه طازجه", "g", 10, 80, 200, "flesh fsh hg", { r: "1", fam: "fsh" });
+  add("p", "ld", "تونه طازجه", "g", 10, 80, 220, "flesh fsh hg", { r: "1", fam: "fsh" });
   add("p", "ld", "سردين", "g", 10, 80, 160, "flesh fsh o3 pur fatty ldl", { r: "1", fam: "fsh" });
   add("p", "l", "ماكريل", "g", 10, 70, 150, "flesh fsh o3 pur fatty hg", { r: "1", fam: "fsh" });
   add("p", "ld", "عدس", "g", 10, 100, 300, "lgm gas fod fe lowgi ldl", { r: "1", fam: "leg" });
@@ -105,20 +108,20 @@
 
   /* --- دهون صحية فقط (مفيش زبدة/سمن/مايونيز/كريمة/جوز هند) --- */
   add("f", "bld", "زيت زيتون", "g", 5, 5, 25, "mufa ldl", {});
-  add("f", "bld", "لوز", "g", 5, 5, 40, "nut mufa ldl", {});
-  add("f", "bld", "عين جمل", "g", 5, 5, 40, "nut o3 ldl", {});
-  add("f", "bld", "كاجو", "g", 5, 5, 40, "nut fod hcf", {});
-  add("f", "bld", "فستق", "g", 5, 5, 40, "nut fod hcf", {});
-  add("f", "bld", "بندق", "g", 5, 5, 40, "nut", {});
-  add("f", "bld", "بيكان", "g", 5, 5, 40, "nut", {});
-  add("f", "bld", "ماكاداميا", "g", 5, 5, 30, "nut", {});
-  add("f", "bld", "جوز برازيلي", "g", 5, 5, 25, "nut", {});
-  add("f", "bld", "افوكادو", "g", 10, 20, 150, "mufa ldl fod", {});
+  add("f", "bld", "لوز", "g", 5, 10, 40, "nut mufa ldl", {});
+  add("f", "bld", "عين جمل", "g", 5, 10, 40, "nut o3 ldl", {});
+  add("f", "bld", "كاجو", "g", 5, 10, 40, "nut fod hcf", {});
+  add("f", "bld", "فستق", "g", 5, 10, 40, "nut fod hcf", {});
+  add("f", "bld", "بندق", "g", 5, 10, 40, "nut", {});
+  add("f", "bld", "بيكان", "g", 5, 10, 40, "nut", {});
+  add("f", "bld", "ماكاداميا", "g", 5, 10, 30, "nut", {});
+  add("f", "bld", "جوز برازيلي", "g", 5, 10, 25, "nut", {});
+  add("f", "bld", "افوكادو", "g", 10, 20, 100, "mufa ldl fod", {});
   add("f", "ld", "زيتون", "g", 10, 20, 80, "mufa hna", {});
   add("f", "bld", "طحينه", "g", 5, 5, 30, "ses", {});
   add("f", "bld", "زبده فول سوداني", "g", 5, 5, 30, "pnt", {});
   add("f", "bld", "زبده اللوز", "g", 5, 5, 30, "nut", {});
-  add("f", "bld", "فول سوداني", "g", 5, 5, 40, "pnt hcf", {});
+  add("f", "bld", "فول سوداني", "g", 5, 10, 40, "pnt hcf", {});
   add("f", "bld", "لب عباد الشمس", "g", 5, 5, 30, "seed", {});
   add("f", "bld", "لب قرع", "g", 5, 5, 30, "seed", {});
   add("f", "bld", "سمسم", "g", 5, 5, 25, "seed ses", {});
@@ -152,7 +155,7 @@
     var r;
     try { r = NXe.calcOpt(txt); } catch (e) { return null; }
     var x = r && r.items && r.items[0];
-    if (!x || !x.ok || x.weak || x.est) return null;
+    if (!x || !x.ok || x.weak || (x.est && !it.est)) return null;
     var q = (it.unit === "pc" || it.unit === "sc") ? 1 : 100;
     return { k: r.t.k / q, p: r.t.p / q, c: r.t.c / q, f: r.t.f / q };
   }
@@ -363,7 +366,7 @@
     return out;
   }
 
-  function generate(o) {
+  function generateLegacy(o) {
     prepare();
     var t0 = Date.now(), budget = o.ms || 1100;
     var meal = o.meal || "b", diet = dietById(o.diet), N = Math.max(1, Math.min(12, o.n || 7));
@@ -552,6 +555,335 @@
     return { ok: true, options: options, range: rg, spread: spread, devMax: devMax, okSpread: okSpread, warnings: warnings, diet: diet, ms: Date.now() - t0, dropped: DROPPED.slice() };
   }
 
-  root.NXG = { generate: generate, catalog: catalog, targets: targets, DIETS: DIETS, ALLERGENS: ALLERGENS, MEALS: MEALS, SHARE: SHARE, prepare: prepare, ar: ar, dietById: dietById, _pool: function () { prepare(); return { POOL: POOL, VEG: VEG, DROPPED: DROPPED }; } };
+  /* ================================================================
+     المولّد الذكي (v2) — قوالب وجبات + قواعد منع بالكود
+     - كل خيار بيتبني على «قالب» (بيض / فول / شوفان وزبادي / ساندوتش للفطار، وطبق بروتين+نشويات+سلطة+دهون للغداء والعشاء) بدل ما كل الأصناف تتخلط.
+     - قواعد صارمة (لو اتكسرت الخيار مرفوض مش مجرد عقوبة): صنف ألبان واحد بس في الوجبة (مفيش زبادي يوناني + عادي)، بيض كامل أو بياض مش الاتنين،
+       البيض في أقل خيارات (ربع الخيارات)، بروتين أساسي مختلف في كل خيار، الكبدة مرة واحدة بالكتير.
+     - الغداء والعشاء: بروتين واحد بكمية طبق (بيتحسب بقدرته على تغطية بروتين الوجبة) + نشويات شائعة + سلطة + دهون، من غير فاكهة ولا ألبان.
+     - لو أي حاجة فشلت (قالب مش متاح للنظام، استثناء، قاعدة مش متحققة): بيرجع تلقائيًا للمولّد القديم (generateLegacy) بدون أي تغيير في شكل النتيجة.
+     - الشكل الراجع من generate هو نفسه بالظبط (+ حقول إضافية: smart, shape) فالواجهة ما بتتأثرش. */
+  var LUNCH_P = ["صدر فراخ", "ورك فراخ", "درمستيك", "صدر حبش", "لحم قليل الدهن", "ضاني", "كبده", "سلمون", "بلطي", "قاروص", "جمبري", "تونه طازجه"];
+  var DINNER_P = ["صدر فراخ", "لحم قليل الدهن", "سمك ابيض", "شيش طاووق", "كفته دجاج", "كفته لحم", "ضاني"];
+  var DINNER_S = ["رز", "رز بني", "بطاطا", "مكرونه بر", "بطاطس مشويه", "برغل"];
+  var BREAD = ["توست بني", "خبز بني", "عيش شامي", "فينو"];
+  var PLATE_S = ["رز", "رز بني", "بطاطا", "بطاطس", "بطاطس مشويه", "مكرونه", "مكرونه بر", "برغل", "كينوا", "كسكسي"];
+  var PLATE_F = ["زيت زيتون", "لوز", "عين جمل", "افوكادو", "زيتون", "طحينه", "كاجو"];
+  var NUTS = ["لوز", "عين جمل", "كاجو", "فستق", "بندق", "بيكان", "ماكاداميا", "جوز برازيلي", "فول سوداني", "زبده فول سوداني", "زبده اللوز", "شيا", "بذور الكتان", "لب عباد الشمس", "لب قرع", "سمسم"];
+  /* m: وضع كل مجموعة في القالب: r=لازم o=اختياري n=ممنوع | dc: نوع الألبان المسموح (y زبادي / m حليب) | w: وزن القالب في التوزيع | max: أقصى نسبة من الخيارات */
+  var SHAPES = {
+    b: [
+      { id: "egg", n: "بيض", w: 2, max: 0.3, p1: ["بيض"], p2: ["تركي مدخن", "جبنه بيضه", "موتزاريلا قليله الدسم", "سلمون مدخن", "جبنه قريش"], s: BREAD, m: { s: "r", v: "r", fr: "o", f: "o", d: "o" }, dc: "y" },
+      { id: "foul", n: "فول / طعمية", w: 2, max: 0.35, p1: ["فول", "طعميه", "حمص بالطحينه"], p2: ["بيض", "تركي مدخن", "جبنه بيضه", "واي بروتين"], s: ["خبز بني", "عيش شامي", "فينو", "توست بني"], m: { s: "r", v: "r", fr: "o", f: "o", d: "o" }, fl: ["زيت زيتون", "طحينه", "لوز", "عين جمل"], dc: "y" },
+      { id: "bowl", n: "شوفان / زبادي", w: 2, max: 0.45, p1: ["زبادي يوناني خالي الدسم", "جبنه قريش", "ريكوتا", "واي بروتين"], p2: ["واي بروتين", "بياض بيض"], s: ["شوفان", "كورن فليكس"], m: { s: "r", v: "n", fr: "r", f: "o", d: "o" }, fl: NUTS, dc: "m" },
+      { id: "sand", n: "ساندوتش / توست", w: 2, max: 0.45, p1: ["تركي مدخن", "تونه", "جبنه قريش", "موتزاريلا قليله الدسم", "ريكوتا", "سلمون مدخن"], p2: ["جبنه بيضه", "بياض بيض"], s: BREAD, m: { s: "r", v: "o", fr: "o", f: "o", d: "o" }, dc: "y" }
+    ],
+    l: [
+      { id: "plate", n: "طبق", w: 1, max: 1, p1: LUNCH_P, p2: null, s: PLATE_S, m: { s: "r", v: "r", fr: "n", f: "r", d: "n" }, fl: PLATE_F, plate: true }
+    ],
+    d: [
+      { id: "plate", n: "طبق", w: 3, max: 1, p1: DINNER_P, p2: null, s: DINNER_S, m: { s: "r", v: "r", fr: "n", f: "r", d: "n" }, fl: PLATE_F, plate: true },
+      { id: "light", n: "عشاء خفيف", w: 1, max: 0.3, p1: ["فول", "بيض", "تونه", "تركي مدخن"], p2: ["بيض", "جبنه بيضه"], s: BREAD, m: { s: "r", v: "r", fr: "n", f: "o", d: "n" }, fl: ["زيت زيتون", "طحينه"] }
+    ]
+  };
+  function isDairy(it) { return !!it && (it.fam === "dai" || it.cat === "y" || it.cat === "m"); }
+  function inLabs(it, labs) { return !labs || labs.indexOf(it.lab) >= 0; }
+
+  function generateSmart(o) {
+    prepare();
+    var t0 = Date.now(), budget = o.ms || 1100;
+    var meal = o.meal || "b", diet = dietById(o.diet), N = Math.max(1, Math.min(12, o.n || 7));
+    if (!SHAPES[meal] || diet.fat2) return null;
+    var ban = banSet(diet, o.allergies), rnd = rngFrom(o.seed || (Date.now() & 0xffffff)), warnings = [];
+    var Tg = { k: +o.k, p: +o.p, c: +o.c, f: +o.f };
+    if (!(Tg.k > 0) || !(Tg.p >= 0) || !(Tg.c >= 0) || !(Tg.f >= 0)) return { ok: false, error: "اكتب السعرات والبروتين والكارب والدهون." };
+    if (Tg.k < 350) warnings.push("السعرات قليلة: الحد الأدنى العملي لوجبة فيها المجموعات الست حوالي ٣٥٠ سعرة، فالدقة هتقل.");
+    var implied = 4 * Tg.p + 4 * Tg.c + 9 * Tg.f;
+    if (Math.abs(implied - Tg.k) / Tg.k > 0.04) warnings.push("السعرات المكتوبة (" + ar(Math.round(Tg.k)) + ") مختلفة عن اللي بتطلع من البروتين والكارب والدهون (" + ar(Math.round(implied)) + ") — الأداة بتوازن بين الاتنين، وللدقة اخلي الأرقام متسقة.");
+
+    var pool = { p1: [], p2: [], s: [], fr: [], f: [], d: [] };
+    POOL.forEach(function (it) {
+      if (!usable(it, meal, ban, diet, o.only)) return;
+      if (it.g === "p") { if (it.r.indexOf("1") >= 0) pool.p1.push(it); if (it.r.indexOf("2") >= 0) pool.p2.push(it); }
+      else pool[it.g].push(it);
+    });
+    var vegAll = VEG.filter(function (v) {
+      if (v.meals.indexOf(meal) < 0) return false;
+      if (diet.vk && v.kind !== diet.vk) return false;
+      for (var i = 0; i < v.tags.length; i++) if (ban[v.tags[i]]) return false;
+      return !(o.only && !o.only[v.key]);
+    });
+    var gen = NXe.calcOpt("100 ج سلطه"), gx = gen && gen.items && gen.items[0];
+    if (gx && gx.ok && !ban.acid && !o.only && !diet.vk) {
+      vegAll.push({ meals: "bld", lab: "سلطه", kind: "gen", tags: [], mu: { k: gen.t.k / 100, p: gen.t.p / 100, c: gen.t.c / 100, f: gen.t.f / 100 } });
+    }
+    if (pool.d.some(function (x) { return x.cat === "m" && !x.alt; })) pool.d = pool.d.filter(function (x) { return !x.alt; });
+    if (!pool.p1.length) return { ok: false, error: "مفيش أي مصدر بروتين متاح مع القيود المختارة." };
+    if (meal !== "b") { var vNo = vegAll.filter(function (v) { return v.tags.indexOf("hcv") < 0; }); if (vNo.length >= 3) vegAll = vNo; } /* بنجر/قرع/جزر مش خضار طبق أساسي: بره الغداء والعشا */
+    var salads = buildSalads(N, meal, vegAll, ban, rnd, diet);
+    if (!salads) warnings.push("مفيش خضار متاح مع القيود المختارة.");
+
+    /* ---- القوالب المتاحة فعلاً للنظام والأصناف المختارة ---- */
+    var pMaxOf = function (it) { return it.mu.p * bounds(it, diet)[1] * it.step; };
+    var thr = 0.8 * Math.max(0, Tg.p - 6);
+    var capable = pool.p1.filter(function (it) { return pMaxOf(it) >= thr; });
+    var need = Math.min(N, 3);
+    var shapes = [];
+    SHAPES[meal].forEach(function (S) {
+      var sh = { id: S.id, n: S.n, w: S.w, max: Math.max(1, Math.round(S.max * N)), m: {}, c: {} };
+      var base;
+      if (S.plate) {
+        var labd = pool.p1.filter(function (x) { return inLabs(x, S.p1); }); if (!labd.length) labd = pool.p1;
+        var capd = labd.filter(function (x) { return pMaxOf(x) >= thr; });
+        sh.capOk = capd.length >= need; base = sh.capOk ? capd : labd;
+      } else base = pool.p1.filter(function (x) { return inLabs(x, S.p1); });
+      sh.c.p1 = base;
+      sh.c.p2 = (S.plate ? (sh.capOk ? [] : pool.p2) : (S.p2 ? pool.p2.filter(function (x) { return inLabs(x, S.p2); }) : []));
+      var sl = pool.s.filter(function (x) { return inLabs(x, S.s); }); if (!sl.length && S.plate) sl = pool.s;
+      sh.c.s = sl;
+      sh.c.fr = S.m.fr === "n" ? [] : pool.fr;
+      var fl = pool.f.filter(function (x) { return inLabs(x, S.fl); }); if (!fl.length) fl = pool.f;
+      sh.c.f = fl;
+      sh.c.d = (S.m.d === "n" || !S.dc) ? [] : pool.d.filter(function (x) { return S.dc === "y" ? x.cat === "y" : x.cat === "m"; });
+      if (S.dc === "y" && !sh.c.d.length) sh.c.d = [];
+      ["s", "fr", "f", "d"].forEach(function (g) { sh.m[g] = sh.c[g].length ? S.m[g] : "n"; });
+      sh.m.p2 = sh.c.p2.length ? (S.plate ? "o" : "o") : "n";
+      sh.m.v = (salads ? S.m.v : "n");
+      /* عشاء خفيف: لازم يغطي بروتين الوجبة تقريبًا (أكبر بروتين أساسي + أكبر مساعد) */
+      if (S.id === "light") {
+        var mp1 = 0, mp2 = 0; sh.c.p1.forEach(function (x) { mp1 = Math.max(mp1, pMaxOf(x)); }); sh.c.p2.forEach(function (x) { mp2 = Math.max(mp2, pMaxOf(x)); });
+        if (mp1 + mp2 < 0.85 * Tg.p) return;
+      }
+      if (!sh.c.p1.length) return;
+      if (!S.plate && S.id !== "light") {
+        var q1 = 0, q2 = 0, qd = 0, qs = 0;
+        sh.c.p1.forEach(function (x) { q1 = Math.max(q1, pMaxOf(x)); }); sh.c.p2.forEach(function (x) { q2 = Math.max(q2, pMaxOf(x)); });
+        sh.c.d.forEach(function (x) { qd = Math.max(qd, pMaxOf(x)); }); sh.c.s.forEach(function (x) { qs = Math.max(qs, pMaxOf(x)); });
+        if (S.id === "bowl") { /* الشوفان/الزبادي من غير واي بروتين مش بيوصل لبروتين عالي: القالب بيشتغل بس لو الأرقام تسمح (بدون الاعتماد على البيض) */
+          q2 = 0; sh.c.p2.forEach(function (x) { if (x.fam !== "egg") q2 = Math.max(q2, pMaxOf(x)); });
+          if (q1 + q2 < 0.85 * Tg.p) return;
+        }
+        if (q1 + q2 + qd + qs < 0.9 * Tg.p) return; /* القالب ده مش هيوصل لبروتين الوجبة مهما اتظبط: نستبعده */
+      }
+      if (S.m.s === "r" && !sh.c.s.length && !(diet.off && diet.off.indexOf("s") >= 0)) { /* مفيش نشويات ممكنة: القالب يشتغل من غيرها */ }
+      shapes.push(sh);
+    });
+    if (!shapes.length) return null;
+    if (shapes.some(function (x) { return x.id === "plate" && !x.capOk; })) warnings.push("مفيش بروتين أساسي بيغطي بروتين الوجبة لوحده مع القيود دي — الخيارات بتجمّع بروتين مساعد.");
+
+    /* ---- توزيع القوالب على الخيارات (لكل قالب حد أقصى، وأكبر تنوع ممكن) ---- */
+    var counts = shapes.map(function () { return 0; }), assign = [];
+    var iL = -1, iP = -1; shapes.forEach(function (x, k) { if (x.id === "light") iL = k; if (x.id === "plate") iP = k; });
+    if (meal === "d" && iL >= 0 && iP >= 0) { /* العشاء: ٣ من ٧ خفيف (فول/بيض/تونه/تركي) والباقي أطباق زي الغداء */
+      var nl = N < 2 ? 0 : Math.max(1, Math.round(N * 3 / 7));
+      for (var q0 = 0; q0 < N; q0++) assign.push(q0 < nl ? iL : iP);
+      shapes[iL].max = nl; shapes[iP].max = N - nl;
+    } else
+
+    for (var ai = 0; assign.length < N && ai < N; ai++) {
+      var bi = -1, bs = 1e9;
+      for (var si = 0; si < shapes.length; si++) {
+        if (counts[si] >= shapes[si].max) continue;
+        var sc = counts[si] / shapes[si].w + rnd() * 0.01;
+        if (sc < bs) { bs = sc; bi = si; }
+      }
+      if (bi < 0) { bi = 0; for (var sj = 1; sj < shapes.length; sj++) if (counts[sj] / shapes[sj].w < counts[bi] / shapes[bi].w) bi = sj; }
+      counts[bi]++; assign.push(bi);
+    }
+    assign = shuffle(assign, rnd);
+
+    var unionP1 = {}; shapes.forEach(function (sh) { sh.c.p1.forEach(function (x) { unionP1[x.id] = 1; }); });
+    var nP1 = Object.keys(unionP1).length;
+    if (nP1 < N) warnings.push("أنواع البروتين المتاحة (" + ar(nP1) + ") أقل من عدد الخيارات — هيتكرر بعضها.");
+    var GN = { s: "النشويات", f: "الدهون" };
+    ["s", "f"].forEach(function (g) {
+      if (!pool[g].length && !(diet.off && diet.off.indexOf(g) >= 0)) warnings.push("مفيش أصناف متاحة لمجموعة " + GN[g] + " مع القيود المختارة — الخيارات هتطلع من غيرها.");
+    });
+
+    var eggCap = Math.max(1, Math.ceil(N / 4));
+    var SL = ["p1", "p2", "s", "fr", "f", "d"];
+    function capOf(len, base) { return Math.max(base, Math.ceil(N / Math.max(1, len))); }
+    var CAP = { p1: capOf(nP1, 1), s: capOf(pool.s.length, 1), f: capOf(pool.f.length, 1), fr: capOf(pool.fr.length, 2) };
+    function itemCap(sl, it) {
+      if (sl === "p1") return it.fam === "egg" ? eggCap : CAP.p1;
+      if (sl === "f" && it.lab === "زيت زيتون") return N;
+      if (sl === "s" && (it.lab === "رز" || it.lab === "عيش شامي" || it.lab === "توست بني")) return Math.max(CAP.s, Math.ceil(N / 3));
+      return CAP[sl] || 99;
+    }
+    var cache = {};
+    function optKey(op, i) { return [op.nv ? 1 : 0, op.p1.id, op.p2 ? op.p2.id : 0, op.s ? op.s.id : 0, op.fr ? op.fr.id : 0, op.f ? op.f.id : 0, op.d ? op.d.id : 0, i].join("|"); }
+    function solveOpt(op, i) {
+      var key = optKey(op, i); if (cache[key]) return cache[key];
+      var vars = [], sv = (salads && !op.nv) ? salads[i].m : { k: 0, p: 0, c: 0, f: 0 };
+      SL.forEach(function (sl) {
+        var it = op[sl]; if (!it) return; var b = bounds(it, diet);
+        vars.push({ sl: sl, it: it, k: it.mu.k * it.step, p: it.mu.p * it.step, c: it.mu.c * it.step, f: it.mu.f * it.step, lo: b[0], hi: b[1] });
+      });
+      var r = solve(vars, sv, Tg); r.vars = vars; cache[key] = r; return r;
+    }
+    function tagsOf(op, i) { var t = []; SL.forEach(function (sl) { if (op[sl]) t = t.concat(op[sl].tags); }); if (salads && !op.nv) t = t.concat(salads[i].tags); return t; }
+    function p2ok(a, b) { return a !== b && a.fam !== b.fam; }
+
+    /* قواعد صارمة: بترجّع عدد المخالفات (لازم صفر) */
+    function viol(st) {
+      var v = 0, eggOpts = 0, org = 0;
+      st.forEach(function (op, i) {
+        var dc = 0, eg = 0;
+        [op.p1, op.p2, op.d].forEach(function (it) { if (isDairy(it)) dc++; });
+        [op.p1, op.p2].forEach(function (it) { if (it && it.fam === "egg") eg++; });
+        if (dc > 1) v++;
+        if (eg > 1) v++;
+        if (eg) eggOpts++;
+        if (op.p2 && op.p1.fam === op.p2.fam) v++;
+        if (tagsOf(op, i).indexOf("org") >= 0) org++;
+      });
+      if (eggOpts > eggCap) v += eggOpts - eggCap;
+      if (org > 1) v += org - 1;
+      return v;
+    }
+    function penalty(st) {
+      var c = 0, i, cnt = {};
+      for (i = 0; i < st.length; i++) {
+        var op = st[i];
+        if (op.p2) c += 0.08;
+        if (i && op.fr && op.fr === st[i - 1].fr) c += 0.6;
+        if (i && salads && !op.nv && !st[i - 1].nv && salads[i].style === salads[i - 1].style) c += 0.15;
+        if (i && op.sh === st[i - 1].sh && shapes.length > 1) c += 0.2;
+        if (op.p1.tags.indexOf("ses") >= 0 && op.f && op.f.tags.indexOf("ses") >= 0) c += 1;
+        var tg = tagsOf(op, i), seen = {};
+        tg.forEach(function (t) { if (seen[t]) return; seen[t] = 1; cnt[t] = (cnt[t] || 0) + 1; if (diet.pen && diet.pen[t]) c += 0.5 * diet.pen[t]; if (diet.bst && diet.bst[t]) c -= 0.3 * diet.bst[t]; });
+        var fam = op.p1.fam; cnt["fam:" + fam] = (cnt["fam:" + fam] || 0) + 1;
+      }
+      Object.keys(cnt).forEach(function (k) { if (k.indexOf("fam:") === 0 && cnt[k] > 3 && N >= 5 && k !== "fam:egg") c += (cnt[k] - 3) * 0.8; });
+      if (diet.cap) Object.keys(diet.cap).forEach(function (t) { if ((cnt[t] || 0) > diet.cap[t]) c += 6 * (cnt[t] - diet.cap[t]); });
+      for (var pa = 0; pa < st.length; pa++) for (var pb = pa + 1; pb < st.length; pb++) {
+        var A = st[pa], B = st[pb];
+        if (A.p1 === B.p1 && A.s && A.s === B.s) c += 1.2;
+        else if (A.p1.fam === B.p1.fam && A.s && A.s === B.s) c += 0.3;
+        if (A.fr && A.fr === B.fr) c += 0.3;
+        if (A.f && A.f === B.f && A.f.lab !== "زيت زيتون") c += 0.25;
+        if (A.d && A.d === B.d) c += 0.1;
+      }
+      return c;
+    }
+    /* إصلاح تلقائي للمخالفات بعد أي حركة: ألبان مكررة، بروتين مساعد من نفس العيلة، بيض زيادة عن الحد */
+    function repairAll(st) {
+      var i, n = 0;
+      st.forEach(function (op) {
+        if (op.p2 && (op.p2.fam === op.p1.fam)) op.p2 = null;
+        var dc = (isDairy(op.p1) ? 1 : 0) + (isDairy(op.p2) ? 1 : 0) + (isDairy(op.d) ? 1 : 0);
+        if (dc > 1) {
+          if (op.d && (isDairy(op.p1) || isDairy(op.p2))) op.d = null;
+          else if (op.p2 && isDairy(op.p2) && isDairy(op.p1)) op.p2 = null;
+        }
+      });
+      st.forEach(function (op) { if (op.p1.fam === "egg" || (op.p2 && op.p2.fam === "egg")) n++; });
+      for (i = st.length - 1; i >= 0 && n > eggCap; i--) { if (st[i].p2 && st[i].p2.fam === "egg" && st[i].p1.fam !== "egg") { st[i].p2 = null; n--; } }
+    }
+    function total(st) { var t = penalty(st) + 40 * viol(st); for (var i = 0; i < st.length; i++) t += solveOpt(st[i], i).cost; return t; }
+    function clone(st) { return st.map(function (x) { return Object.assign({}, x); }); }
+    function count(stt, sl, it) { var n = 0; stt.forEach(function (op) { if (op[sl] === it) n++; }); return n; }
+    function leastUsed(list, sl, stt) {
+      var best = [], bn = 1e9;
+      list.forEach(function (it) { var n = count(stt, sl, it); if (n < bn) { bn = n; best = [it]; } else if (n === bn) best.push(it); });
+      return best[Math.floor(rnd() * best.length)];
+    }
+    function activeSlots(op) { return SL.filter(function (sl) { return shapes[op.sh].m[sl] !== "n" && shapes[op.sh].c[sl].length; }); }
+
+    function run(ms) {
+      var tA = Date.now(), st = [], i;
+      for (i = 0; i < N; i++) st.push({ sh: assign[i], p1: null, p2: null, s: null, fr: null, f: null, d: null, nv: !(salads && shapes[assign[i]].m.v !== "n") });
+      for (i = 0; i < N; i++) {
+        var S = shapes[st[i].sh];
+        st[i].p1 = leastUsed(S.c.p1, "p1", st);
+        ["s", "fr", "f", "d"].forEach(function (g) {
+          if (S.m[g] === "r" || (S.m[g] === "o" && rnd() < 0.5)) st[i][g] = leastUsed(S.c[g], g, st);
+        });
+        if (S.m.p2 === "o" && rnd() < 0.6) { var pc = S.c.p2.filter(function (x) { return p2ok(st[i].p1, x); }); if (pc.length) st[i].p2 = pc[Math.floor(rnd() * pc.length)]; }
+        if (S.m.v === "o") st[i].nv = rnd() < 0.5;
+      }
+      repairAll(st);
+      var cur = total(st), best = clone(st), bestT = cur, iter = 0;
+      while (Date.now() - tA < ms && iter < 6000) {
+        iter++;
+        var temp = Math.max(0.03, 1 - (Date.now() - tA) / ms);
+        var a = Math.floor(rnd() * N), op = st[a], S2 = shapes[op.sh], act = activeSlots(op), nst = clone(st);
+        var sl = act[Math.floor(rnd() * act.length)], n2 = nst[a];
+        if (!sl) continue;
+        var mode = sl === "p1" ? "r" : S2.m[sl], cands = S2.c[sl], r = rnd();
+        if (mode === "o" && r < 0.3) {
+          if (n2[sl]) n2[sl] = null;
+          else { var cc = sl === "p2" ? cands.filter(function (x) { return p2ok(n2.p1, x); }) : cands; if (!cc.length) continue; n2[sl] = cc[Math.floor(rnd() * cc.length)]; }
+        } else if (r < 0.5 && N > 1) {
+          var b = Math.floor(rnd() * N); if (b === a) continue;
+          var o2 = nst[b], S3 = shapes[o2.sh];
+          if (sl === "p2") continue;
+          if ((n2[sl] && S3.c[sl].indexOf(n2[sl]) < 0) || (o2[sl] && S2.c[sl].indexOf(o2[sl]) < 0)) continue;
+          if (S3.m[sl] === "r" && !n2[sl]) continue; if (S2.m[sl] === "r" && !o2[sl]) continue;
+          var tmp = n2[sl]; n2[sl] = o2[sl]; o2[sl] = tmp;
+          if (sl === "p1") { [n2, o2].forEach(function (x) { if (x.p2 && !p2ok(x.p1, x.p2)) x.p2 = null; }); }
+        } else {
+          var pl = sl === "p2" ? cands.filter(function (x) { return p2ok(n2.p1, x); }) : cands; if (!pl.length) continue;
+          var cd = pl[Math.floor(rnd() * pl.length)];
+          if (cd === n2[sl]) continue;
+          if (sl !== "d" && sl !== "p2" && count(nst, sl, cd) >= itemCap(sl, cd)) continue;
+          n2[sl] = cd; if (sl === "p1" && n2.p2 && !p2ok(cd, n2.p2)) n2.p2 = null;
+        }
+        repairAll(nst);
+        var nt = total(nst);
+        if (nt <= cur || rnd() < Math.exp(-(nt - cur) / temp)) { st = nst; cur = nt; if (cur < bestT) { bestT = cur; best = clone(st); } }
+      }
+      return { st: best, cost: bestT, viol: viol(best) };
+    }
+
+    var res = run(budget * 0.65);
+    var remain = budget - (Date.now() - t0);
+    if ((res.viol > 0) && remain > 80) { var r2 = run(remain * 0.9); if (r2.viol < res.viol || (r2.viol === res.viol && r2.cost < res.cost)) res = r2; }
+    if (res.viol > 0) return null;
+    var st = res.st;
+
+    /* ---- تركيب النصوص + مراجعة نهائية بمحرك الحساب ---- */
+    var options = [], i2;
+    for (i2 = 0; i2 < N; i2++) {
+      var sol = solveOpt(st[i2], i2), amt = {};
+      sol.vars.forEach(function (v, k) { amt[v.sl] = sol.n[k] * v.it.step; });
+      var parts = [];
+      ["p1", "p2"].forEach(function (sl) { if (st[i2][sl] && amt[sl] > 0) parts.push(amountText(st[i2][sl], amt[sl])); });
+      if (st[i2].s && amt.s > 0) parts.push(amountText(st[i2].s, amt.s));
+      if (salads && !st[i2].nv) parts.push(salads[i2].text);
+      if (st[i2].fr && amt.fr > 0) parts.push(amountText(st[i2].fr, amt.fr));
+      if (st[i2].d && amt.d > 0) parts.push(amountText(st[i2].d, amt.d));
+      if (st[i2].f && amt.f > 0) parts.push(amountText(st[i2].f, amt.f));
+      var text = parts.join(" + "), r = NXe.calcOpt(text);
+      var weak = r.items.filter(function (x) { return !x.ok || x.weak; }).length;
+      var ukeys = []; SL.forEach(function (sl) { if (st[i2][sl] && amt[sl] > 0) ukeys.push(st[i2][sl].key); });
+      if (salads && !st[i2].nv && salads[i2].keys) ukeys = ukeys.concat(salads[i2].keys);
+      options.push({ keys: ukeys, text: text, k: r.t.k, p: r.t.p, c: r.t.c, f: r.t.f, weak: weak, shape: shapes[st[i2].sh].id, p1: st[i2].p1.lab, s: st[i2].s ? st[i2].s.lab : "", fr: st[i2].fr ? st[i2].fr.lab : "", f_: st[i2].f ? st[i2].f.lab : "", d: st[i2].d ? st[i2].d.lab : "" });
+    }
+    function rng2(key) { var v = options.map(function (x) { return x[key]; }); return [Math.min.apply(null, v), Math.max.apply(null, v)]; }
+    var rg = { k: rng2("k"), p: rng2("p"), c: rng2("c"), f: rng2("f") };
+    var spread = { k: rg.k[1] - rg.k[0], p: rg.p[1] - rg.p[0], c: rg.c[1] - rg.c[0], f: rg.f[1] - rg.f[0] };
+    var devMax = Math.max.apply(null, options.map(function (x) { return Math.max(Math.abs(x.p - Tg.p), Math.abs(x.c - Tg.c), Math.abs(x.f - Tg.f)); }));
+    var okSpread = spread.p <= 5.01 && spread.c <= 5.01 && spread.f <= 5.01 && spread.k <= Tg.k * 0.03;
+    if (!okSpread) warnings.push("الفرق بين الخيارات أكبر من المطلوب (بروتين " + ar(Math.round(spread.p * 10) / 10) + " / كارب " + ar(Math.round(spread.c * 10) / 10) + " / دهون " + ar(Math.round(spread.f * 10) / 10) + " جم). جرّب «إعادة توليد» أو وسّع الأطعمة المتاحة أو راجع تناسق الأرقام.");
+    if (options.some(function (x) { return x.weak; })) warnings.push("في خيار فيه صنف محتاج مراجعة في الحساب — راجع اللوحة اللي تحت.");
+    return { ok: true, smart: true, options: options, range: rg, spread: spread, devMax: devMax, okSpread: okSpread, warnings: warnings, diet: diet, ms: Date.now() - t0, dropped: DROPPED.slice() };
+  }
+
+  /* الواجهة العامة: الذكي أولًا، ولو ما نفعش (أو حصل أي استثناء) بنرجع للقديم بنفس الشكل */
+  function generate(o) {
+    o = o || {};
+    if (o.smart !== false) {
+      var r = null;
+      try { r = generateSmart(o); } catch (e) { r = null; }
+      if (r) return r;
+      var L = generateLegacy(o);
+      if (L && L.ok) { L.fallback = true; L.warnings = (L.warnings || []).concat("القوالب الذكية مش كفاية للعدد/القيود دي (مثلاً ١٢ خيار بروتين عالي) فاتولّد بالنمط العام: راجع الخيارات بعينك أو قلّل العدد."); }
+      return L;
+    }
+    return generateLegacy(o);
+  }
+
+  root.NXG = { generate: generate, generateLegacy: generateLegacy, catalog: catalog, targets: targets, DIETS: DIETS, ALLERGENS: ALLERGENS, MEALS: MEALS, SHARE: SHARE, prepare: prepare, ar: ar, dietById: dietById, _pool: function () { prepare(); return { POOL: POOL, VEG: VEG, DROPPED: DROPPED }; } };
   if (typeof module !== "undefined" && module.exports) module.exports = root.NXG;
 })(typeof window !== "undefined" ? window : globalThis);
