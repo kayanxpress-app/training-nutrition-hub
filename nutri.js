@@ -30,6 +30,7 @@ function norm(s){
   s=s.replace(/[أإآٱ]/g,"ا").replace(/ى/g,"ي").replace(/ة/g,"ه").replace(/ؤ/g,"و").replace(/ئ/g,"ي").replace(/ء/g,"");
   s=s.replace(/(حبه|حبوب|قمح)\s+كامل(ه|ين)?/g,"قمحكامل").replace(/whole\s*-?\s*(wheat|grain)/g,"قمحكامل");
   s=s.replace(/(نص|نصف)\s+دسم/g,"نصفدسم");
+  s=s.replace(/(^|\s)صدور(?=\s|$)/g,"$1صدر"); // صدور دجاج / صدور ديك رومي = صدر
   s=s.replace(/غير\s+مطبوخ(ه)?/g,"ني").replace(/قبل\s+(ال)?(طبخ|سلق|شوي|طهي)/g,"ني").replace(/بعد\s+(ال)?(طبخ|سلق|شوي|طهي)/g,"مطبوخ");
   s=s.replace(/(\d)\.(\d)/g,"$1"+DOT+"$2").replace(/\./g," ").replace(new RegExp(DOT,"g"),".");
   s=s.replace(/(\d)([^\d\s.\/])/g,"$1 $2").replace(/([^\d\s.\/])(\d)/g,"$1 $2");
@@ -82,7 +83,7 @@ const ST_RAW=new Set(["ني","نيي","خام","raw","uncooked","dry","جاف","
 const ST_COOK=new Set(["مسلوق","مسلوقه","مطبوخ","مطبوخه","مشوي","مشويه","مشوح","مغلي","مخبوز","مخبوزه","مبخر","cooked","boiled","grilled","baked","roasted","steamed"].map(w=>tok(norm(w))));
 const ST_FRY=new Set(["مقلي","مقليه","محمر","محمره","fried"].map(w=>tok(norm(w))));
 /* كلمات وصفية لا تغيّر القيمة الغذائية (طريقة تقديم / تفاصيل) — بنتجاهلها بدون تحذير، وبس لو الصنف اتفهم من غيرها */
-const FILL=new Set(["فريش","بخار","بالبخار","مسحب","مسحبه","بدون","جلد","مصفاه"].map(w=>tok(norm(w))));
+const FILL=new Set(["فريش","بخار","بالبخار","مسحب","مسحبه","بدون","جلد","مصفاه","ميكس"].map(w=>tok(norm(w))));
 /* حجم الطبق للخضار/السلطة (جم) لما الكوتش يكتب صغير/متوسط/كبير */
 const BOWLV={s:50,m:100,l:200};
 const BOWL_OK=new Set(["salad","veg_mixed","lettuce","arugula","spinach","cabbage","cabbage_red","broccoli","cauliflower","carrot","zucchini","eggplant","green_beans","okra","molokhia","tomato","cucumber","pepper_green","pepper_red","mushroom","kale","asparagus","celery"]); // أصناف بتتاكل بالطبق فقط (مش ثوم/بصل/ليمون…)
@@ -208,8 +209,10 @@ function gramsFor(f,q,u,had,size){
   else if(u==="slice")w=M.slice||(f.pc&&/توست|toast|bread/.test(f.id)?f.pc:null);
   else w=M[u]||null;
   if(u==="bowl"&&size&&BOWL_OK.has(f.id)&&BOWLV[size])w=BOWLV[size]; // طبق خضار/سلطة بحجم محدد
+  let assumedBowl=false;
+  if(!w&&u==="bowl"&&BOWL_OK.has(f.id)){w=BOWLV.m;assumedBowl=true} // «طبق خيار» من غير حجم ← متوسط ١٠٠ جم (مع تنبيه)
   if(!w)return {err:"مفيش وزن معروف لـ«"+UNAME[u]+"» مع الصنف ده — اكتبه بالجرام"};
-  return {g:q*w,u,q,per:w};
+  return assumedBowl?{g:q*w,u,q,per:w,assumedBowl:true}:{g:q*w,u,q,per:w};
 }
 function calcOne(src,inh){
   const it={src,ok:false,notes:[],food:null,g:0,m:{k:0,p:0,c:0,f:0},ex:{p:0,s:0,v:0,fr:0,f:0,d:0},weak:false,est:false};
@@ -247,6 +250,7 @@ function calcOne(src,inh){
   const gr=gramsFor(f,pq.qty,pq.unit,pq.had,size);
   if(gr.err){it.err=gr.err;it.bad=true;return it}
   if(gr.assumed){it.notes.push({t:"w",m:"مفيش وحدة — افترضت إن الرقم بالجرام"});it.weak=true}
+  if(gr.assumedBowl){it.notes.push({t:"w",m:"طبق من غير حجم — افترضت متوسط ١٠٠ جم"});it.weak=true}
   it.g=gr.g;it.u=gr.u;it.q=gr.q;it.per=gr.per||(gr.u==="piece"?f.pc:0);
   const r=gr.g/100;
   it.m={k:m.k*r,p:m.p*r,c:m.c*r,f:m.f*r};
@@ -279,6 +283,25 @@ const SAL_X=new Set(["salad","veg_mixed"]);
 const isSalLead=r=>!!(r&&r.ok&&r.food&&r.food.g==="v"&&!SAL_X.has(r.food.id)&&r.pq&&r.pq.had&&!r.inherited&&r.u==="g"&&r.g>0);
 const isSalFol=r=>!!(r&&r.food&&r.food.g==="v"&&!SAL_X.has(r.food.id)&&r.pq&&!r.pq.had);
 function groupSalad(items){
+  /* خضار نيّ من غير أي كمية ولا وزن قبله («خيار مع خس»): بنفترض طبق ١٠٠ جم مقسوم بينهم بالتساوي ونعلّمه «للمراجعة» بدل ما يتحسب «غير محسوب». بيشتغل بس على أصناف الطبق (خس/خيار/طماطم…) */
+  const isBare=r=>!!(r&&r.food&&r.food.g==="v"&&!SAL_X.has(r.food.id)&&BOWL_OK.has(r.food.id)&&r.pq&&!r.pq.had&&(r.ok||(r.err&&/الكمية/.test(r.err))));
+  for(let i=0;i<items.length;){
+    if(!isBare(items[i])){i++;continue}
+    let j=i;while(j<items.length&&isBare(items[j]))j++;
+    const L0=i>0?items[i-1]:null;
+    if(L0&&L0.ok&&L0.food&&L0.food.g==="v"&&BOWL_OK.has(L0.food.id)&&!SAL_X.has(L0.food.id)&&L0.u==="bowl"&&L0.g>0){ // «طبق ميكس خيار + خس»: وزن الطبق ← قاعدة السلطة الأصلية
+      L0.u="g";L0.q=L0.g;L0.pq={qty:L0.g,unit:"g",had:true,bowl:true};
+    }
+    if(i>0&&isSalLead(items[i-1])){i=j;continue} // وراه خضار له وزن: القاعدة الأصلية بتتولّاه
+    const n=j-i;
+    if(n<2||items.slice(i,j).every(x=>x.ok)){i=j;continue} // صنف واحد لوحده، أو كله اتحسب بالحبّة (خيار + طماطم) ← زي ما كان بالظبط
+    const sh=String(+(100/n).toFixed(3));
+    for(let k=i;k<j;k++){
+      const o=items[k],r=calcSeg(sh+" ج "+o.src);
+      if(r&&r.ok){r.src=o.src;r.inSalad=true;r.weak=true;r.notes.push({t:"w",m:"خضار من غير وزن — افترضت طبق ١٠٠ جم مقسوم بالتساوي ("+n+" أنواع)"});items[k]=r}
+    }
+    i=j;
+  }
   for(let i=0;i<items.length;i++){
     const L=items[i];if(!isSalLead(L))continue;
     const F=[];for(let j=i+1;j<items.length&&isSalFol(items[j]);j++)F.push(j);
