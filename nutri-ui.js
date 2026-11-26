@@ -155,8 +155,20 @@ function nxGenUI(m,ta,box){
     go.disabled=true;out.innerHTML=`<p class="nx-n">جاري التوليد…</p>`;
     setTimeout(()=>{
       let r;
-      try{r=G.generate({meal:$(".g-meal").value,diet:$(".g-diet").value,allergies:al,k,p,c,f,n,only:onlySet(),seed:(Math.random()*1e9)|0,ms:900})}
+      const only=onlySet();
+      try{r=G.generate({meal:$(".g-meal").value,diet:$(".g-diet").value,allergies:al,k,p,c,f,n,only,seed:(Math.random()*1e9)|0,ms:900})}
       catch(e){r={ok:false,error:"حصل خطأ غير متوقع في التوليد."}}
+      /* تحقق نهائي من الالتزام باختيارك: لو أي خيار فيه صنف مش معلّم يتشال من النتيجة ويظهر تنبيه (مايتكتبش في خانة النص) */
+      try{
+        if(r&&r.ok&&only){
+          const bad=r.options.filter(o=>(o.keys||[]).some(x=>x&&!only[x]));
+          if(bad.length){
+            r.options=r.options.filter(o=>!bad.includes(o));
+            r.warnings=(r.warnings||[]).concat("اتشال "+nxN(bad.length)+" خيار فيه صنف خارج اللي اخترته — دوس «إعادة توليد»، ولو اتكرر وسّع الأصناف المعلّمة.");
+            if(!r.options.length){r={ok:false,error:"مفيش خيار التزم بالأصناف المعلّمة. وسّع الاختيار وجرّب تاني."}}
+          }
+        }
+      }catch(e){}
       go.disabled=false;last=r;renderOut(r);
     },40);
   }
