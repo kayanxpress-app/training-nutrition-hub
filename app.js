@@ -668,9 +668,9 @@ function home(){
   h+=pendBanner();
   h+=labBanner();
   h+=pushCard();
-  h+=`<a class="card sec" href="#train"><div class="no">٠١</div><div><h3>التدريب${qBadgeT(qTopics(dt,"ex").concat(qTopics(dt,"se")).concat(qTopics(dt,"bk")))}</h3><p>${ar(dt.sessions.length)} جلسات · ${ar(n)} تمرين بفيديوهات الشرح</p></div><div class="go">‹</div></a>`;
-  h+=`<a class="card sec" href="#food"><div class="no">٠٢</div><div><h3>التغذية${qBadgeT(qTopics(dt,"ml"))}</h3><p>خطة الوجبات والتبادلات الغذائية</p></div><div class="go">‹</div></a>`;
-  h+=`<a class="card sec" href="#supp"><div class="no">٠٣</div><div><h3>التوصيات والمكملات الغذائية${qBadgeT(qTopics(dt,"sp"))}</h3><p>${ar(dt.supp.length)} توصيات</p></div><div class="go">‹</div></a>`;
+  h+=`<a class="card sec" href="#train" onclick="return qGo('train')"><div class="no">٠١</div><div><h3>التدريب${qBadgeT(QSEC.train(dt))}</h3><p>${ar(dt.sessions.length)} جلسات · ${ar(n)} تمرين بفيديوهات الشرح</p></div><div class="go">‹</div></a>`;
+  h+=`<a class="card sec" href="#food" onclick="return qGo('food')"><div class="no">٠٢</div><div><h3>التغذية${qBadgeT(qTopics(dt,"ml"))}</h3><p>خطة الوجبات والتبادلات الغذائية</p></div><div class="go">‹</div></a>`;
+  h+=`<a class="card sec" href="#supp" onclick="return qGo('supp')"><div class="no">٠٣</div><div><h3>التوصيات والمكملات الغذائية${qBadgeT(qTopics(dt,"sp"))}</h3><p>${ar(dt.supp.length)} توصيات</p></div><div class="go">‹</div></a>`;
   h+=measCard();
   h+=labCard();
   if(EDIT()){
@@ -1133,7 +1133,7 @@ function measCard(){
   if(!MOK&&!EDIT())return"";
   const last=MEAS[0],pend=REQS.filter(r=>r.status==="pending").length;
   const sub=!MOK?"محتاجة تفعيل (ملف inbody.sql)":last?`آخر قياس ${dmy(last.taken_on)}${last.weight!=null?" · "+fmtW(last.weight)+" كجم":""}${EDIT()&&pend?" · ⏳ طلب منتظر":""}`:"سجّل وزنك ونتيجة InBody وتابع تطورك";
-  return`<a class="card sec" href="#body"><div class="no">⚖</div><div><h3>القياسات و InBody${qBadge("ms:")}</h3><p>${sub}</p></div><div class="go">‹</div></a>`;
+  return`<a class="card sec" href="#body" onclick="return qGo('body')"><div class="no">⚖</div><div><h3>القياسات و InBody${qBadge("ms:")}</h3><p>${sub}</p></div><div class="go">‹</div></a>`;
 }
 function measPage(){
   hd("القياسات و InBody",EDIT()?"متابعة تطور العميل":"تابع تطورك","home");
@@ -1271,7 +1271,7 @@ function labCard(){
   if(!LOK&&!EDIT())return"";
   const last=LABS[0],pend=LREQS.filter(r=>r.status==="pending").length;
   const sub=!LOK?"محتاجة تفعيل (ملف labs.sql)":last?`آخر نتيجة: ${esc(last.title)} · ${dmy(last.taken_on)}${EDIT()&&pend?" · ⏳ طلب منتظر":""}`:(EDIT()&&pend?"⏳ طلب منتظر":"ارفع نتائج تحاليلك وفحوصاتك وتابعها مع الدكتور");
-  return`<a class="card sec" href="#labs"><div class="no">🧪</div><div><h3>الفحوصات الصحية والمختبر${qBadge("lb:")}</h3><p>${sub}</p></div><div class="go">‹</div></a>`;
+  return`<a class="card sec" href="#labs" onclick="return qGo('labs')"><div class="no">🧪</div><div><h3>الفحوصات الصحية والمختبر${qBadge("lb:")}</h3><p>${sub}</p></div><div class="go">‹</div></a>`;
 }
 function labPage(){
   hd("الفحوصات الصحية والمختبر",EDIT()?"متابعة فحوصات العميل":"تابع فحوصاتك","home");
@@ -2298,7 +2298,7 @@ async function qPurge(topics){
 }
 
 /* ===== المحادثات (ملاحظات الجلسة + استفسر) كلها في جدول item_chat ===== */
-let QC=[],QOK=true,QCID=null,QN=-1,Q_T=0,QOPEN=null,QD={},CHDRAFT={};
+let QC=[],QOK=true,QCID=null,QN=-1,Q_T=0,QOPEN=null,QD={},CHDRAFT={},QGO=null;
 const chMe=()=>EDIT()?"admin":"client";
 const qUniq=a=>{const m=new Map();a.forEach(x=>m.set(x.id,x));return [...m.values()]};
 const qKey=t=>"q:"+CID()+":"+t;
@@ -2322,12 +2322,13 @@ async function qLoad(){
     if(cid!==CID())return false;
     QOK=true;
     const nx=qUniq((data||[]).reverse().concat(QC.filter(m=>m.pending)));
-    const ch=JSON.stringify(nx)!==JSON.stringify(QC);QC=nx;return ch;
+    const ch=JSON.stringify(nx)!==JSON.stringify(QC);QC=nx;navBadges();return ch;
   }catch(e){return false}
 }
 function qMark(t){
   if(document.hidden||!t)return;const me=chMe(),o=QC.filter(m=>m.topic===t&&m.sender!==me).map(qT);
   if(!o.length)return;try{localStorage.setItem(qKey(t),String(Math.max.apply(null,o)))}catch(e){}
+  navBadges();
 }
 function qBubblesOf(ms,emptyTxt){
   const me=chMe();
@@ -2385,6 +2386,62 @@ async function qRefresh(force){
   if(QOPEN)qPaint(false);
   if(!QOPEN&&!busyUI())liveRender();else chatPaint(false);
   if(before>=0&&oth.length>before&&last&&(!QOPEN||QOPEN.t!==last.topic))toast("💬 رسالة جديدة"+(last.label?" عن: "+last.label:""));
+}
+
+/* --- شارات الأقسام + الدخول المباشر لمكان المحادثة (إضافة فقط: مفيش منطق قديم اتغيّر) --- */
+const QSEC={
+  train:d=>qTopics(d,"se").concat(qTopics(d,"ex"),qTopics(d,"bk"),qTopics(d,"rx")),
+  food:d=>qTopics(d,"ml"),
+  supp:d=>qTopics(d,"sp")
+};
+// أقدم رسالة غير مقروءة داخل القسم (نفس شرط العدّاد بالظبط)، أو null لو مفيش
+function qNext(kind){
+  if(!QOK||!ME||(ADMIN&&!VIEW))return null;
+  let inSec;
+  if(kind==="body"||kind==="labs"){const pre=kind==="body"?"ms:":"lb:";inSec=m=>m.topic.startsWith(pre)}
+  else{
+    if(!P||!QSEC[kind])return null;
+    const S=new Set(QSEC[kind](P.data));inSec=m=>S.has(m.topic);
+  }
+  const me=chMe();let best=null;
+  QC.forEach(m=>{
+    if(m.pending||m.sender===me||!inSec(m)||qT(m)<=qSeen(m.topic))return;
+    if(!best||qT(m)<qT(best))best=m;
+  });
+  return best;
+}
+// بيتنادى من ضغطة القسم: لو في رسالة جديدة يدخل على المحادثة ويرجّع false، ولو مفيش يرجّع true فيكمل التنقل العادي
+function qGo(kind){
+  try{
+    if(inqLocked())return true;
+    const m=qNext(kind);if(!m)return true;
+    const h=qUrl(m.topic).replace(/^\.\//,""),k=m.topic.split(":")[0];
+    if(k==="ml"&&P){const dt=P.data,id=m.topic.slice(3),mk=Object.keys(dt.meals||{}).find(x=>(dt.meals[x].oid||[]).includes(id));if(mk)ft=mk}
+    QGO={t:m.topic,l:m.label||""};
+    if(location.hash===h)route();else location.hash=h;
+    return false;
+  }catch(e){QGO=null;return true}
+}
+// بعد ما الصفحة تتعرض: نفتح نافذة المحادثة (أو نعمل سكرول لمحادثة الجلسة الموجودة في الصفحة نفسها)
+function qGoRun(){
+  const g=QGO;if(!g)return;QGO=null;
+  try{
+    if(g.t.startsWith("se:")){
+      const c=document.getElementById("chatlist");
+      if(c){const cd=c.closest(".card")||c;cd.scrollIntoView({block:"center"});c.scrollTop=c.scrollHeight}
+      return;
+    }
+    qOpen({dataset:{t:g.t,l:g.l}});
+  }catch(e){}
+}
+// أرقام الرسائل الجديدة على أزرار الشريط السفلي (التدريب / التغذية / المكملات). زر الإشعارات متلمّسش.
+function navBadges(){
+  const on=!!ME&&!(ADMIN&&!VIEW)&&!!P;
+  ["train","food","supp"].forEach(k=>{
+    const b=document.getElementById("nb-"+k);if(!b)return;
+    let n=0;try{n=on?qUnreadT(QSEC[k](P.data)):0}catch(e){}
+    b.hidden=!n;b.textContent=n?ar(n):"";
+  });
 }
 
 /* --- نافذة «استفسر» --- */
@@ -2638,7 +2695,8 @@ addEventListener("visibilitychange",()=>{
   }
 });
 
-function route(){
+function route(){route0();navBadges();qGoRun()}
+function route0(){
   rtSync();idsFix();
   if(!ME||(ADMIN&&!VIEW))return;
   const r=location.hash.slice(1)||"home",m=/^s([1-9]\d?)$/.exec(r),rh=/^rh([1-9]\d?)$/.exec(r);
