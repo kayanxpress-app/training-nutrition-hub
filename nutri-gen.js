@@ -88,16 +88,19 @@
   add("s", "ld", "قمح سراسين", "g", 10, 60, 200, "wg fib lowgi", {});
   add("s", "ld", "دخن", "g", 10, 60, 220, "fib lowgi", {});
   add("s", "bld", "ذره", "g", 10, 80, 250, "fib", {});
+  add("s", "b", "كورن فليكس", "g", 10, 20, 80, "gl hgi fod", {});
+  add("s", "ld", "بطاطس مشويه", "g", 10, 100, 300, "hgi", {});
   add("s", "ld", "بسله", "g", 10, 100, 300, "fib lowgi fod", {});
 
   /* --- فاكهة --- */
   var FRUITS = [
+    ["تين", "fod fib"], ["برقوق", "fod lowgi"], ["توت", "lcf bry lowgi"], ["بابايا", "vc lowgi"], ["كريز", "fod lowgi"],
     ["تفاح", "fod lowgi ldl fib"], ["برتقال", "vc acid lowgi ldl"], ["يوسفي", "vc acid lowgi"], ["جريب فروت", "vc acid lowgi gfr"],
     ["عنب", "hgi fod"], ["فراوله", "vc lcf bry lowgi"], ["توت ازرق", "lcf bry lowgi"], ["توت احمر", "lcf bry lowgi"], ["بطيخ", "hgi fod"],
     ["شمام", "vc"], ["مانجو", "hgi fod vc"], ["اناناس", "vc acid"], ["خوخ", "fod lowgi"], ["مشمش", "fod"], ["كمثري", "fod lowgi ldl fib"],
     ["كيوي", "vc lowgi"], ["رمان", ""], ["جوافه", "vc lowgi fib"], ["موز", "hgi"]
   ];
-  var FMAX = { "تفاح": 200, "برتقال": 200, "يوسفي": 200, "جريب فروت": 200, "عنب": 150, "فراوله": 200, "توت ازرق": 150, "توت احمر": 150, "بطيخ": 250, "شمام": 250, "مانجو": 150, "اناناس": 200, "خوخ": 200, "مشمش": 150, "كمثري": 200, "كيوي": 150, "رمان": 120, "جوافه": 150, "موز": 120 };
+  var FMAX = { "تفاح": 200, "برتقال": 200, "يوسفي": 200, "جريب فروت": 200, "عنب": 150, "فراوله": 200, "توت ازرق": 150, "توت احمر": 150, "بطيخ": 250, "شمام": 250, "مانجو": 150, "اناناس": 200, "خوخ": 200, "مشمش": 150, "كمثري": 200, "كيوي": 150, "رمان": 120, "جوافه": 150, "موز": 120, "تين": 150, "برقوق": 180, "توت": 150, "بابايا": 200, "كريز": 150 };
   FRUITS.forEach(function (f) { add("fr", "bld", f[0], "g", 10, 50, FMAX[f[0]] || 180, f[1], {}); });
 
   /* --- دهون صحية فقط (مفيش زبدة/سمن/مايونيز/كريمة/جوز هند) --- */
@@ -108,6 +111,7 @@
   add("f", "bld", "فستق", "g", 5, 5, 40, "nut fod hcf", {});
   add("f", "bld", "بندق", "g", 5, 5, 40, "nut", {});
   add("f", "bld", "بيكان", "g", 5, 5, 40, "nut", {});
+  add("f", "bld", "ماكاداميا", "g", 5, 5, 30, "nut", {});
   add("f", "bld", "جوز برازيلي", "g", 5, 5, 25, "nut", {});
   add("f", "bld", "افوكادو", "g", 10, 20, 150, "mufa ldl fod", {});
   add("f", "ld", "زيتون", "g", 10, 20, 80, "mufa hna", {});
@@ -406,25 +410,32 @@
     if (useG.f && pool.f.length < N) warnings.push("أنواع الدهون المتاحة (" + ar(pool.f.length) + ") أقل من عدد الخيارات.");
 
     var useF2 = !!diet.fat2 && pool.f.length > 1, slots = ["p1"]; if (pool.p2.length) slots.push("p2"); ["s", "fr", "f", "d"].forEach(function (g) { if (useG[g]) slots.push(g); }); if (useF2) slots.push("f2");
+    /* تنويع الشكل: بعض الخيارات ممكن تستغنى عن فاكهة/دهون/ألبان (والخضار في الفطار) طالما الأرقام متظبطة */
+    var DROPS = []; ["fr", "f", "d"].forEach(function (g) { if (useG[g] && !(g === "f" && diet.fat2)) DROPS.push(g); });
+    if (meal === "b" && salads) DROPS.push("v");
+    var maxDrop = N >= 4 ? Math.max(1, Math.floor(N / 3)) : 0;
+    function nulls(stt, g) { var n = 0; stt.forEach(function (op) { if (g === "v" ? op.nv : !op[g]) n++; }); return n; }
     var cache = {};
-    function optKey(op, i) { return [op.p1.id, op.p2 ? op.p2.id : 0, op.s ? op.s.id : 0, op.fr ? op.fr.id : 0, op.f ? op.f.id : 0, op.f2 ? op.f2.id : 0, op.d ? op.d.id : 0, i].join("|"); }
+    function optKey(op, i) { return [op.nv ? 1 : 0, op.p1.id, op.p2 ? op.p2.id : 0, op.s ? op.s.id : 0, op.fr ? op.fr.id : 0, op.f ? op.f.id : 0, op.f2 ? op.f2.id : 0, op.d ? op.d.id : 0, i].join("|"); }
     function solveOpt(op, i) {
       var key = optKey(op, i); if (cache[key]) return cache[key];
-      var vars = [], sv = salads ? salads[i].m : { k: 0, p: 0, c: 0, f: 0 };
+      var vars = [], sv = (salads && !op.nv) ? salads[i].m : { k: 0, p: 0, c: 0, f: 0 };
       ["p1", "p2", "s", "fr", "f", "f2", "d"].forEach(function (sl) {
         var it = op[sl]; if (!it) return; var b = bounds(it, diet);
         vars.push({ sl: sl, it: it, k: it.mu.k * it.step, p: it.mu.p * it.step, c: it.mu.c * it.step, f: it.mu.f * it.step, lo: b[0], hi: b[1] });
       });
       var r = solve(vars, sv, Tg); r.vars = vars; cache[key] = r; return r;
     }
-    function tagsOf(op, i) { var t = []; ["p1", "p2", "s", "fr", "f", "f2", "d"].forEach(function (sl) { if (op[sl]) t = t.concat(op[sl].tags); }); if (salads) t = t.concat(salads[i].tags); return t; }
+    function tagsOf(op, i) { var t = []; ["p1", "p2", "s", "fr", "f", "f2", "d"].forEach(function (sl) { if (op[sl]) t = t.concat(op[sl].tags); }); if (salads && !op.nv) t = t.concat(salads[i].tags); return t; }
     function penalty(st) {
       var c = 0, i, cnt = {};
       for (i = 0; i < st.length; i++) {
         if (st[i].p2) c += 0.12;
         if (st[i].f2) c += 0.12;
         if (i && st[i].fr && st[i].fr === st[i - 1].fr) c += 0.6;
-        if (i && salads && salads[i].style === salads[i - 1].style) c += 0.15;
+        if (i && salads && !st[i].nv && !st[i - 1].nv && salads[i].style === salads[i - 1].style) c += 0.15;
+        if (st[i].p1.tags.indexOf("ses") >= 0 && st[i].f && st[i].f.tags.indexOf("ses") >= 0) c += 1;
+        if (maxDrop) { if (st[i].nv) c += 0.15; ["fr", "f", "d"].forEach(function (g) { if (useG[g] && !st[i][g] && !(g === "f" && diet.fat2)) c += 0.15; }); }
         var tg = tagsOf(st[i], i), seen = {};
         tg.forEach(function (t) { if (seen[t]) return; seen[t] = 1; cnt[t] = (cnt[t] || 0) + 1; if (diet.pen && diet.pen[t]) c += 0.5 * diet.pen[t]; if (diet.bst && diet.bst[t]) c -= 0.3 * diet.bst[t]; });
         var fam = st[i].p1.fam; cnt["fam:" + fam] = (cnt["fam:" + fam] || 0) + 1;
@@ -436,7 +447,18 @@
       Object.keys(c2).forEach(function (k) { if (c2[k] > lim2) c += (c2[k] - lim2) * 1.5; });
       Object.keys(c3).forEach(function (k) { if (c3[k] > lim2 + 1) c += (c3[k] - lim2 - 1) * 0.6; });
       if (diet.cap) Object.keys(diet.cap).forEach(function (t) { if ((cnt[t] || 0) > diet.cap[t]) c += 6 * (cnt[t] - diet.cap[t]); });
-      if (useG.d) { var ny = 0, nm = 0; st.forEach(function (op) { if (op.d.cat === "y") ny++; else nm++; }); var hasY = pool.d.some(function (x) { return x.cat === "y"; }), hasM = pool.d.some(function (x) { return x.cat === "m"; }); if (hasY && hasM && N > 1) c += Math.max(0, Math.abs(ny - nm) - 1) * 3; }
+      if (maxDrop) {
+        var sg = {}; st.forEach(function (op) { sg[(op.s ? "s" : "") + (op.fr ? "r" : "") + (op.f ? "f" : "") + (op.d ? "d" : "") + (op.p2 ? "2" : "") + ((salads && !op.nv) ? "v" : "")] = 1; });
+        c -= 0.35 * Math.min(3, Object.keys(sg).length - 1);
+      }
+      for (var pa = 0; pa < st.length; pa++) for (var pb = pa + 1; pb < st.length; pb++) {
+        var A = st[pa], B = st[pb];
+        if (A.p1 === B.p1 && A.s && A.s === B.s) c += 1.2;
+        else if (A.p1.fam === B.p1.fam && A.s && A.s === B.s) c += 0.3;
+        if (A.fr && A.fr === B.fr) c += 0.3;
+        if (A.f && A.f === B.f) c += 0.25;
+      }
+      if (useG.d) { var ny = 0, nm = 0; st.forEach(function (op) { if (!op.d) return; if (op.d.cat === "y") ny++; else nm++; }); var hasY = pool.d.some(function (x) { return x.cat === "y"; }), hasM = pool.d.some(function (x) { return x.cat === "m"; }); if (hasY && hasM && N > 1) c += Math.max(0, Math.abs(ny - nm) - 1) * 3; }
       return c;
     }
     function total(st) { var t = penalty(st); for (var i = 0; i < st.length; i++) t += solveOpt(st[i], i).cost; return t; }
@@ -470,7 +492,12 @@
       iter++;
       var temp = temp0 * Math.max(0.03, 1 - (Date.now() - t0) / budget);
       var sl = slots[Math.floor(rnd() * slots.length)], i = Math.floor(rnd() * N), nst = st.map(function (x) { return Object.assign({}, x); });
-      if (sl === "f2") {
+      if (maxDrop && DROPS.length && rnd() < 0.2) {
+        var dg = DROPS[Math.floor(rnd() * DROPS.length)];
+        if (dg === "v") { if (!nst[i].nv) { if (nulls(nst, "v") >= maxDrop) continue; nst[i].nv = true; } else nst[i].nv = false; }
+        else if (nst[i][dg]) { if (nulls(nst, dg) >= maxDrop) continue; nst[i][dg] = null; if (dg === "f") nst[i].f2 = null; }
+        else { var rc = pool[dg][Math.floor(rnd() * pool[dg].length)]; if (dg === "f" && nst[i].f2 === rc) nst[i].f2 = null; nst[i][dg] = rc; }
+      } else if (sl === "f2") {
         var fc = [null].concat(pool.f.filter(function (x) { return x !== nst[i].f; }));
         nst[i].f2 = fc[Math.floor(rnd() * fc.length)];
       } else if (sl === "p2") {
@@ -484,7 +511,7 @@
       } else {
         var pl = sl === "p1" ? pool.p1 : pool[sl], cd = pl[Math.floor(rnd() * pl.length)];
         if (cd === nst[i][sl]) continue;
-        if (sl === "d") { if (cd.cat !== nst[i].d.cat) continue; }
+        if (sl === "d") { if (nst[i].d && cd.cat !== nst[i].d.cat) continue; }
         else if (count(nst, sl, cd) >= CAP[sl]) continue;
         nst[i][sl] = cd; if (sl === "p1" && nst[i].p2 && !p2ok(cd, nst[i].p2)) nst[i].p2 = null; if (sl === "f" && nst[i].f2 === cd) nst[i].f2 = null;
       }
@@ -504,7 +531,7 @@
       var parts = [];
       ["p1", "p2"].forEach(function (sl) { if (st[i2][sl] && amt[sl] > 0) parts.push(amountText(st[i2][sl], amt[sl])); });
       if (st[i2].s && amt.s > 0) parts.push(amountText(st[i2].s, amt.s));
-      if (salads) parts.push(salads[i2].text);
+      if (salads && !st[i2].nv) parts.push(salads[i2].text);
       if (st[i2].fr && amt.fr > 0) parts.push(amountText(st[i2].fr, amt.fr));
       if (st[i2].d && amt.d > 0) parts.push(amountText(st[i2].d, amt.d));
       if (st[i2].f && amt.f > 0) parts.push(amountText(st[i2].f, amt.f));
@@ -512,7 +539,7 @@
       var text = parts.join(" + "), r = NXe.calcOpt(text);
       var weak = r.items.filter(function (x) { return !x.ok || x.weak; }).length;
       var ukeys = []; ["p1", "p2", "s", "fr", "f", "f2", "d"].forEach(function (sl) { if (st[i2][sl] && amt[sl] > 0) ukeys.push(st[i2][sl].key); });
-      if (salads && salads[i2].keys) ukeys = ukeys.concat(salads[i2].keys);
+      if (salads && !st[i2].nv && salads[i2].keys) ukeys = ukeys.concat(salads[i2].keys);
       options.push({ keys: ukeys, text: text, k: r.t.k, p: r.t.p, c: r.t.c, f: r.t.f, weak: weak, p1: st[i2].p1.lab, s: st[i2].s ? st[i2].s.lab : "", fr: st[i2].fr ? st[i2].fr.lab : "", f_: st[i2].f ? st[i2].f.lab : "", d: st[i2].d ? st[i2].d.lab : "" });
     }
     function rng2(key) { var v = options.map(function (x) { return x[key]; }); return [Math.min.apply(null, v), Math.max.apply(null, v)]; }
