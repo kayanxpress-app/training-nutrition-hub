@@ -702,11 +702,11 @@ function warmup(i){
   let h=`<div class="card wu"><div class="lbl" style="color:var(--or)">الإحماء والتسخين</div><div class="wus">جهّز عضلاتك قبل التمرين الأساسي</div>`;
   h+=a.map((e,j)=>{
     const k=("w_"+(e.id||j)).replace(/[^\w-]/g,""),m=[e.sets?`${ar(e.sets)} مجموعات`:"",e.reps?`${ar(e.reps)} عدة`:"",e.w?(num.test(e.w)?`${fmtW(e.w)} كجم`:esc(e.w)):""].filter(Boolean);
-    return `<div class="wur ${u[k]?"done":""}" id="u-${k}">${e.url||e.img?`<div class="wuv">${vid(e.url,e.n,"sm",e.img,"wu")}</div>`:""}<div class="wub"><h3>${esc(e.n)}</h3><div class="wuc">${m.map(x=>`<i>${x}</i>`).join("")}</div>${ed(`editWu(${i},${j})`)}</div><button type="button" class="wuk" onclick="tgu('${k}')" aria-label="تم">${u[k]?"✓":""}</button></div>`}).join("");
+    return `<div class="wur ${u[k]?"done":""}" id="u-${k}">${e.url||e.img?`<div class="wuv">${vid(e.url,e.n,"sm",e.img,"wu")}</div>`:""}<div class="wub"><h3>${esc(e.n)}</h3><div class="wuc">${m.map(x=>`<i>${x}</i>`).join("")}</div>${ed(`editWu(${i},${j})`)}</div><button type="button" class="wuk" onclick="tgu('${k}',${i})" aria-label="تم">${u[k]?"✓":""}</button></div>`}).join("");
   if(!a.length)h+=`<div class="wue">لسه مفيش تمارين إحماء في هذه الجلسة</div>`;
   return h+addb(`editWu(${i},-1)`,"إضافة تمرين إحماء")+`</div>`;
 }
-function tgu(k){const l=L();l.u=l.u||{};const c=$("#u-"+k);if(l.u[k]){delete l.u[k];c.classList.remove("done");c.querySelector(".wuk").textContent=""}else{l.u[k]=1;c.classList.add("done");c.querySelector(".wuk").textContent="✓"}save()}
+function tgu(k,si){const l=L();l.u=l.u||{};const c=$("#u-"+k);if(l.u[k]){delete l.u[k];c.classList.remove("done");c.querySelector(".wuk").textContent=""}else{l.u[k]=1;c.classList.add("done");c.querySelector(".wuk").textContent="✓"}save();pushWuDone(k,si)}
 /* ===== بلوكات أساليب التدريب: سوبر ست · تراي ست · جاينت ست · دروب ست · سيركت · EMOM · AMRAP (قوالب جاهزة، وأي أسلوب جديد بيتضاف بنفس الطريقة) =====
    نفس منطق النظام الهرمي: التكرارات من جدول تدرّج الأسبوع، وأوزان الأسبوع الأول بيكتبها المدرب، والباقي بيتحسب (+٥٪ لما التكرارات تقل)، وتقدر تعدّل أي أسبوع يدويًا */
 const BKT={
@@ -865,7 +865,7 @@ function bkPhases(b,k){
   return ph.filter(p=>p.sec>0);
 }
 function bkTimer(i,k){const b=P.data.sessions[i].bk[k];if(!b)return;const ph=bkPhases(b,k);if(ph.length)restSeq(ph)}
-function bkTgl(k){const l=L(),c=$("#c-"+k);if(l.d[k]){delete l.d[k];c.classList.remove("done");c.querySelector(".chk").textContent="تم البلوك"}else{l.d[k]=1;c.classList.add("done");c.querySelector(".chk").textContent="✓ تم البلوك"}save();pushTick(k)}
+function bkTgl(k){const l=L(),c=$("#c-"+k);if(l.d[k]){delete l.d[k];c.classList.remove("done");c.querySelector(".chk").textContent="تم البلوك"}else{l.d[k]=1;c.classList.add("done");c.querySelector(".chk").textContent="✓ تم البلوك"}save();pushTick(k);pushBkDone(k)}
 function bkRe(i){const m=/^s([1-9]\d?)$/.exec(location.hash.slice(1));if(!m||+m[1]-1!==i)return;setTimeout(()=>{const y=window.scrollY;session(i);window.scrollTo(0,y)},0)}
 /* شرح أسلوب التمرين (للعميل) */
 function bkExplain(i,k){
@@ -1037,7 +1037,7 @@ function session(i){
 }
 function setW(k,x,v){const l=L();l.w[k]=l.w[k]||["","",""];l.w[k][x]=v.trim();save()}
 function setNote(i,v){const l=L();l.n=l.n||{};l.n[i]=v.trim();save()}
-function tgl(k){const l=L(),c=$("#c-"+k);if(l.d[k]){delete l.d[k];c.classList.remove("done");c.querySelector(".chk").textContent="تم التمرين"}else{l.d[k]=1;c.classList.add("done");c.querySelector(".chk").textContent="✓ تم"}save();pushTick(k)}
+function tgl(k){const l=L(),c=$("#c-"+k);if(l.d[k]){delete l.d[k];c.classList.remove("done");c.querySelector(".chk").textContent="تم التمرين"}else{l.d[k]=1;c.classList.add("done");c.querySelector(".chk").textContent="✓ تم"}save();pushTick(k);pushExDone(k)}
 function food(){
   const dt=P.data,E=dt.energy||{},fi=dt.info||{};hd("التغذية","القسم الثاني");
   const IC=(l,v)=>`<div class="ic"><span>${l}</span><b class="${v?"":"em"}">${esc(v)||"—"}</b></div>`;
@@ -1070,7 +1070,7 @@ function supp(){
   hd("التوصيات والمكملات","القسم الثالث");const l=L();
   $("#app").innerHTML=P.data.supp.map((s,i)=>`<div class="card sp ${l.s[i]?"done":""}" id="p${i}"><div class="spi">${s.img||yt(s.link)?`<img src="${esc(s.img||yt(s.link))}" alt="" referrerpolicy="no-referrer">`:'<div class="ph">صورة</div>'}</div><div class="spb"><div class="lbl or">SUPPLEMENT · توصية</div><h3>${esc(s.n)}</h3>${s.en?`<div class="e" dir="ltr">${esc(s.en)}</div>`:""}${s.how?`<div class="how">${esc(s.how).replace(/\n/g,"<br>")}</div>`:""}${s.badge?`<span class="bdg">${esc(s.badge)}</span>`:""}${s.warn?`<div class="warn">${esc(s.warn)}</div>`:""}${s.link?`<a class="ih" href="${esc(s.link)}" target="_blank" rel="noopener">${esc(s.ll)||"فتح اللينك"} ↗</a>`:""}<button class="chk" onclick="tsp(${i})">${l.s[i]?"✓ تم اليوم":"تم اليوم"}</button>${qBtn(s.id?"sp:"+s.id:"",s.n)}${ed(`editSup(${i})`)} ${ed(`shareSupp(${i})`,"نسخ لعملاء")}</div></div>`).join("")+addb("editSup(-1)","إضافة مكمل / توصية")+addb("shareSec('supp')","نسخ المكملات كلها لعملاء آخرين")+blocksBlock("supp")+filesBlock("supp");
 }
-function tsp(i){const l=L(),c=$("#p"+i);if(l.s[i]){delete l.s[i];c.classList.remove("done");c.querySelector(".chk").textContent="تم اليوم"}else{l.s[i]=1;c.classList.add("done");c.querySelector(".chk").textContent="✓ تم اليوم"}save()}
+function tsp(i){const l=L(),c=$("#p"+i);if(l.s[i]){delete l.s[i];c.classList.remove("done");c.querySelector(".chk").textContent="تم اليوم"}else{l.s[i]=1;c.classList.add("done");c.querySelector(".chk").textContent="✓ تم اليوم"}save();pushSuppDone(i)}
 function notes(){
   hd("الإشعارات","رسائل من الدكتور");
   $("#app").innerHTML=pushCard()+(NOTIFS.length?NOTIFS.map(n=>`<div class="card nt ${n.read?"":"un"}"><h3>${esc(n.title)}</h3><p style="margin:4px 0">${esc(n.body)}</p><small>${ar(new Date(n.created_at).toLocaleDateString("en-GB"))}</small></div>`).join(""):`<div class="card" style="text-align:center;color:var(--mut)">لا توجد إشعارات حتى الآن</div>`)+(EDIT()?`<button class="btn o" onclick="sendNote('${VIEW.id}')">✉ إرسال إشعار</button>`:"");
@@ -1775,6 +1775,7 @@ function rhTick(k,sec,cid){
   else{box[k]=1;el.classList.add("done");el.querySelector(".chk").textContent="✓ تم"}
   save();
   if(sec==="ex"){pushTick(k);rhDonePush(cid)}
+  pushRhItem(k,sec,cid);
 }
 /* الفعلي (وزن / ثواني / عدّات) لكل مجموعة — بيتخزن في نفس سجل اليوم l.w زي كارت التمرين العادي (مفتاح مستقل بيبدأ بـ r) */
 function rhAct(k,x,v){
@@ -2105,6 +2106,48 @@ function pushTick(k){
     const i=+m[1],s=P.data.sessions[i];
     if(s&&sessTotal(s)&&doneCount(i)>=sessTotal(s)&&once("done"+i))pushAdmin("done",s.t);
   }catch(e){}
+}
+/* إشعار فوري للأدمن لكل ضغطة «تم التمرين» / «تم اليوم» (مرة واحدة لكل عنصر في اليوم، ومفيش إشعار عند التراجع). أي فشل بيتتجاهل ومبيأثرش على الزر. */
+function pushExDone(k){
+  try{
+    if(ADMIN||!L().d[k])return;
+    const m=/^s(\d+)e(\d+)$/.exec(k);if(!m)return;
+    const s=P.data.sessions[+m[1]],e=s&&s.ex&&s.ex[+m[2]];
+    if(e&&e.n&&once("exn"+k))pushAdmin("ex",e.n);
+  }catch(x){}
+}
+function pushBkDone(k){
+  try{
+    if(ADMIN||!L().d[k])return;
+    const m=/^s(\d+)b(\d+)$/.exec(k);if(!m)return;
+    const s=P.data.sessions[+m[1]],b=s&&s.bk&&s.bk[+m[2]];if(!b)return;
+    const T=BKT[b.t]||BKT.ss,names=(b.ex||[]).map(e=>e.n).filter(Boolean).join(" + ");
+    if(once("bkn"+k))pushAdmin("ex",T.l+(names?" · "+names:""));
+  }catch(x){}
+}
+function pushWuDone(k,si){
+  try{
+    if(ADMIN||si==null||!(L().u||{})[k])return;
+    const s=P.data.sessions[+si],a=(s&&s.wu)||[];
+    const e=a.find((x,j)=>("w_"+(x.id||j)).replace(/[^\w-]/g,"")===k);
+    if(e&&e.n&&once("wun"+si+k))pushAdmin("ex","إحماء: "+e.n);
+  }catch(x){}
+}
+function pushRhItem(k,sec,cid){
+  try{
+    if(ADMIN)return;
+    const box=sec==="ex"?L().d:L().u;if(!box||!box[k])return;
+    const c=(P.data.rehab||[]).find(x=>x.id===cid);if(!c)return;
+    const iid=k.slice(("r"+c.id+"_").length),it=(c[sec]||[]).find(x=>String(x.id)===iid);
+    if(it&&it.n&&once("rhn"+k))pushAdmin("ex",it.n);
+  }catch(x){}
+}
+function pushSuppDone(i){
+  try{
+    if(ADMIN||!L().s[i])return;
+    const s=P.data.supp[i];
+    if(s&&s.n&&once("spn"+(s.id||i)))pushAdmin("supp",s.n);
+  }catch(x){}
 }
 function deepClient(){
   try{
