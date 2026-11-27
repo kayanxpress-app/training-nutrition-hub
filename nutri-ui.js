@@ -137,6 +137,7 @@ function nxGenUI(m,ta,box){
     const rg=r.range,sp=r.spread,R=(a,d)=>nxN(a[0],d)+"–"+nxN(a[1],d);
     out.innerHTML=`<div class="nxg-sum">${r.okSpread?"✔":"⚠"} <b>${nxN(r.options.length)}</b> خيارات<br>سعرات ${R(rg.k)} | بروتين ${R(rg.p,1)} | كارب ${R(rg.c,1)} | دهون ${R(rg.f,1)}<br><span class="nx-n">أقصى فرق بين الخيارات: بروتين ${nxN(sp.p,1)} | كارب ${nxN(sp.c,1)} | دهون ${nxN(sp.f,1)} جم | سعرات ${nxN(sp.k)}</span></div>`
       +(r.notes||[]).map(w=>`<p class="nx-n">ℹ ${esc(w)}</p>`).join("")
+      +((r.notes&&r.notes.asked>0)?`<button type="button" class="btn o g-scale">وزّع ${nxN(r.notes.asked)} سعرة على نفس نسب الماكروز</button>`:"")
       +r.warnings.map(w=>`<p class="nx-n w">⚠ ${esc(w)}</p>`).join("")
       +`<details><summary>عرض الخيارات</summary>${r.options.map((o,i)=>`<div class="nxg-op">${nxN(i+1)}) ${esc(o.text)}<small>${nxMac(o)}</small></div>`).join("")}</details>
 <button type="button" class="btn g-use">استخدم هذه الخيارات</button><button type="button" class="btn o g-re">إعادة توليد</button>`;
@@ -147,6 +148,12 @@ function nxGenUI(m,ta,box){
       out.insertAdjacentHTML("afterbegin",`<p class="nx-n">✔ اتكتبت في خانة الخيارات فوق. راجع الحساب واضغط «حفظ» لما تخلص.</p>`);
     };
     out.querySelector(".g-re").onclick=run;
+    const sc=out.querySelector(".g-scale");
+    if(sc)sc.onclick=()=>{
+      const asked=r.notes.asked,x=asked/(r.kUsed||1);
+      setV(".g-p",val(".g-p")*x,1);setV(".g-c",val(".g-c")*x,1);setV(".g-f",val(".g-f")*x,1);setV(".g-k",asked);
+      run();
+    };
   }
   function run(){
     const out=$(".g-out"),go=$(".g-go"),k=val(".g-k"),p=val(".g-p"),c=val(".g-c");
