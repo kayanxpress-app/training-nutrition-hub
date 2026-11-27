@@ -136,6 +136,7 @@ function nxGenUI(m,ta,box){
     if(!r||!r.ok){out.innerHTML=`<p class="nx-n w">⚠ ${esc((r&&r.error)||"تعذر التوليد")}</p>`;return}
     const rg=r.range,sp=r.spread,R=(a,d)=>nxN(a[0],d)+"–"+nxN(a[1],d);
     out.innerHTML=`<div class="nxg-sum">${r.okSpread?"✔":"⚠"} <b>${nxN(r.options.length)}</b> خيارات<br>سعرات ${R(rg.k)} | بروتين ${R(rg.p,1)} | كارب ${R(rg.c,1)} | دهون ${R(rg.f,1)}<br><span class="nx-n">أقصى فرق بين الخيارات: بروتين ${nxN(sp.p,1)} | كارب ${nxN(sp.c,1)} | دهون ${nxN(sp.f,1)} جم | سعرات ${nxN(sp.k)}</span></div>`
+      +(r.notes||[]).map(w=>`<p class="nx-n">ℹ ${esc(w)}</p>`).join("")
       +r.warnings.map(w=>`<p class="nx-n w">⚠ ${esc(w)}</p>`).join("")
       +`<details><summary>عرض الخيارات</summary>${r.options.map((o,i)=>`<div class="nxg-op">${nxN(i+1)}) ${esc(o.text)}<small>${nxMac(o)}</small></div>`).join("")}</details>
 <button type="button" class="btn g-use">استخدم هذه الخيارات</button><button type="button" class="btn o g-re">إعادة توليد</button>`;
@@ -169,6 +170,8 @@ function nxGenUI(m,ta,box){
           }
         }
       }catch(e){}
+      /* لو السعرات اتضبطت على مجموع الماكروز: نحدّث خانة السعرات عشان تبقى الأرقام قدامك هي اللي اتولّد عليها فعلاً */
+      try{if(r&&r.ok&&r.kUsed>0&&Math.round(r.kUsed)!==Math.round(k)){dirtyK=true;setV(".g-k",r.kUsed)}}catch(e){}
       go.disabled=false;last=r;renderOut(r);
     },40);
   }
