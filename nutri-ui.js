@@ -58,7 +58,13 @@ function nxGenCss(){
 .nxg-gh{display:flex;justify-content:space-between;align-items:center;margin-top:12px;font-size:13px;font-weight:800;color:var(--ink)}
 .nxg-l{background:none;border:0;color:var(--pk);font:inherit;font-size:12px;font-weight:800;padding:2px 6px;cursor:pointer}
 .nxg-sum{font-size:13.5px;line-height:1.9;margin-top:4px}
-.nxg-op{border-bottom:1px solid var(--line);padding:7px 0;font-size:13px;line-height:1.7}
+.nxg-op{border-bottom:1px solid var(--line);padding:7px 0;font-size:13px;line-height:1.7;display:flex;gap:10px;align-items:flex-start}
+.nxg-op.on{background:rgba(120,190,40,.10);border-radius:10px}
+.nxg-ot{flex:1;min-width:0}
+.nxg-pk{flex:0 0 auto;width:34px;height:34px;border:2px solid var(--line);background:var(--card);border-radius:10px;font-size:18px;line-height:1;padding:0;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.nxg-pk.on{border-color:var(--pk)}
+.nxg-cnt{margin-top:10px;padding:9px 12px;border-radius:12px;border:1.5px dashed var(--line);font-size:13.5px;font-weight:800;color:var(--ink)}
+.nxg-cnt.done{border-style:solid;border-color:var(--pk);background:rgba(120,190,40,.12)}
 .nxg-op:last-child{border-bottom:0}
 .nxg-op small{display:block;color:var(--mut);font-size:12px}
 .nxg details summary{cursor:pointer;font-size:13px;font-weight:800;color:var(--pk);margin-top:10px}`;
@@ -92,6 +98,7 @@ function nxGenUI(m,ta,box){
   box.before(wrap);
   const $=s=>wrap.querySelector(s),val=s=>num($(s).value);
   let dirtyK=false,al=[],off={},lastCat=null,last=null,opened=false;
+  let picks=[]; /* نصوص الخيارات اللي اخترتها بـ ✅ (اتضافت لخانة الخيارات فوق). الاختيار الفردي بيفضل محفوظ حتى لو عملت إعادة توليد */
   const GROUPS=["p","s","fr","f","d","v"],GN={p:"البروتين",s:"النشويات",fr:"الفاكهة",f:"الدهون",d:"الألبان",v:"الخضار"};
   const setV=(s,v,d)=>{$(s).value=v?nxN(v,d):""};
   function refill(){
@@ -131,6 +138,42 @@ function nxGenUI(m,ta,box){
       dirtyK=true;setV(".g-k",r.avg.k);setV(".g-p",r.avg.p,1);setV(".g-c",r.avg.c,1);setV(".g-f",r.avg.f,1);
     }catch(e){toast("تعذر قراءة الخيارات الحالية")}
   };
+  const tgtN=()=>Math.max(1,Math.min(12,Math.round(val(".g-n"))||7));
+  const taLines=()=>ta.value.split("\n").map(x=>x.trim()).filter(Boolean);
+  const mealName=()=>{const m=(G.MEALS||[]).find(x=>x.id===$(".g-meal").value);return m?m.n:"الوجبة"};
+  /* لو سطر اتمسح من الخانة يدويًا يتشال من المختارة */
+  function syncPicks(){const L=taLines();picks=picks.filter(t=>L.indexOf(t)>=0)}
+  function updCnt(){
+    syncPicks();
+    const n=tgtN(),c=picks.length,el=$(".g-cnt");
+    if(el){
+      el.className="nxg-cnt g-cnt"+(c>=n?" done":"");
+      el.textContent=c>=n?"✅ تم اكتمال اختيار "+nxN(n)+" خيارات "+mealName():"تم اختيار "+nxN(c)+" من "+nxN(n);
+    }
+    wrap.querySelectorAll(".nxg-pk").forEach(b=>{
+      const o=last&&last.options&&last.options[+b.dataset.i],on=!!o&&picks.indexOf(String(o.text).trim())>=0;
+      b.classList.toggle("on",on);b.textContent=on?"✅":"";b.setAttribute("aria-pressed",on?"true":"false");
+      const row=b.closest(".nxg-op");if(row)row.classList.toggle("on",on);
+    });
+  }
+  function togglePick(i){
+    const o=last&&last.options&&last.options[i];if(!o)return;
+    const t=String(o.text).trim();syncPicks();
+    const at=picks.indexOf(t);
+    if(at>=0){
+      const L=ta.value.split("\n"),k=L.findIndex(x=>x.trim()===t);
+      if(k>=0){L.splice(k,1);ta.value=L.join("\n")}
+      picks.splice(at,1);
+    }else{
+      if(picks.length>=tgtN()){toast("اكتمل العدد ("+nxN(tgtN())+"): شيل خيار الأول لو عايز تبدّل");return}
+      const cur=ta.value.replace(/\s+$/,"");
+      ta.value=cur?cur+"\n"+t:t;picks.push(t);
+    }
+    ta.dispatchEvent(new Event("input",{bubbles:true}));
+    updCnt();
+  }
+  ta.addEventListener("input",updCnt);
+  $(".g-n").addEventListener("input",updCnt);
   function renderOut(r){
     const out=$(".g-out");
     if(!r||!r.ok){out.innerHTML=`<p class="nx-n w">⚠ ${esc((r&&r.error)||"تعذر التوليد")}</p>`;return}
@@ -139,11 +182,18 @@ function nxGenUI(m,ta,box){
       +(r.notes||[]).map(w=>`<p class="nx-n">ℹ ${esc(w)}</p>`).join("")
       +((r.notes&&r.notes.asked>0)?`<button type="button" class="btn o g-scale">وزّع ${nxN(r.notes.asked)} سعرة على نفس نسب الماكروز</button>`:"")
       +r.warnings.map(w=>`<p class="nx-n w">⚠ ${esc(w)}</p>`).join("")
-      +`<details><summary>عرض الخيارات</summary>${r.options.map((o,i)=>`<div class="nxg-op">${nxN(i+1)}) ${esc(o.text)}<small>${nxMac(o)}</small></div>`).join("")}</details>
-<button type="button" class="btn g-use">استخدم هذه الخيارات</button><button type="button" class="btn o g-re">إعادة توليد</button>`;
+      +`<div class="nxg-cnt g-cnt"></div><details open><summary>عرض الخيارات</summary><div class="g-ops">${r.options.map((o,i)=>`<div class="nxg-op"><button type="button" class="nxg-pk" data-i="${i}" aria-pressed="false" aria-label="اختيار الخيار ${nxN(i+1)}"></button><div class="nxg-ot">${nxN(i+1)}) ${esc(o.text)}<small>${nxMac(o)}</small></div></div>`).join("")}</div></details>
+<p class="nxg-note">علّم ✅ على الخيار اللي عجبك: بيتضاف فورًا لخانة الخيارات فوق (وبيفضل حتى لو عملت إعادة توليد). بعد ما تخلص دوس «حفظ» العادي.</p>
+<button type="button" class="btn o g-use">استخدم كل الخيارات دي (استبدال)</button><button type="button" class="btn g-re">إعادة توليد</button>`;
+    out.querySelector(".g-ops").onclick=e=>{const b=e.target.closest(".nxg-pk");if(b)togglePick(+b.dataset.i)};
+    updCnt();
     out.querySelector(".g-use").onclick=()=>{
+      syncPicks();
+      if(picks.length&&!confirm("هيتم استبدال الخيارات اللي اخترتها بكل الخيارات دي. متأكد؟"))return;
       ta.value=last.options.map(o=>o.text).join("\n");
+      picks=last.options.map(o=>String(o.text).trim());
       ta.dispatchEvent(new Event("input",{bubbles:true}));
+      updCnt();
       if(sh)sh.scrollTop=0;
       out.insertAdjacentHTML("afterbegin",`<p class="nx-n">✔ اتكتبت في خانة الخيارات فوق. راجع الحساب واضغط «حفظ» لما تخلص.</p>`);
     };
