@@ -58,13 +58,15 @@ function nxGenCss(){
 .nxg-gh{display:flex;justify-content:space-between;align-items:center;margin-top:12px;font-size:13px;font-weight:800;color:var(--ink)}
 .nxg-l{background:none;border:0;color:var(--pk);font:inherit;font-size:12px;font-weight:800;padding:2px 6px;cursor:pointer}
 .nxg-sum{font-size:13.5px;line-height:1.9;margin-top:4px}
-.nxg-op{border-bottom:1px solid var(--line);padding:7px 0;font-size:13px;line-height:1.7;display:flex;gap:10px;align-items:flex-start}
-.nxg-op.on{background:rgba(120,190,40,.10);border-radius:10px}
+.nxg-op{border-bottom:1px solid var(--line);padding:7px 0;font-size:13px;line-height:1.7;display:flex;gap:8px;align-items:flex-start}
 .nxg-ot{flex:1;min-width:0}
-.nxg-pk{flex:0 0 auto;width:34px;height:34px;border:2px solid var(--line);background:var(--card);border-radius:10px;font-size:18px;line-height:1;padding:0;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.nxg-op.on{background:rgba(120,190,40,.10);border-radius:10px}
+.nxg-pk{flex:0 0 auto;width:36px;height:36px;border:2px solid var(--line);background:var(--card);border-radius:10px;font-size:18px;line-height:1;padding:0;cursor:pointer;display:flex;align-items:center;justify-content:center}
 .nxg-pk.on{border-color:var(--pk)}
-.nxg-cnt{margin-top:10px;padding:9px 12px;border-radius:12px;border:1.5px dashed var(--line);font-size:13.5px;font-weight:800;color:var(--ink)}
-.nxg-cnt.done{border-style:solid;border-color:var(--pk);background:rgba(120,190,40,.12)}
+.nxg-pk:disabled:not(.on){opacity:.35;cursor:default}
+.nxg-cnt{position:sticky;top:0;z-index:2;margin-top:10px;padding:8px 10px;border:1.5px solid var(--line);border-radius:12px;background:var(--card);font-size:13px;font-weight:800;color:var(--ink)}
+.nxg-cnt.full{background:var(--pk);border-color:var(--pk);color:#0a1505}
+.nxg-cnt[hidden]{display:none}
 .nxg-op:last-child{border-bottom:0}
 .nxg-op small{display:block;color:var(--mut);font-size:12px}
 .nxg details summary{cursor:pointer;font-size:13px;font-weight:800;color:var(--pk);margin-top:10px}`;
@@ -92,15 +94,49 @@ function nxGenUI(m,ta,box){
 <label>كارب (جم)<input class="g-c" type="text" inputmode="decimal"></label><label>دهون (جم)<input class="g-f" type="text" inputmode="decimal"></label></div>
 <button type="button" class="btn o g-avg">خد الأرقام من متوسط الخيارات الحالية</button>
 <details class="g-fd"><summary>اختيار الأطعمة (اختياري)</summary><p class="nxg-note">الأصناف المضيئة هي اللي هتشتغل عليها. اطفي أي صنف مش عايزه، أو «مسح» ثم اختار اللي عايزه بس.</p><div class="g-foods"></div></details>
+<div class="nxg-cnt g-cnt" hidden></div>
 <button type="button" class="btn g-go">توليد</button>
 <p class="nxg-note">مسودة بتجهزها الأداة من قاعدة الأصناف: راجعها قبل الاعتماد (الميكرونيوترينتس والصوديوم والأدوية خارج حسابها).</p>
 <div class="g-out"></div></div>`;
   box.before(wrap);
   const $=s=>wrap.querySelector(s),val=s=>num($(s).value);
   let dirtyK=false,al=[],off={},lastCat=null,last=null,opened=false;
-  let picks=[]; /* نصوص الخيارات اللي اخترتها بـ ✅ (اتضافت لخانة الخيارات فوق). الاختيار الفردي بيفضل محفوظ حتى لو عملت إعادة توليد */
   const GROUPS=["p","s","fr","f","d","v"],GN={p:"البروتين",s:"النشويات",fr:"الفاكهة",f:"الدهون",d:"الألبان",v:"الخضار"};
   const setV=(s,v,d)=>{$(s).value=v?nxN(v,d):""};
+  /* ===== اختيار خيار خيار (✅) =====
+     كل ✅ بيضيف الخيار لخانة خيارات الوجبة فوق (اللي هي نظام العميل لما تدوس «حفظ»)، ومابيتمسحش لما تعيد التوليد.
+     العدّاد بيتحسب من الخانة نفسها فأي تعديل/مسح يدوي بيتحسب. لما العدد يوصل «عدد الخيارات» بيتقفل التوليد. */
+  let started=false;
+  const wantN=()=>Math.max(1,Math.min(12,Math.round(val(".g-n"))||7));
+  const curOpts=()=>{try{return parseOpts(ta.value)}catch(e){return []}};
+  const mealName=()=>{const x=G.MEALS.find(y=>y.id===$(".g-meal").value);return x?x.n:"الوجبة"};
+  const isFull=()=>started&&curOpts().length>=wantN(); /* القفل بعد أول ✅ بس: لو العميل عنده خيارات قديمة تقدر تولّد وتستبدلها زي الأول */
+  function syncPick(){
+    const n=curOpts().length,w=wantN(),full=started&&n>=w,c=$(".g-cnt"),have=new Set(curOpts());
+    c.hidden=!(n>0||started);c.classList.toggle("full",full);
+    c.textContent=full?`✅ تم اكتمال ${nxN(w)} خيارات ${mealName()} — راجعها فوق واضغط «حفظ»`:started?`تم اختيار ${nxN(n)}/${nxN(w)} من خيارات ${mealName()}`:`الخانة فيها ${nxN(n)} خيار حاليًا`;
+    const go=$(".g-go");if(go&&!go.dataset.busy)go.disabled=full;
+    const re=wrap.querySelector(".g-re");if(re)re.disabled=full;
+    wrap.querySelectorAll(".nxg-pk").forEach(b=>{
+      const o=last&&last.options&&last.options[+b.dataset.i];if(!o)return;
+      const on=have.has(normOpt(o.text));b.classList.toggle("on",on);b.textContent=on?"✅":"";b.setAttribute("aria-pressed",on?"true":"false");b.disabled=full&&!on;const row=b.closest(".nxg-op");if(row)row.classList.toggle("on",on);
+      b.title=on?"اضغط لإزالته من الخيارات":"إضافة الخيار ده للعميل";
+    });
+  }
+  function pick(i){
+    const o=last&&last.options&&last.options[i];if(!o)return;
+    const key=normOpt(o.text),cur=curOpts(),at=cur.indexOf(key);
+    if(at>=0){cur.splice(at,1);ta.value=cur.join("\n");ta.dispatchEvent(new Event("input",{bubbles:true}));syncPick();toast("اتشال من الخيارات");return}
+    if(!started&&cur.length){
+      if(confirm(`الخانة فيها ${nxN(cur.length)} خيار حاليًا.\nموافق = امسح الحالي وابدأ من الصفر بالمختار\nإلغاء = سيبهم وضيف المختار عليهم`))cur.length=0;
+    }
+    started=true;
+    if(cur.length>=wantN()){ta.value=cur.join("\n");syncPick();toast("الخانة فيها العدد المطلوب بالفعل");return}
+    cur.push(key);ta.value=cur.join("\n");ta.dispatchEvent(new Event("input",{bubbles:true}));
+    syncPick();toast(`تمت الإضافة (${nxN(cur.length)}/${nxN(wantN())})`);
+  }
+  ta.addEventListener("input",syncPick);
+  $(".g-n").addEventListener("input",syncPick);
   function refill(){
     const T=G.targets($(".g-meal").value,$(".g-diet").value,plan,dirtyK?val(".g-k"):0);
     setV(".g-k",T.k);setV(".g-p",T.p,1);setV(".g-c",T.c,1);setV(".g-f",T.f,1);
@@ -119,6 +155,7 @@ function nxGenUI(m,ta,box){
   function open(){
     const h=$(".nxg");h.hidden=!h.hidden;
     if(!h.hidden&&!opened){opened=true;refill();renderAl();renderFoods()}
+    syncPick();
   }
   $(".g-open").onclick=open;
   $(".g-meal").onchange=()=>{refill();renderFoods()};
@@ -138,42 +175,6 @@ function nxGenUI(m,ta,box){
       dirtyK=true;setV(".g-k",r.avg.k);setV(".g-p",r.avg.p,1);setV(".g-c",r.avg.c,1);setV(".g-f",r.avg.f,1);
     }catch(e){toast("تعذر قراءة الخيارات الحالية")}
   };
-  const tgtN=()=>Math.max(1,Math.min(12,Math.round(val(".g-n"))||7));
-  const taLines=()=>ta.value.split("\n").map(x=>x.trim()).filter(Boolean);
-  const mealName=()=>{const m=(G.MEALS||[]).find(x=>x.id===$(".g-meal").value);return m?m.n:"الوجبة"};
-  /* لو سطر اتمسح من الخانة يدويًا يتشال من المختارة */
-  function syncPicks(){const L=taLines();picks=picks.filter(t=>L.indexOf(t)>=0)}
-  function updCnt(){
-    syncPicks();
-    const n=tgtN(),c=picks.length,el=$(".g-cnt");
-    if(el){
-      el.className="nxg-cnt g-cnt"+(c>=n?" done":"");
-      el.textContent=c>=n?"✅ تم اكتمال اختيار "+nxN(n)+" خيارات "+mealName():"تم اختيار "+nxN(c)+" من "+nxN(n);
-    }
-    wrap.querySelectorAll(".nxg-pk").forEach(b=>{
-      const o=last&&last.options&&last.options[+b.dataset.i],on=!!o&&picks.indexOf(String(o.text).trim())>=0;
-      b.classList.toggle("on",on);b.textContent=on?"✅":"";b.setAttribute("aria-pressed",on?"true":"false");
-      const row=b.closest(".nxg-op");if(row)row.classList.toggle("on",on);
-    });
-  }
-  function togglePick(i){
-    const o=last&&last.options&&last.options[i];if(!o)return;
-    const t=String(o.text).trim();syncPicks();
-    const at=picks.indexOf(t);
-    if(at>=0){
-      const L=ta.value.split("\n"),k=L.findIndex(x=>x.trim()===t);
-      if(k>=0){L.splice(k,1);ta.value=L.join("\n")}
-      picks.splice(at,1);
-    }else{
-      if(picks.length>=tgtN()){toast("اكتمل العدد ("+nxN(tgtN())+"): شيل خيار الأول لو عايز تبدّل");return}
-      const cur=ta.value.replace(/\s+$/,"");
-      ta.value=cur?cur+"\n"+t:t;picks.push(t);
-    }
-    ta.dispatchEvent(new Event("input",{bubbles:true}));
-    updCnt();
-  }
-  ta.addEventListener("input",updCnt);
-  $(".g-n").addEventListener("input",updCnt);
   function renderOut(r){
     const out=$(".g-out");
     if(!r||!r.ok){out.innerHTML=`<p class="nx-n w">⚠ ${esc((r&&r.error)||"تعذر التوليد")}</p>`;return}
@@ -182,35 +183,36 @@ function nxGenUI(m,ta,box){
       +(r.notes||[]).map(w=>`<p class="nx-n">ℹ ${esc(w)}</p>`).join("")
       +((r.notes&&r.notes.asked>0)?`<button type="button" class="btn o g-scale">وزّع ${nxN(r.notes.asked)} سعرة على نفس نسب الماكروز</button>`:"")
       +r.warnings.map(w=>`<p class="nx-n w">⚠ ${esc(w)}</p>`).join("")
-      +`<div class="nxg-cnt g-cnt"></div><details open><summary>عرض الخيارات</summary><div class="g-ops">${r.options.map((o,i)=>`<div class="nxg-op"><button type="button" class="nxg-pk" data-i="${i}" aria-pressed="false" aria-label="اختيار الخيار ${nxN(i+1)}"></button><div class="nxg-ot">${nxN(i+1)}) ${esc(o.text)}<small>${nxMac(o)}</small></div></div>`).join("")}</div></details>
+      +`<details open><summary>عرض الخيارات</summary>${r.options.map((o,i)=>`<div class="nxg-op"><button type="button" class="nxg-pk" data-i="${i}" aria-pressed="false" aria-label="اختيار الخيار ${nxN(i+1)}"></button><div class="nxg-ot">${nxN(i+1)}) ${esc(o.text)}<small>${nxMac(o)}</small></div></div>`).join("")}</details>
 <p class="nxg-note">علّم ✅ على الخيار اللي عجبك: بيتضاف فورًا لخانة الخيارات فوق (وبيفضل حتى لو عملت إعادة توليد). بعد ما تخلص دوس «حفظ» العادي.</p>
 <button type="button" class="btn o g-use">استخدم كل الخيارات دي (استبدال)</button><button type="button" class="btn g-re">إعادة توليد</button>`;
-    out.querySelector(".g-ops").onclick=e=>{const b=e.target.closest(".nxg-pk");if(b)togglePick(+b.dataset.i)};
-    updCnt();
     out.querySelector(".g-use").onclick=()=>{
-      syncPicks();
-      if(picks.length&&!confirm("هيتم استبدال الخيارات اللي اخترتها بكل الخيارات دي. متأكد؟"))return;
+      const had=curOpts().length;
+      if(had&&!confirm(`هيتم استبدال الخيارات الحالية (${nxN(had)}) بالخيارات دي كلها. متأكد؟`))return;
+      started=false;
       ta.value=last.options.map(o=>o.text).join("\n");
-      picks=last.options.map(o=>String(o.text).trim());
       ta.dispatchEvent(new Event("input",{bubbles:true}));
-      updCnt();
       if(sh)sh.scrollTop=0;
       out.insertAdjacentHTML("afterbegin",`<p class="nx-n">✔ اتكتبت في خانة الخيارات فوق. راجع الحساب واضغط «حفظ» لما تخلص.</p>`);
+      syncPick();
     };
     out.querySelector(".g-re").onclick=run;
+    out.querySelectorAll(".nxg-pk").forEach(b=>{b.onclick=()=>pick(+b.dataset.i)});
     const sc=out.querySelector(".g-scale");
     if(sc)sc.onclick=()=>{
       const asked=r.notes.asked,x=asked/(r.kUsed||1);
       setV(".g-p",val(".g-p")*x,1);setV(".g-c",val(".g-c")*x,1);setV(".g-f",val(".g-f")*x,1);setV(".g-k",asked);
       run();
     };
+    syncPick();
   }
   function run(){
+    if(isFull()){syncPick();return}
     const out=$(".g-out"),go=$(".g-go"),k=val(".g-k"),p=val(".g-p"),c=val(".g-c");
     let n=Math.round(val(".g-n"))||7;n=Math.max(1,Math.min(12,n));$(".g-n").value=ar(n);
     if(!(k>0)){out.innerHTML=`<p class="nx-n w">⚠ اكتب سعرات الوجبة الأول.</p>`;return}
     const f=$(".g-f").value.trim()?val(".g-f"):Math.max(0,(k-4*p-4*c)/9);
-    go.disabled=true;out.innerHTML=`<p class="nx-n">جاري التوليد…</p>`;
+    go.disabled=true;go.dataset.busy="1";out.innerHTML=`<p class="nx-n">جاري التوليد…</p>`;
     setTimeout(()=>{
       let r;
       const only=onlySet();
@@ -229,7 +231,7 @@ function nxGenUI(m,ta,box){
       }catch(e){}
       /* لو السعرات اتضبطت على مجموع الماكروز: نحدّث خانة السعرات عشان تبقى الأرقام قدامك هي اللي اتولّد عليها فعلاً */
       try{if(r&&r.ok&&r.kUsed>0&&Math.round(r.kUsed)!==Math.round(k)){dirtyK=true;setV(".g-k",r.kUsed)}}catch(e){}
-      go.disabled=false;last=r;renderOut(r);
+      delete go.dataset.busy;go.disabled=false;last=r;renderOut(r);
     },40);
   }
   $(".g-go").onclick=run;
